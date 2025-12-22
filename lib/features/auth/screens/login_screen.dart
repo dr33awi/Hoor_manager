@@ -1,11 +1,14 @@
 // lib/features/auth/screens/login_screen.dart
 // شاشة تسجيل الدخول
 
-import 'package:hoor_manager/core/constants/app_constants.dart';
-import 'package:hoor_manager/core/theme/app_theme.dart';
-import 'package:hoor_manager/features/auth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_theme.dart';
+import '../providers/auth_provider.dart';
+import 'register_screen.dart';
+import 'email_verification_screen.dart';
+import 'pending_approval_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
@@ -28,13 +32,13 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _loginWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.signIn(
+    final success = await authProvider.signInWithEmail(
       _emailController.text.trim(),
       _passwordController.text,
     );
@@ -42,8 +46,56 @@ class _LoginScreenState extends State<LoginScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
 
-      if (!success && authProvider.error != null) {
-        _showError(authProvider.error!);
+      if (!success) {
+        // التحقق من نوع الخطأ
+        if (authProvider.errorCode == 'email-not-verified') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  EmailVerificationScreen(email: _emailController.text.trim()),
+            ),
+          );
+        } else if (authProvider.errorCode == 'account-pending') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  PendingApprovalScreen(email: _emailController.text.trim()),
+            ),
+          );
+        } else if (authProvider.error != null) {
+          _showError(authProvider.error!);
+        }
+      }
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.signInWithGoogle();
+
+    if (mounted) {
+      setState(() => _isGoogleLoading = false);
+
+      if (!success) {
+        // التحقق إذا كان حساب جديد في انتظار الموافقة
+        if (authProvider.errorCode == 'account-pending' ||
+            authProvider.errorCode == 'account-pending-new') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PendingApprovalScreen(
+                email: authProvider.pendingVerificationEmail ?? '',
+                isNewAccount: authProvider.errorCode == 'account-pending-new',
+              ),
+            ),
+          );
+        } else if (authProvider.error != null) {
+          _showError(authProvider.error!);
+        }
       }
     }
   }
@@ -120,6 +172,66 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 32),
 
+                        // زر تسجيل الدخول بـ Google
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: _isGoogleLoading || _isLoading
+                                ? null
+                                : _loginWithGoogle,
+                            icon: _isGoogleLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Image.network(
+                                    'https://www.google.com/favicon.ico',
+                                    height: 24,
+                                    width: 24,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.g_mobiledata,
+                                      size: 24,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                            label: Text(
+                              _isGoogleLoading
+                                  ? 'جاري التحميل...'
+                                  : 'تسجيل الدخول بـ Google',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: BorderSide(color: Colors.grey[300]!),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // الفاصل
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey[300])),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(
+                                'أو',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.grey[300])),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
                         // حقل البريد الإلكتروني
                         TextFormField(
                           controller: _emailController,
@@ -174,12 +286,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // زر تسجيل الدخول
+                        // زر تسجيل الدخول بالإيميل
                         SizedBox(
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: _isLoading ? null : _login,
+                            onPressed: _isLoading || _isGoogleLoading
+                                ? null
+                                : _loginWithEmail,
                             child: _isLoading
                                 ? const SizedBox(
                                     height: 24,
@@ -204,6 +318,32 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextButton(
                           onPressed: () => _showForgotPasswordDialog(),
                           child: const Text('نسيت كلمة المرور؟'),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // إنشاء حساب جديد
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'ليس لديك حساب؟',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const RegisterScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                'إنشاء حساب',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

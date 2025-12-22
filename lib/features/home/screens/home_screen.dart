@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/screens/user_management_screen.dart';
 import '../../products/providers/product_provider.dart';
 import '../../products/screens/products_screen.dart';
 import '../../sales/screens/sales_screen.dart';
@@ -52,6 +53,20 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(_getTitle()),
         actions: [
+          // زر إدارة المستخدمين (للمدير فقط)
+          if (authProvider.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.people),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const UserManagementScreen(),
+                  ),
+                );
+              },
+              tooltip: 'إدارة المستخدمين',
+            ),
           // زر تحديث البيانات
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -82,6 +97,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const PopupMenuDivider(),
+              // إدارة المستخدمين (للمدير فقط)
+              if (authProvider.isAdmin)
+                const PopupMenuItem(
+                  value: 'users',
+                  child: Row(
+                    children: [
+                      Icon(Icons.people_outline),
+                      SizedBox(width: 12),
+                      Text('إدارة المستخدمين'),
+                    ],
+                  ),
+                ),
               const PopupMenuItem(
                 value: 'settings',
                 child: Row(
@@ -111,6 +138,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               } else if (value == 'settings') {
                 // TODO: الإعدادات
+              } else if (value == 'users') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const UserManagementScreen(),
+                  ),
+                );
               }
             },
           ),
