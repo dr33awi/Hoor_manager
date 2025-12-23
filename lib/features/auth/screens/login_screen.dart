@@ -1,14 +1,11 @@
 // lib/features/auth/screens/login_screen.dart
-// شاشة تسجيل الدخول
+// شاشة تسجيل الدخول مع عرض رسائل خطأ واضحة
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
-import 'email_verification_screen.dart';
-import 'pending_approval_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
-  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
@@ -32,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _loginWithEmail() async {
+  Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -43,355 +39,88 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text,
     );
 
-    if (mounted) {
-      setState(() => _isLoading = false);
+    setState(() => _isLoading = false);
 
-      if (!success) {
-        _handleLoginError(authProvider);
-      }
+    if (!mounted) return;
+
+    if (!success && authProvider.error != null) {
+      // عرض رسالة الخطأ في Dialog
+      _showErrorDialog(authProvider.error!, authProvider.errorCode);
     }
   }
 
   Future<void> _loginWithGoogle() async {
-    setState(() => _isGoogleLoading = true);
+    setState(() => _isLoading = true);
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.signInWithGoogle();
 
-    if (mounted) {
-      setState(() => _isGoogleLoading = false);
+    setState(() => _isLoading = false);
 
-      if (!success) {
-        _handleLoginError(authProvider);
-      }
+    if (!mounted) return;
+
+    if (!success && authProvider.error != null) {
+      _showErrorDialog(authProvider.error!, authProvider.errorCode);
     }
   }
 
-  void _handleLoginError(AuthProvider authProvider) {
-    final errorCode = authProvider.errorCode;
-    final email = _emailController.text.trim();
+  void _showErrorDialog(String message, String? errorCode) {
+    IconData icon;
+    Color color;
+    String title;
 
     switch (errorCode) {
-      case 'email-not-verified':
-        // البريد غير مفعّل - الانتقال لشاشة التفعيل
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => EmailVerificationScreen(email: email),
-          ),
-        );
-        break;
-
       case 'account-pending':
-      case 'account-pending-new':
-        // الحساب في انتظار موافقة المدير
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PendingApprovalScreen(
-              email: authProvider.pendingVerificationEmail ?? email,
-              isNewAccount: errorCode == 'account-pending-new',
-            ),
-          ),
-        );
+        icon = Icons.hourglass_empty;
+        color = AppTheme.warningColor;
+        title = 'حساب قيد المراجعة';
         break;
-
       case 'account-rejected':
-        // الحساب مرفوض - عرض رسالة مفصلة
-        _showRejectedDialog(authProvider.error ?? 'تم رفض حسابك');
+        icon = Icons.cancel;
+        color = AppTheme.errorColor;
+        title = 'تم رفض الحساب';
         break;
-
       case 'account-disabled':
-        // الحساب معطل
-        _showError('هذا الحساب معطل. تواصل مع المدير للمزيد من المعلومات.');
+        icon = Icons.block;
+        color = AppTheme.grey600;
+        title = 'حساب معطل';
         break;
-
       default:
-        // أي خطأ آخر
-        if (authProvider.error != null) {
-          _showError(authProvider.error!);
-        }
+        icon = Icons.error_outline;
+        color = AppTheme.errorColor;
+        title = 'خطأ في تسجيل الدخول';
     }
-  }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.errorColor,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
-      ),
-    );
-  }
-
-  void _showRejectedDialog(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        icon: Icon(Icons.cancel_outlined, color: AppTheme.errorColor, size: 48),
-        title: const Text('تم رفض الحساب'),
-        content: Text(message, textAlign: TextAlign.center),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 15, height: 1.5),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('حسناً'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // يمكن إضافة منطق للتواصل مع المدير
-            },
-            child: const Text('تواصل مع المدير'),
-          ),
         ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.primaryColor,
-              AppTheme.primaryColor.withOpacity(0.8),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // الشعار
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.store,
-                            size: 64,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // عنوان
-                        Text(
-                          AppConstants.appName,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryColor,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'تسجيل الدخول للمتابعة',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.grey[600]),
-                        ),
-                        const SizedBox(height: 32),
-
-                        // زر تسجيل الدخول بـ Google
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: OutlinedButton.icon(
-                            onPressed: _isGoogleLoading || _isLoading
-                                ? null
-                                : _loginWithGoogle,
-                            icon: _isGoogleLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Image.network(
-                                    'https://www.google.com/favicon.ico',
-                                    height: 24,
-                                    width: 24,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.g_mobiledata,
-                                      size: 24,
-                                      color: Colors.red,
-                                    ),
-                                  ),
-                            label: Text(
-                              _isGoogleLoading
-                                  ? 'جاري التحميل...'
-                                  : 'تسجيل الدخول بـ Google',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              side: BorderSide(color: Colors.grey[300]!),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // الفاصل
-                        Row(
-                          children: [
-                            Expanded(child: Divider(color: Colors.grey[300])),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              child: Text(
-                                'أو',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                            ),
-                            Expanded(child: Divider(color: Colors.grey[300])),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        // حقل البريد الإلكتروني
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textDirection: TextDirection.ltr,
-                          decoration: const InputDecoration(
-                            labelText: 'البريد الإلكتروني',
-                            hintText: 'example@email.com',
-                            prefixIcon: Icon(Icons.email_outlined),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'الرجاء إدخال البريد الإلكتروني';
-                            }
-                            if (!value.contains('@')) {
-                              return 'البريد الإلكتروني غير صالح';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // حقل كلمة المرور
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          decoration: InputDecoration(
-                            labelText: 'كلمة المرور',
-                            prefixIcon: const Icon(Icons.lock_outlined),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'الرجاء إدخال كلمة المرور';
-                            }
-                            if (value.length < 6) {
-                              return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 24),
-
-                        // زر تسجيل الدخول بالإيميل
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading || _isGoogleLoading
-                                ? null
-                                : _loginWithEmail,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    'تسجيل الدخول',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // نسيت كلمة المرور
-                        TextButton(
-                          onPressed: () => _showForgotPasswordDialog(),
-                          child: const Text('نسيت كلمة المرور؟'),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // إنشاء حساب جديد
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'ليس لديك حساب؟',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const RegisterScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                'إنشاء حساب',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -403,21 +132,13 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('استعادة كلمة المرور'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('أدخل بريدك الإلكتروني لإرسال رابط إعادة التعيين'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              textDirection: TextDirection.ltr,
-              decoration: const InputDecoration(
-                labelText: 'البريد الإلكتروني',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-          ],
+        content: TextField(
+          controller: emailController,
+          decoration: const InputDecoration(
+            labelText: 'البريد الإلكتروني',
+            border: OutlineInputBorder(),
+          ),
+          keyboardType: TextInputType.emailAddress,
         ),
         actions: [
           TextButton(
@@ -426,32 +147,215 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (emailController.text.isNotEmpty) {
-                final authProvider = context.read<AuthProvider>();
-                final success = await authProvider.resetPassword(
-                  emailController.text.trim(),
-                );
+              if (emailController.text.trim().isEmpty) return;
+              Navigator.pop(context);
 
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        success
-                            ? 'تم إرسال رابط إعادة التعيين'
-                            : authProvider.error ?? 'حدث خطأ',
-                      ),
-                      backgroundColor: success
-                          ? AppTheme.successColor
-                          : AppTheme.errorColor,
+              final authProvider = context.read<AuthProvider>();
+              final success = await authProvider.resetPassword(
+                emailController.text.trim(),
+              );
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'تم إرسال رابط استعادة كلمة المرور'
+                          : authProvider.error ?? 'حدث خطأ',
                     ),
-                  );
-                }
+                    backgroundColor: success
+                        ? AppTheme.successColor
+                        : AppTheme.errorColor,
+                  ),
+                );
               }
             },
             child: const Text('إرسال'),
           ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 40),
+
+                // الشعار
+                Icon(Icons.store, size: 80, color: AppTheme.primaryColor),
+                const SizedBox(height: 16),
+
+                // العنوان
+                Text(
+                  'مدير هور',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'سجل دخولك للمتابعة',
+                  style: TextStyle(color: AppTheme.grey600),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 40),
+
+                // البريد الإلكتروني
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'البريد الإلكتروني',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'الرجاء إدخال البريد الإلكتروني';
+                    }
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
+                      return 'البريد الإلكتروني غير صالح';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // كلمة المرور
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(
+                    labelText: 'كلمة المرور',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _login(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'الرجاء إدخال كلمة المرور';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+
+                // نسيت كلمة المرور
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: _showForgotPasswordDialog,
+                    child: const Text('نسيت كلمة المرور؟'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // زر تسجيل الدخول
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _login,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'تسجيل الدخول',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // أو
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: AppTheme.grey300)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'أو',
+                        style: TextStyle(color: AppTheme.grey600),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: AppTheme.grey300)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // تسجيل الدخول بـ Google
+                SizedBox(
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _loginWithGoogle,
+                    icon: Image.network(
+                      'https://www.google.com/favicon.ico',
+                      height: 24,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.g_mobiledata),
+                    ),
+                    label: const Text('تسجيل الدخول بـ Google'),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppTheme.grey300),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // إنشاء حساب
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('ليس لديك حساب؟'),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text('إنشاء حساب جديد'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

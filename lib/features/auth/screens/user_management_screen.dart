@@ -90,7 +90,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('قيد الانتظار'),
+                  const Text(
+                    'قيد الانتظار',
+                    style: TextStyle(color: AppTheme.textOnPrimary),
+                  ),
                   if (_pendingUsers.isNotEmpty) ...[
                     const SizedBox(width: 8),
                     Container(
@@ -105,7 +108,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       child: Text(
                         '${_pendingUsers.length}',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppTheme.textOnPrimary,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -115,7 +118,12 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 ],
               ),
             ),
-            const Tab(text: 'جميع المستخدمين'),
+            const Tab(
+              child: Text(
+                'جميع المستخدمين',
+                style: TextStyle(color: AppTheme.textOnPrimary),
+              ),
+            ),
           ],
         ),
         actions: [

@@ -48,7 +48,6 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  /// التحقق من حالة المصادقة
   Future<void> checkAuthStatus() async {
     _isLoading = true;
     notifyListeners();
@@ -69,7 +68,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// تحميل بيانات المستخدم
   Future<void> _loadUserData(String uid) async {
     try {
       final result = await _authService.getUserById(uid);
@@ -77,18 +75,20 @@ class AuthProvider extends ChangeNotifier {
         _currentUser = result.data;
         _authService.setCurrentUser(_currentUser);
 
-        // التحقق من حالة الحساب
         if (_currentUser!.status == 'pending') {
           _errorCode = 'account-pending';
+          _error = 'حسابك قيد المراجعة من قبل المدير';
         } else if (_currentUser!.status == 'rejected') {
           _errorCode = 'account-rejected';
+          _error = _currentUser!.rejectionReason ?? 'تم رفض حسابك';
         } else if (!_currentUser!.isActive) {
           _errorCode = 'account-disabled';
+          _error = 'تم تعطيل حسابك. تواصل مع المدير';
         } else {
           _errorCode = null;
+          _error = null;
         }
       } else {
-        // إنشاء مستخدم جديد
         final firebaseUser = _firebaseAuth.currentUser;
         if (firebaseUser != null) {
           _currentUser = UserModel(
@@ -102,6 +102,8 @@ class AuthProvider extends ChangeNotifier {
           );
           await _authService.createOrUpdateUser(_currentUser!);
           _authService.setCurrentUser(_currentUser);
+          _errorCode = 'account-pending';
+          _error = 'حسابك قيد المراجعة من قبل المدير';
         }
       }
     } catch (e) {
@@ -117,19 +119,68 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _authService.signInWithEmail(email, password);
-      if (result.success) {
-        await _loadUserData(_firebaseAuth.currentUser!.uid);
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _error = result.error;
-        _errorCode = _getErrorCode(result.error);
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      final userResult = await _authService.getUserById(credential.user!.uid);
+
+      if (!userResult.success || userResult.data == null) {
+        await _firebaseAuth.signOut();
+        _error = 'حدث خطأ في تحميل بيانات المستخدم';
         _isLoading = false;
         notifyListeners();
         return false;
       }
+
+      final user = userResult.data!;
+
+      // ✅ التحقق من حالة الحساب وعرض رسالة مناسبة
+      if (user.status == 'pending') {
+        await _firebaseAuth.signOut();
+        _error =
+            '⏳ حسابك قيد المراجعة\n\nيرجى الانتظار حتى يتم تفعيل حسابك من قبل المدير.';
+        _errorCode = 'account-pending';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      if (user.status == 'rejected') {
+        await _firebaseAuth.signOut();
+        final reason = user.rejectionReason ?? 'لم يتم تحديد السبب';
+        _error = '❌ تم رفض حسابك\n\nالسبب: $reason';
+        _errorCode = 'account-rejected';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      if (!user.isActive) {
+        await _firebaseAuth.signOut();
+        _error =
+            '🚫 حسابك معطل\n\nتم تعطيل حسابك من قبل المدير. تواصل معه لمعرفة السبب.';
+        _errorCode = 'account-disabled';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      // ✅ الحساب نشط ومفعل
+      _currentUser = user;
+      _authService.setCurrentUser(_currentUser);
+      _error = null;
+      _errorCode = null;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _error = _getFirebaseErrorMessage(e.code);
+      _errorCode = e.code;
+      _isLoading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
       _error = 'حدث خطأ أثناء تسجيل الدخول';
       _isLoading = false;
@@ -138,7 +189,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// تسجيل الدخول بـ Google
   Future<bool> signInWithGoogle() async {
     _isLoading = true;
     _error = null;
@@ -149,6 +199,28 @@ class AuthProvider extends ChangeNotifier {
       final result = await _authService.signInWithGoogle();
       if (result.success) {
         await _loadUserData(_firebaseAuth.currentUser!.uid);
+
+        if (_currentUser != null && !_currentUser!.isApproved) {
+          await _firebaseAuth.signOut();
+          if (_currentUser!.status == 'pending') {
+            _error =
+                '⏳ حسابك قيد المراجعة\n\nيرجى الانتظار حتى يتم تفعيل حسابك من قبل المدير.';
+            _errorCode = 'account-pending';
+          } else if (_currentUser!.status == 'rejected') {
+            final reason =
+                _currentUser!.rejectionReason ?? 'لم يتم تحديد السبب';
+            _error = '❌ تم رفض حسابك\n\nالسبب: $reason';
+            _errorCode = 'account-rejected';
+          } else {
+            _error = '🚫 حسابك معطل';
+            _errorCode = 'account-disabled';
+          }
+          _currentUser = null;
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+
         _isLoading = false;
         notifyListeners();
         return true;
@@ -166,12 +238,10 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// إنشاء حساب جديد (signUp)
   Future<bool> signUp(String email, String password, String name) async {
     return signUpWithEmail(email, password, name);
   }
 
-  /// إنشاء حساب جديد (signUpWithEmail)
   Future<bool> signUpWithEmail(
     String email,
     String password,
@@ -186,13 +256,13 @@ class AuthProvider extends ChangeNotifier {
       final result = await _authService.signUp(email, password, name);
       if (result.success) {
         _pendingVerificationEmail = email;
-        await _loadUserData(_firebaseAuth.currentUser!.uid);
+        await _firebaseAuth.signOut();
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
         _error = result.error;
-        _errorCode = _getErrorCode(result.error);
+        _errorCode = _getErrorCodeFromMessage(result.error);
         _isLoading = false;
         notifyListeners();
         return false;
@@ -205,7 +275,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// تسجيل الخروج
   Future<void> signOut() async {
     _isLoading = true;
     notifyListeners();
@@ -225,7 +294,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// إعادة تعيين كلمة المرور
   Future<bool> resetPassword(String email) async {
     _isLoading = true;
     _error = null;
@@ -247,7 +315,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// إعادة إرسال رسالة التحقق
   Future<bool> resendVerificationEmail() async {
     _isLoading = true;
     notifyListeners();
@@ -264,7 +331,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// التحقق من تأكيد البريد وتسجيل الدخول
   Future<bool> checkVerificationAndLogin() async {
     _isLoading = true;
     notifyListeners();
@@ -291,7 +357,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// مسح حالة التحقق
   void clearVerificationState() {
     _pendingVerificationEmail = null;
     _needsEmailVerification = false;
@@ -299,19 +364,42 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// مسح الخطأ
   void clearError() {
     _error = null;
     _errorCode = null;
     notifyListeners();
   }
 
-  /// استخراج كود الخطأ من الرسالة
-  String? _getErrorCode(String? errorMessage) {
-    if (errorMessage == null) return null;
-    if (errorMessage.contains('قيد المراجعة')) return 'account-pending';
-    if (errorMessage.contains('رفض')) return 'account-rejected';
-    if (errorMessage.contains('معطل')) return 'account-disabled';
+  String _getFirebaseErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'لا يوجد حساب بهذا البريد الإلكتروني';
+      case 'wrong-password':
+        return 'كلمة المرور غير صحيحة';
+      case 'invalid-credential':
+        return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+      case 'email-already-in-use':
+        return 'البريد الإلكتروني مستخدم بالفعل';
+      case 'weak-password':
+        return 'كلمة المرور ضعيفة جداً';
+      case 'invalid-email':
+        return 'البريد الإلكتروني غير صالح';
+      case 'user-disabled':
+        return 'هذا الحساب معطل';
+      case 'too-many-requests':
+        return 'محاولات كثيرة جداً. حاول لاحقاً';
+      case 'network-request-failed':
+        return 'خطأ في الاتصال بالإنترنت';
+      default:
+        return 'حدث خطأ أثناء تسجيل الدخول';
+    }
+  }
+
+  String? _getErrorCodeFromMessage(String? message) {
+    if (message == null) return null;
+    if (message.contains('قيد المراجعة')) return 'account-pending';
+    if (message.contains('رفض')) return 'account-rejected';
+    if (message.contains('معطل')) return 'account-disabled';
     return null;
   }
 
