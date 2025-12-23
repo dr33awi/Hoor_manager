@@ -100,9 +100,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: isError
-            ? AppColors.error
-            : AppColors.success,
+        backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -137,7 +135,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBg,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -368,7 +366,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: cats.contains(_selectedCategory)
+                            initialValue: cats.contains(_selectedCategory)
                                 ? _selectedCategory
                                 : null,
                             decoration: _inputDeco(
@@ -559,9 +557,9 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       'أخضر': Colors.green,
       'بني': Colors.brown,
       'رمادي': Colors.grey,
-      'بيج': AppColors.beige,
-      'كحلي': AppColors.navy,
-      'عنابي': AppColors.burgundy,
+      'بيج': const Color(0xFFF5F5DC),
+      'كحلي': const Color(0xFF000080),
+      'عنابي': const Color(0xFF800020),
     };
     return colorMap[name] ?? Colors.grey.shade400;
   }
@@ -717,7 +715,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.purple.withValues(alpha: 0.1),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -726,13 +724,13 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                       Icon(
                         Icons.qr_code,
                         size: 14,
-                        color: AppColors.purple,
+                        color: const Color(0xFF8B5CF6),
                       ),
                       const SizedBox(width: 4),
                       const Text(
                         'توليد باركود',
                         style: TextStyle(
-                          color: AppColors.purple,
+                          color: Color(0xFF8B5CF6),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1237,6 +1235,3 @@ class SimpleBarcodePreviewPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
-
-

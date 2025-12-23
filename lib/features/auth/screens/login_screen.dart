@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../../../core/services/business/auth_service.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
-import 'pending_approval_screen.dart';
 import 'email_verification_screen.dart';
 import 'account_status_screen.dart';
 import '../../../core/theme/app_theme.dart';
@@ -192,9 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
         content: Text(
           success ? 'تم إرسال رابط الاستعادة' : authProvider.error ?? 'حدث خطأ',
         ),
-        backgroundColor: success
-            ? AppColors.success
-            : AppColors.error,
+        backgroundColor: success ? AppColors.success : AppColors.error,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -275,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.gray600,
+              color: Color(0xFF4B5563),
             ),
           ),
           const SizedBox(height: 8),
@@ -305,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.gray600,
+              color: Color(0xFF4B5563),
             ),
           ),
           const SizedBox(height: 8),
@@ -400,7 +397,7 @@ class _LoginScreenState extends State<LoginScreen> {
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
       filled: true,
-      fillColor: AppColors.inputFill,
+      fillColor: const Color(0xFFF9FAFB),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -459,7 +456,7 @@ class _LoginScreenState extends State<LoginScreen> {
               errorBuilder: (_, __, ___) => const Icon(
                 Icons.g_mobiledata,
                 size: 22,
-                color: AppColors.google,
+                color: Color(0xFFEA4335),
               ),
             ),
             const SizedBox(width: 10),
@@ -545,7 +542,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.inputFillAlt,
+                  color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -575,7 +572,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                 decoration: InputDecoration(
                   hintText: 'البريد الإلكتروني',
                   filled: true,
-                  fillColor: AppColors.inputFill,
+                  fillColor: const Color(0xFFF9FAFB),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
@@ -598,8 +595,11 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'مطلوب';
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v))
+                  if (!RegExp(
+                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                  ).hasMatch(v)) {
                     return 'بريد غير صالح';
+                  }
                   return null;
                 },
               ),
@@ -674,6 +674,3 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
     );
   }
 }
-
-
-

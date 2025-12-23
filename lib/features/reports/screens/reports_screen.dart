@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../products/providers/product_provider.dart';
 import '../../sales/providers/sale_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/widgets.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -114,13 +115,15 @@ class _ReportsScreenState extends State<ReportsScreen>
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() {
-        if (isStart)
+        if (isStart) {
           _startDate = picked;
-        else
+        } else {
           _endDate = picked;
+        }
       });
+    }
   }
 
   Widget _buildTabs() {
@@ -172,20 +175,20 @@ class _ReportsScreenState extends State<ReportsScreen>
               Row(
                 children: [
                   Expanded(
-                    child: _statCard(
-                      'إجمالي المبيعات',
-                      '${total.toStringAsFixed(0)} ر.س',
-                      Icons.trending_up_rounded,
-                      AppColors.success,
+                    child: StatCard(
+                      title: 'إجمالي المبيعات',
+                      value: '${total.toStringAsFixed(0)} ر.س',
+                      icon: Icons.trending_up_rounded,
+                      color: AppColors.success,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _statCard(
-                      'الفواتير',
-                      '${sales.length}',
-                      Icons.receipt_long_rounded,
-                      AppColors.info,
+                    child: StatCard(
+                      title: 'الفواتير',
+                      value: '${sales.length}',
+                      icon: Icons.receipt_long_rounded,
+                      color: AppColors.info,
                     ),
                   ),
                 ],
@@ -194,20 +197,20 @@ class _ReportsScreenState extends State<ReportsScreen>
               Row(
                 children: [
                   Expanded(
-                    child: _statCard(
-                      'مكتملة',
-                      '$completed',
-                      Icons.check_circle_rounded,
-                      AppColors.success,
+                    child: StatCard(
+                      title: 'مكتملة',
+                      value: '$completed',
+                      icon: Icons.check_circle_rounded,
+                      color: AppColors.success,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _statCard(
-                      'ملغية',
-                      '$cancelled',
-                      Icons.cancel_rounded,
-                      AppColors.error,
+                    child: StatCard(
+                      title: 'ملغية',
+                      value: '$cancelled',
+                      icon: Icons.cancel_rounded,
+                      color: AppColors.error,
                     ),
                   ),
                 ],
@@ -216,7 +219,10 @@ class _ReportsScreenState extends State<ReportsScreen>
               _sectionTitle('تفاصيل المبيعات'),
               const SizedBox(height: 12),
               sales.isEmpty
-                  ? _emptyState(Icons.receipt_long_outlined, 'لا توجد مبيعات')
+                  ? const EmptyState(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'لا توجد مبيعات',
+                    )
                   : ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -316,20 +322,20 @@ class _ReportsScreenState extends State<ReportsScreen>
               Row(
                 children: [
                   Expanded(
-                    child: _statCard(
-                      'المنتجات',
-                      '${products.length}',
-                      Icons.inventory_2_rounded,
-                      AppColors.purple,
+                    child: StatCard(
+                      title: 'المنتجات',
+                      value: '${products.length}',
+                      icon: Icons.inventory_2_rounded,
+                      color: AppColors.purple,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _statCard(
-                      'الفئات',
-                      '${provider.categories.length}',
-                      Icons.category_rounded,
-                      AppColors.info,
+                    child: StatCard(
+                      title: 'الفئات',
+                      value: '${provider.categories.length}',
+                      icon: Icons.category_rounded,
+                      color: AppColors.info,
                     ),
                   ),
                 ],
@@ -464,30 +470,30 @@ class _ReportsScreenState extends State<ReportsScreen>
               Row(
                 children: [
                   Expanded(
-                    child: _statCard(
-                      'إجمالي',
-                      '$total قطعة',
-                      Icons.inventory_rounded,
-                      AppColors.info,
+                    child: StatCard(
+                      title: 'إجمالي',
+                      value: '$total قطعة',
+                      icon: Icons.inventory_rounded,
+                      color: AppColors.info,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _statCard(
-                      'منخفض',
-                      '${low.length}',
-                      Icons.warning_rounded,
-                      AppColors.warning,
+                    child: StatCard(
+                      title: 'منخفض',
+                      value: '${low.length}',
+                      icon: Icons.warning_rounded,
+                      color: AppColors.warning,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              _statCard(
-                'نفذ',
-                '${out.length}',
-                Icons.error_rounded,
-                AppColors.error,
+              StatCard(
+                title: 'نفذ',
+                value: '${out.length}',
+                icon: Icons.error_rounded,
+                color: AppColors.error,
               ),
               if (out.isNotEmpty) ...[
                 const SizedBox(height: 24),
@@ -513,12 +519,14 @@ class _ReportsScreenState extends State<ReportsScreen>
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: (isOut ? AppColors.error : AppColors.warning)
-            .withValues(alpha: 0.05),
+        color: (isOut ? AppColors.error : AppColors.warning).withValues(
+          alpha: 0.05,
+        ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: (isOut ? AppColors.error : AppColors.warning)
-              .withValues(alpha: 0.2),
+          color: (isOut ? AppColors.error : AppColors.warning).withValues(
+            alpha: 0.2,
+          ),
         ),
       ),
       child: Row(
@@ -527,8 +535,9 @@ class _ReportsScreenState extends State<ReportsScreen>
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: (isOut ? AppColors.error : AppColors.warning)
-                  .withValues(alpha: 0.1),
+              color: (isOut ? AppColors.error : AppColors.warning).withValues(
+                alpha: 0.1,
+              ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -576,68 +585,12 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _statCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _sectionTitle(String title) {
     return Align(
       alignment: Alignment.centerRight,
       child: Text(
         title,
         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-
-  Widget _emptyState(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        children: [
-          Icon(icon, size: 48, color: Colors.grey.shade300),
-          const SizedBox(height: 12),
-          Text(text, style: TextStyle(color: Colors.grey.shade500)),
-        ],
       ),
     );
   }
@@ -653,6 +606,3 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 }
-
-
-

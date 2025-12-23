@@ -137,7 +137,7 @@ class AuthProvider extends ChangeNotifier {
         final status = _currentUser!.status;
 
         // إذا لم يكن هناك status أو كان approved/active
-        if (status == null || status == 'approved' || status == 'active') {
+        if (status == 'approved' || status == 'active') {
           if (!_currentUser!.isActive) {
             _state = AuthState.disabled;
           } else {

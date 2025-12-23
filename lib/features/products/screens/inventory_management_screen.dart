@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../providers/product_provider.dart';
 import '../models/product_model.dart';
 import '../widgets/barcode_scanner_widget.dart';
-import '../widgets/barcode_label_dialog.dart';
 import '../../../core/theme/app_theme.dart';
 
 class InventoryManagementScreen extends StatefulWidget {
@@ -40,7 +39,7 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBg,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -677,7 +676,7 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${product.name}',
+              product.name,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             Text(
@@ -854,6 +853,3 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
     );
   }
 }
-
-
-

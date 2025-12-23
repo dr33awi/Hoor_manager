@@ -2,7 +2,6 @@
 // شاشة إنشاء فاتورة جديدة - مع دعم الباركود
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
@@ -1088,9 +1087,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError
-            ? AppColors.error
-            : AppColors.success,
+        backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1417,5 +1414,3 @@ class _ProductSelectorState extends State<_ProductSelector> {
     );
   }
 }
-
-

@@ -14,7 +14,7 @@ class SaleProvider with ChangeNotifier {
   SaleService get _saleService => sl.sales;
 
   List<SaleModel> _sales = [];
-  List<SaleItem> _cartItems = [];
+  final List<SaleItem> _cartItems = [];
   bool _isLoading = false;
   String? _error;
   String _searchQuery = '';

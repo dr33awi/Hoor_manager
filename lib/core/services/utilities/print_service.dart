@@ -339,7 +339,7 @@ class InvoicePrintWidget extends StatelessWidget {
                     ),
                     Expanded(
                       child: Text(
-                        '${item.total.toStringAsFixed(0)}',
+                        item.total.toStringAsFixed(0),
                         style: const TextStyle(fontSize: 12),
                         textAlign: TextAlign.left,
                       ),
