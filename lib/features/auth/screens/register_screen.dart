@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import 'email_verification_screen.dart';
+import 'pending_approval_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -53,13 +54,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (success) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                EmailVerificationScreen(email: _emailController.text.trim()),
-          ),
-        );
+        // تم إنشاء الحساب بنجاح - الانتقال لشاشة تفعيل البريد
+        _showSuccess('تم إنشاء الحساب بنجاح! يرجى تفعيل البريد الإلكتروني');
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  EmailVerificationScreen(email: _emailController.text.trim()),
+            ),
+          );
+        }
       } else if (authProvider.error != null) {
         _showError(authProvider.error!);
       }
@@ -73,17 +79,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (mounted) {
       setState(() => _isGoogleLoading = false);
+
       if (success) {
+        // تم تسجيل الدخول بنجاح
         Navigator.of(context).popUntil((route) => route.isFirst);
-      } else if (authProvider.error != null) {
-        _showError(authProvider.error!);
+      } else {
+        // التحقق من نوع الخطأ
+        final errorCode = authProvider.errorCode;
+
+        if (errorCode == 'account-pending' ||
+            errorCode == 'account-pending-new') {
+          // حساب جديد أو موجود في انتظار الموافقة
+          _showSuccess(
+            errorCode == 'account-pending-new'
+                ? 'تم إنشاء حسابك بنجاح!'
+                : 'حسابك في انتظار الموافقة',
+          );
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PendingApprovalScreen(
+                  email: authProvider.pendingVerificationEmail ?? '',
+                  isNewAccount: errorCode == 'account-pending-new',
+                ),
+              ),
+            );
+          }
+        } else if (errorCode == 'cancelled') {
+          // المستخدم ألغى العملية - لا نعرض خطأ
+        } else if (authProvider.error != null) {
+          _showError(authProvider.error!);
+        }
       }
     }
   }
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.successColor,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -136,6 +185,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         _buildRegisterButton(),
                         const SizedBox(height: 12),
                         _buildLoginLink(),
+                        const SizedBox(height: 16),
+                        _buildInfoNote(),
                       ],
                     ),
                   ),
@@ -179,7 +230,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
+            : Image.network(
+                'https://www.google.com/favicon.ico',
+                height: 24,
+                width: 24,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
+              ),
         label: Text(_isGoogleLoading ? 'جاري التحميل...' : 'التسجيل بـ Google'),
         style: OutlinedButton.styleFrom(
           shape: RoundedRectangleBorder(
@@ -206,13 +263,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildNameField() {
     return TextFormField(
       controller: _nameController,
+      textCapitalization: TextCapitalization.words,
       decoration: const InputDecoration(
         labelText: 'الاسم الكامل',
         prefixIcon: Icon(Icons.person_outlined),
+        hintText: 'أدخل اسمك الكامل',
       ),
-      validator: (v) => v == null || v.length < 3
-          ? 'الاسم يجب أن يكون 3 أحرف على الأقل'
-          : null,
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) {
+          return 'الرجاء إدخال الاسم';
+        }
+        if (v.trim().length < 3) {
+          return 'الاسم يجب أن يكون 3 أحرف على الأقل';
+        }
+        return null;
+      },
     );
   }
 
@@ -224,9 +289,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       decoration: const InputDecoration(
         labelText: 'البريد الإلكتروني',
         prefixIcon: Icon(Icons.email_outlined),
+        hintText: 'example@email.com',
       ),
-      validator: (v) =>
-          v == null || !v.contains('@') ? 'البريد الإلكتروني غير صالح' : null,
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) {
+          return 'الرجاء إدخال البريد الإلكتروني';
+        }
+        if (!v.contains('@') || !v.contains('.')) {
+          return 'البريد الإلكتروني غير صالح';
+        }
+        return null;
+      },
     );
   }
 
@@ -245,10 +318,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
+        helperText: '6 أحرف على الأقل',
       ),
-      validator: (v) => v == null || v.length < 6
-          ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
-          : null,
+      validator: (v) {
+        if (v == null || v.isEmpty) {
+          return 'الرجاء إدخال كلمة المرور';
+        }
+        if (v.length < 6) {
+          return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+        }
+        return null;
+      },
     );
   }
 
@@ -270,25 +350,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
-      validator: (v) =>
-          v != _passwordController.text ? 'كلمتا المرور غير متطابقتين' : null,
+      validator: (v) {
+        if (v == null || v.isEmpty) {
+          return 'الرجاء تأكيد كلمة المرور';
+        }
+        if (v != _passwordController.text) {
+          return 'كلمتا المرور غير متطابقتين';
+        }
+        return null;
+      },
     );
   }
 
   Widget _buildTermsCheckbox() {
     return Row(
       children: [
-        Checkbox(
-          value: _acceptTerms,
-          onChanged: (v) => setState(() => _acceptTerms = v ?? false),
+        SizedBox(
+          height: 24,
+          width: 24,
+          child: Checkbox(
+            value: _acceptTerms,
+            onChanged: (v) => setState(() => _acceptTerms = v ?? false),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
         ),
+        const SizedBox(width: 8),
         Expanded(
           child: GestureDetector(
             onTap: () => setState(() => _acceptTerms = !_acceptTerms),
             child: Text.rich(
               TextSpan(
                 text: 'أوافق على ',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
                 children: [
                   TextSpan(
                     text: 'الشروط والأحكام',
@@ -342,6 +435,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildInfoNote() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.infoColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.infoColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: AppTheme.infoColor, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'بعد التسجيل، ستحتاج لتفعيل بريدك الإلكتروني وانتظار موافقة المدير',
+              style: TextStyle(color: Colors.grey[700], fontSize: 12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

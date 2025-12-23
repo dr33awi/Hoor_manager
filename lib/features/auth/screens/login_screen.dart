@@ -47,26 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
 
       if (!success) {
-        // التحقق من نوع الخطأ
-        if (authProvider.errorCode == 'email-not-verified') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  EmailVerificationScreen(email: _emailController.text.trim()),
-            ),
-          );
-        } else if (authProvider.errorCode == 'account-pending') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  PendingApprovalScreen(email: _emailController.text.trim()),
-            ),
-          );
-        } else if (authProvider.error != null) {
-          _showError(authProvider.error!);
-        }
+        _handleLoginError(authProvider);
       }
     }
   }
@@ -81,22 +62,55 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isGoogleLoading = false);
 
       if (!success) {
-        // التحقق إذا كان حساب جديد في انتظار الموافقة
-        if (authProvider.errorCode == 'account-pending' ||
-            authProvider.errorCode == 'account-pending-new') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PendingApprovalScreen(
-                email: authProvider.pendingVerificationEmail ?? '',
-                isNewAccount: authProvider.errorCode == 'account-pending-new',
-              ),
+        _handleLoginError(authProvider);
+      }
+    }
+  }
+
+  void _handleLoginError(AuthProvider authProvider) {
+    final errorCode = authProvider.errorCode;
+    final email = _emailController.text.trim();
+
+    switch (errorCode) {
+      case 'email-not-verified':
+        // البريد غير مفعّل - الانتقال لشاشة التفعيل
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationScreen(email: email),
+          ),
+        );
+        break;
+
+      case 'account-pending':
+      case 'account-pending-new':
+        // الحساب في انتظار موافقة المدير
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PendingApprovalScreen(
+              email: authProvider.pendingVerificationEmail ?? email,
+              isNewAccount: errorCode == 'account-pending-new',
             ),
-          );
-        } else if (authProvider.error != null) {
+          ),
+        );
+        break;
+
+      case 'account-rejected':
+        // الحساب مرفوض - عرض رسالة مفصلة
+        _showRejectedDialog(authProvider.error ?? 'تم رفض حسابك');
+        break;
+
+      case 'account-disabled':
+        // الحساب معطل
+        _showError('هذا الحساب معطل. تواصل مع المدير للمزيد من المعلومات.');
+        break;
+
+      default:
+        // أي خطأ آخر
+        if (authProvider.error != null) {
           _showError(authProvider.error!);
         }
-      }
     }
   }
 
@@ -106,6 +120,31 @@ class _LoginScreenState extends State<LoginScreen> {
         content: Text(message),
         backgroundColor: AppTheme.errorColor,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showRejectedDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(Icons.cancel_outlined, color: AppTheme.errorColor, size: 48),
+        title: const Text('تم رفض الحساب'),
+        content: Text(message, textAlign: TextAlign.center),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('حسناً'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // يمكن إضافة منطق للتواصل مع المدير
+            },
+            child: const Text('تواصل مع المدير'),
+          ),
+        ],
       ),
     );
   }

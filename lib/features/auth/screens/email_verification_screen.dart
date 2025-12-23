@@ -1,11 +1,13 @@
 // lib/features/auth/screens/email_verification_screen.dart
-// شاشة التحقق من البريد الإلكتروني
+// شاشة التحقق من البريد الإلكتروني - مُصححة
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/logger_service.dart';
 import '../providers/auth_provider.dart';
+import 'pending_approval_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
@@ -67,17 +69,58 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     setState(() => _isChecking = true);
 
     final authProvider = context.read<AuthProvider>();
+
+    AppLogger.d('=== بدء التحقق من تفعيل البريد ===');
+    AppLogger.d('البريد: ${widget.email}');
+
     final success = await authProvider.checkVerificationAndLogin();
+
+    AppLogger.d('نتيجة التحقق: success=$success');
+    AppLogger.d('errorCode: ${authProvider.errorCode}');
+    AppLogger.d('error: ${authProvider.error}');
+    AppLogger.d(
+      'needsEmailVerification: ${authProvider.needsEmailVerification}',
+    );
 
     if (mounted) {
       setState(() => _isChecking = false);
 
       if (success) {
-        // تم التحقق بنجاح - سيتم الانتقال تلقائياً
+        // ✅ تم التحقق بنجاح والحساب موافق عليه
+        AppLogger.i('✅ تم التحقق والدخول بنجاح');
         Navigator.of(context).popUntil((route) => route.isFirst);
-      } else if (authProvider.needsEmailVerification) {
+      } else if (authProvider.errorCode == 'account-pending') {
+        // ✅ تم تفعيل البريد لكن الحساب في انتظار الموافقة
+        AppLogger.i('✅ البريد مفعّل - الحساب في انتظار الموافقة');
+        _showMessage('تم تفعيل البريد بنجاح! ✓', isSuccess: true);
+
+        // انتظار قليل ثم الانتقال
+        await Future.delayed(const Duration(milliseconds: 800));
+
+        if (mounted) {
+          // مسح حالة التحقق
+          authProvider.clearVerificationState();
+
+          // الانتقال لشاشة الانتظار
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PendingApprovalScreen(email: widget.email),
+            ),
+          );
+        }
+      } else if (authProvider.needsEmailVerification ||
+          authProvider.errorCode == 'email-not-verified') {
+        // ❌ البريد لم يتم تفعيله بعد
+        AppLogger.w('❌ البريد لم يتم تفعيله بعد');
         _showMessage('البريد الإلكتروني لم يتم تفعيله بعد', isSuccess: false);
+      } else if (authProvider.errorCode == 'account-rejected') {
+        // ❌ الحساب مرفوض
+        AppLogger.w('❌ الحساب مرفوض');
+        _showMessage(authProvider.error ?? 'تم رفض حسابك', isSuccess: false);
       } else if (authProvider.error != null) {
+        // ❌ خطأ آخر
+        AppLogger.e('❌ خطأ: ${authProvider.error}');
         _showMessage(authProvider.error!, isSuccess: false);
       }
     }
@@ -86,11 +129,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   void _showMessage(String message, {required bool isSuccess}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(
+              isSuccess ? Icons.check_circle : Icons.error,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: isSuccess
             ? AppTheme.successColor
             : AppTheme.errorColor,
         behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: isSuccess ? 2 : 4),
       ),
     );
   }
@@ -170,13 +223,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           children: [
                             Icon(Icons.email, color: AppTheme.primaryColor),
                             const SizedBox(width: 8),
-                            Text(
-                              widget.email,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            Flexible(
+                              child: Text(
+                                widget.email,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                                textDirection: TextDirection.ltr,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              textDirection: TextDirection.ltr,
                             ),
                           ],
                         ),

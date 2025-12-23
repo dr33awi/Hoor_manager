@@ -1,5 +1,5 @@
 // lib/features/auth/providers/auth_provider.dart
-// مزود حالة المصادقة
+// مزود حالة المصادقة - مُصحح
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -54,6 +54,8 @@ class AuthProvider with ChangeNotifier {
 
   /// معالجة تغيير حالة المصادقة
   Future<void> _onAuthStateChanged(User? firebaseUser) async {
+    AppLogger.d('Auth state changed: ${firebaseUser?.email ?? "null"}');
+
     if (firebaseUser == null) {
       _user = null;
       _isLoading = false;
@@ -61,10 +63,16 @@ class AuthProvider with ChangeNotifier {
       return;
     }
 
-    // التحقق من البريد الإلكتروني
-    if (!firebaseUser.emailVerified &&
-        firebaseUser.providerData.any((p) => p.providerId == 'password')) {
+    // التحقق من البريد الإلكتروني (فقط لمستخدمي Email)
+    final isEmailProvider = firebaseUser.providerData.any(
+      (p) => p.providerId == 'password',
+    );
+
+    if (isEmailProvider && !firebaseUser.emailVerified) {
+      AppLogger.d('Email not verified for: ${firebaseUser.email}');
       _needsEmailVerification = true;
+      _pendingVerificationEmail = firebaseUser.email;
+      _user = null;
       _isLoading = false;
       notifyListeners();
       return;
@@ -72,11 +80,48 @@ class AuthProvider with ChangeNotifier {
 
     // جلب بيانات المستخدم
     final result = await _authService.loadCurrentUser();
+
     if (result.success) {
-      _user = result.data;
-      _needsEmailVerification = false;
+      final userData = result.data!;
+      AppLogger.d(
+        'User data loaded: ${userData.name}, status: ${userData.accountStatus}',
+      );
+
+      // التحقق من حالة الحساب
+      if (userData.isPending) {
+        AppLogger.d('Account is pending approval');
+        _error = 'حسابك في انتظار موافقة المدير';
+        _errorCode = 'account-pending';
+        _pendingVerificationEmail = userData.email;
+        _user = null;
+        _needsEmailVerification = false;
+        // تسجيل الخروج
+        await _authService.signOut();
+      } else if (userData.isRejected) {
+        AppLogger.d('Account is rejected');
+        _error = 'تم رفض حسابك: ${userData.rejectionReason ?? "غير محدد"}';
+        _errorCode = 'account-rejected';
+        _user = null;
+        await _authService.signOut();
+      } else if (!userData.isActive) {
+        AppLogger.d('Account is disabled');
+        _error = 'هذا الحساب معطل';
+        _errorCode = 'account-disabled';
+        _user = null;
+        await _authService.signOut();
+      } else {
+        AppLogger.d('Account is approved, logging in');
+        _user = userData;
+        _needsEmailVerification = false;
+        _error = null;
+        _errorCode = null;
+        _pendingVerificationEmail = null;
+        _pendingVerificationPassword = null;
+      }
     } else {
+      AppLogger.e('Failed to load user data: ${result.error}');
       _error = result.error;
+      _errorCode = result.errorCode;
     }
 
     _isLoading = false;
@@ -89,6 +134,7 @@ class AuthProvider with ChangeNotifier {
       'محاولة تسجيل دخول بالإيميل',
       details: {'email': email},
     );
+
     _isLoading = true;
     _error = null;
     _errorCode = null;
@@ -102,19 +148,25 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       _errorCode = null;
       _needsEmailVerification = false;
+      _pendingVerificationEmail = null;
+      _pendingVerificationPassword = null;
       AppLogger.i('✅ تم تسجيل الدخول بنجاح: ${_user?.name}');
     } else {
       _error = result.error;
       _errorCode = result.errorCode;
 
-      // إذا كان البريد غير مُفعّل
+      // حفظ بيانات التحقق حسب نوع الخطأ
       if (result.errorCode == 'email-not-verified') {
         _needsEmailVerification = true;
         _pendingVerificationEmail = email;
         _pendingVerificationPassword = password;
+      } else if (result.errorCode == 'account-pending') {
+        _pendingVerificationEmail = email;
+        _pendingVerificationPassword = password;
+        _needsEmailVerification = false;
       }
 
-      AppLogger.w('❌ فشل تسجيل الدخول', error: result.error);
+      AppLogger.w('❌ فشل تسجيل الدخول: ${result.error} (${result.errorCode})');
     }
 
     _isLoading = false;
@@ -125,6 +177,7 @@ class AuthProvider with ChangeNotifier {
   /// تسجيل الدخول بـ Google
   Future<bool> signInWithGoogle() async {
     AppLogger.userAction('محاولة تسجيل دخول بـ Google');
+
     _isLoading = true;
     _error = null;
     _errorCode = null;
@@ -138,21 +191,22 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       _errorCode = null;
       _needsEmailVerification = false;
+      _pendingVerificationEmail = null;
       AppLogger.i('✅ تم تسجيل الدخول بـ Google بنجاح: ${_user?.name}');
     } else {
       _error = result.error;
       _errorCode = result.errorCode;
 
-      // حفظ البريد للحسابات الجديدة المعلقة
+      // للحسابات الجديدة أو المعلقة
       if (result.errorCode == 'account-pending-new' ||
           result.errorCode == 'account-pending') {
-        // سنحتاج للبريد لعرضه في شاشة الانتظار
-        _pendingVerificationEmail = result.error?.contains('@') == true
-            ? result.error
-            : null;
+        final currentUser = FirebaseAuth.instance.currentUser;
+        _pendingVerificationEmail = currentUser?.email;
       }
 
-      AppLogger.w('❌ فشل تسجيل الدخول بـ Google', error: result.error);
+      AppLogger.w(
+        '❌ فشل تسجيل الدخول بـ Google: ${result.error} (${result.errorCode})',
+      );
     }
 
     _isLoading = false;
@@ -167,6 +221,7 @@ class AuthProvider with ChangeNotifier {
     required String name,
   }) async {
     AppLogger.userAction('إنشاء حساب جديد', details: {'email': email});
+
     _isLoading = true;
     _error = null;
     _errorCode = null;
@@ -180,13 +235,15 @@ class AuthProvider with ChangeNotifier {
 
     if (result.success) {
       _error = null;
-      // لن يتم تسجيل الدخول - يحتاج لتفعيل البريد
+      _errorCode = null;
       _pendingVerificationEmail = email;
       _pendingVerificationPassword = password;
+      _needsEmailVerification = true;
       AppLogger.i('✅ تم إنشاء الحساب - بانتظار تفعيل البريد');
     } else {
       _error = result.error;
-      AppLogger.w('❌ فشل إنشاء الحساب', error: result.error);
+      _errorCode = result.errorCode;
+      AppLogger.w('❌ فشل إنشاء الحساب: ${result.error}');
     }
 
     _isLoading = false;
@@ -224,18 +281,62 @@ class AuthProvider with ChangeNotifier {
 
   /// التحقق من حالة تفعيل البريد وإعادة تسجيل الدخول
   Future<bool> checkVerificationAndLogin() async {
+    AppLogger.d('checkVerificationAndLogin called');
+    AppLogger.d('Email: $_pendingVerificationEmail');
+
     if (_pendingVerificationEmail == null ||
         _pendingVerificationPassword == null) {
       _error = 'لا توجد بيانات للتحقق';
+      _errorCode = 'no-pending-data';
       notifyListeners();
       return false;
     }
 
+    _isLoading = true;
+    _error = null;
+    _errorCode = null;
+    notifyListeners();
+
     // محاولة تسجيل الدخول مرة أخرى
-    return signInWithEmail(
+    final result = await _authService.signInWithEmail(
       _pendingVerificationEmail!,
       _pendingVerificationPassword!,
     );
+
+    AppLogger.d(
+      'Sign in result: success=${result.success}, errorCode=${result.errorCode}',
+    );
+
+    if (result.success) {
+      _user = result.data;
+      _error = null;
+      _errorCode = null;
+      _needsEmailVerification = false;
+      _pendingVerificationEmail = null;
+      _pendingVerificationPassword = null;
+      AppLogger.i('✅ تم التحقق وتسجيل الدخول بنجاح');
+    } else {
+      _error = result.error;
+      _errorCode = result.errorCode;
+
+      AppLogger.d('Login failed with errorCode: ${result.errorCode}');
+
+      // تحديث حالة التحقق من البريد
+      if (result.errorCode == 'email-not-verified') {
+        _needsEmailVerification = true;
+        AppLogger.d('Email still not verified');
+      } else if (result.errorCode == 'account-pending') {
+        // ✅ هذا هو المهم - البريد تم تفعيله لكن الحساب في الانتظار
+        _needsEmailVerification = false;
+        AppLogger.d('Email verified but account pending approval');
+      } else {
+        _needsEmailVerification = false;
+      }
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return result.success;
   }
 
   /// تسجيل الدخول (للتوافق مع الكود القديم)
@@ -254,6 +355,8 @@ class AuthProvider with ChangeNotifier {
     _needsEmailVerification = false;
     _pendingVerificationEmail = null;
     _pendingVerificationPassword = null;
+    _error = null;
+    _errorCode = null;
 
     AppLogger.i('✅ تم تسجيل الخروج');
     _isLoading = false;
@@ -263,10 +366,12 @@ class AuthProvider with ChangeNotifier {
   /// إعادة تعيين كلمة المرور
   Future<bool> resetPassword(String email) async {
     _error = null;
+    _errorCode = null;
     final result = await _authService.resetPassword(email);
 
     if (!result.success) {
       _error = result.error;
+      _errorCode = result.errorCode;
     }
 
     notifyListeners();
@@ -279,6 +384,7 @@ class AuthProvider with ChangeNotifier {
     String newPassword,
   ) async {
     _error = null;
+    _errorCode = null;
     final result = await _authService.changePassword(
       currentPassword,
       newPassword,
@@ -286,6 +392,7 @@ class AuthProvider with ChangeNotifier {
 
     if (!result.success) {
       _error = result.error;
+      _errorCode = result.errorCode;
     }
 
     notifyListeners();
@@ -301,11 +408,13 @@ class AuthProvider with ChangeNotifier {
   }) async {
     if (!isAdmin) {
       _error = 'غير مصرح لك بهذه العملية';
+      _errorCode = 'permission-denied';
       notifyListeners();
       return false;
     }
 
     _error = null;
+    _errorCode = null;
     final result = await _authService.signUp(
       email: email,
       password: password,
@@ -315,6 +424,7 @@ class AuthProvider with ChangeNotifier {
 
     if (!result.success) {
       _error = result.error;
+      _errorCode = result.errorCode;
     }
 
     notifyListeners();
@@ -324,12 +434,14 @@ class AuthProvider with ChangeNotifier {
   /// تحديث اسم المستخدم
   Future<bool> updateUserName(String name) async {
     _error = null;
+    _errorCode = null;
     final result = await _authService.updateUserName(name);
 
     if (result.success) {
       _user = _user?.copyWith(name: name);
     } else {
       _error = result.error;
+      _errorCode = result.errorCode;
     }
 
     notifyListeners();
@@ -341,6 +453,8 @@ class AuthProvider with ChangeNotifier {
     _needsEmailVerification = false;
     _pendingVerificationEmail = null;
     _pendingVerificationPassword = null;
+    _error = null;
+    _errorCode = null;
     notifyListeners();
   }
 
@@ -349,5 +463,16 @@ class AuthProvider with ChangeNotifier {
     _error = null;
     _errorCode = null;
     notifyListeners();
+  }
+
+  /// تحديث بيانات المستخدم من الخادم
+  Future<void> refreshUser() async {
+    if (_user == null) return;
+
+    final result = await _authService.loadCurrentUser();
+    if (result.success) {
+      _user = result.data;
+      notifyListeners();
+    }
   }
 }

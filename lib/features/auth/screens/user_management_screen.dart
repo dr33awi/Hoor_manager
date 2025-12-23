@@ -1,11 +1,14 @@
 // lib/features/auth/screens/user_management_screen.dart
-// شاشة إدارة المستخدمين (للمدير فقط)
+// شاشة إدارة المستخدمين (للمدير فقط) - مُصححة
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/logger_service.dart';
+import '../../../core/constants/app_constants.dart';
 import '../providers/auth_provider.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -22,6 +25,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   List<UserModel> _pendingUsers = [];
   List<UserModel> _allUsers = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -37,17 +41,64 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   }
 
   Future<void> _loadUsers() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-    final pendingResult = await _authService.getPendingUsers();
-    final allResult = await _authService.getAllUsers();
+    try {
+      AppLogger.d('=== جاري تحميل المستخدمين ===');
 
-    if (mounted) {
-      setState(() {
-        if (pendingResult.success) _pendingUsers = pendingResult.data!;
-        if (allResult.success) _allUsers = allResult.data!;
-        _isLoading = false;
-      });
+      // جلب المستخدمين المعلقين مباشرة من Firestore
+      final pendingSnapshot = await FirebaseFirestore.instance
+          .collection(AppConstants.usersCollection)
+          .where('accountStatus', isEqualTo: 'pending')
+          .get();
+
+      AppLogger.d('عدد المستخدمين المعلقين: ${pendingSnapshot.docs.length}');
+
+      // طباعة بيانات كل مستخدم معلق للتشخيص
+      for (var doc in pendingSnapshot.docs) {
+        AppLogger.d(
+          'مستخدم معلق: ${doc.data()['email']} - status: ${doc.data()['accountStatus']}',
+        );
+      }
+
+      // جلب جميع المستخدمين
+      final allSnapshot = await FirebaseFirestore.instance
+          .collection(AppConstants.usersCollection)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      AppLogger.d('عدد جميع المستخدمين: ${allSnapshot.docs.length}');
+
+      if (mounted) {
+        setState(() {
+          _pendingUsers = pendingSnapshot.docs
+              .map((doc) => UserModel.fromMap(doc.id, doc.data()))
+              .toList();
+
+          // ترتيب المستخدمين المعلقين حسب تاريخ الإنشاء
+          _pendingUsers.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          _allUsers = allSnapshot.docs
+              .map((doc) => UserModel.fromMap(doc.id, doc.data()))
+              .toList();
+
+          _isLoading = false;
+        });
+
+        AppLogger.d('تم تحميل ${_pendingUsers.length} مستخدم معلق');
+        AppLogger.d('تم تحميل ${_allUsers.length} مستخدم إجمالي');
+      }
+    } catch (e) {
+      AppLogger.e('خطأ في تحميل المستخدمين', error: e);
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -58,7 +109,16 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     if (!authProvider.isAdmin) {
       return Scaffold(
         appBar: AppBar(title: const Text('غير مصرح')),
-        body: const Center(child: Text('هذه الصفحة للمدير فقط')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text('هذه الصفحة للمدير فقط'),
+            ],
+          ),
+        ),
       );
     }
 
@@ -92,6 +152,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                         style: const TextStyle(
                           color: AppTheme.textOnPrimary,
                           fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -99,24 +160,72 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 ],
               ),
             ),
-            const Tab(
-              child: Text(
-                'جميع المستخدمين',
-                style: TextStyle(color: AppTheme.textOnPrimary),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'جميع المستخدمين',
+                    style: TextStyle(color: AppTheme.textOnPrimary),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_allUsers.length}',
+                      style: const TextStyle(
+                        color: AppTheme.textOnPrimary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadUsers),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadUsers,
+            tooltip: 'تحديث',
+          ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? _buildErrorWidget()
           : TabBarView(
               controller: _tabController,
               children: [_buildPendingList(), _buildAllUsersList()],
             ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
+          const SizedBox(height: 16),
+          Text('حدث خطأ: $_error'),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _loadUsers,
+            icon: const Icon(Icons.refresh),
+            label: const Text('إعادة المحاولة'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -126,11 +235,20 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle_outline, size: 64, color: AppTheme.grey400),
+            Icon(
+              Icons.check_circle_outline,
+              size: 64,
+              color: AppTheme.successColor,
+            ),
             const SizedBox(height: 16),
             Text(
               'لا توجد طلبات في الانتظار',
-              style: TextStyle(color: AppTheme.grey600),
+              style: TextStyle(color: AppTheme.grey600, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'جميع الطلبات تمت معالجتها ✓',
+              style: TextStyle(color: AppTheme.grey400, fontSize: 14),
             ),
           ],
         ),
@@ -173,31 +291,74 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        icon: Icon(Icons.check_circle, color: AppTheme.successColor, size: 48),
         title: const Text('تأكيد الموافقة'),
-        content: Text('هل تريد الموافقة على حساب "${user.name}"؟'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('هل تريد الموافقة على حساب "${user.name}"؟'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.email, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      user.email,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('إلغاء'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.check),
+            label: const Text('موافقة'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.successColor,
             ),
-            child: const Text('موافقة'),
           ),
         ],
       ),
     );
 
     if (confirm == true) {
+      // عرض مؤشر التحميل
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
       final result = await _authService.approveUser(user.id);
+
       if (mounted) {
+        Navigator.pop(context); // إغلاق مؤشر التحميل
+
         if (result.success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('تمت الموافقة على ${user.name}'),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text('تمت الموافقة على ${user.name}'),
+                ],
+              ),
               backgroundColor: AppTheme.successColor,
             ),
           );
@@ -220,18 +381,25 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        icon: Icon(Icons.cancel, color: AppTheme.errorColor, size: 48),
         title: const Text('رفض الحساب'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('سيتم رفض حساب "${user.name}"'),
+            const SizedBox(height: 8),
+            Text(
+              user.email,
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: reasonController,
               decoration: const InputDecoration(
                 labelText: 'سبب الرفض',
-                hintText: 'اختياري',
+                hintText: 'اختياري - سيظهر للمستخدم',
+                border: OutlineInputBorder(),
               ),
               maxLines: 2,
             ),
@@ -242,20 +410,38 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             onPressed: () => Navigator.pop(context),
             child: const Text('إلغاء'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(context);
+
+              // عرض مؤشر التحميل
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) =>
+                    const Center(child: CircularProgressIndicator()),
+              );
+
               final result = await _authService.rejectUser(
                 user.id,
                 reasonController.text.trim().isEmpty
                     ? 'لم يتم تحديد السبب'
                     : reasonController.text.trim(),
               );
+
               if (mounted) {
+                Navigator.pop(context); // إغلاق مؤشر التحميل
+
                 if (result.success) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('تم رفض ${user.name}'),
+                      content: Row(
+                        children: [
+                          const Icon(Icons.info, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text('تم رفض ${user.name}'),
+                        ],
+                      ),
                       backgroundColor: AppTheme.errorColor,
                     ),
                   );
@@ -263,10 +449,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 }
               }
             },
+            icon: const Icon(Icons.close),
+            label: const Text('رفض'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorColor,
             ),
-            child: const Text('رفض'),
           ),
         ],
       ),
@@ -302,6 +489,8 @@ class _PendingUserCard extends StatelessWidget {
     final dateFormatter = DateFormat('dd/MM/yyyy - hh:mm a', 'ar');
 
     return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -309,16 +498,29 @@ class _PendingUserCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                // صورة المستخدم
                 CircleAvatar(
-                  radius: 24,
+                  radius: 28,
+                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                   backgroundImage: user.photoUrl != null
                       ? NetworkImage(user.photoUrl!)
                       : null,
                   child: user.photoUrl == null
-                      ? Text(user.name[0].toUpperCase())
+                      ? Text(
+                          user.name.isNotEmpty
+                              ? user.name[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        )
                       : null,
                 ),
                 const SizedBox(width: 12),
+
+                // معلومات المستخدم
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,6 +532,7 @@ class _PendingUserCard extends StatelessWidget {
                           fontSize: 16,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         user.email,
                         style: TextStyle(color: AppTheme.grey600, fontSize: 14),
@@ -337,53 +540,82 @@ class _PendingUserCard extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                // شارة طريقة التسجيل
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
                     color: user.authProvider == 'google'
-                        ? AppTheme.redColor.withOpacity(0.1)
+                        ? Colors.red.withOpacity(0.1)
                         : AppTheme.primaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    user.authProvider == 'google' ? 'Google' : 'Email',
-                    style: TextStyle(
-                      color: user.authProvider == 'google'
-                          ? AppTheme.redColor
-                          : AppTheme.primaryColor,
-                      fontSize: 12,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        user.authProvider == 'google'
+                            ? Icons.g_mobiledata
+                            : Icons.email_outlined,
+                        size: 16,
+                        color: user.authProvider == 'google'
+                            ? Colors.red
+                            : AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        user.authProvider == 'google' ? 'Google' : 'Email',
+                        style: TextStyle(
+                          color: user.authProvider == 'google'
+                              ? Colors.red
+                              : AppTheme.primaryColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 16, color: AppTheme.grey600),
-                const SizedBox(width: 4),
-                Text(
-                  'التسجيل: ${dateFormatter.format(user.createdAt)}',
-                  style: TextStyle(color: AppTheme.grey600, fontSize: 12),
-                ),
-              ],
+
+            // تاريخ التسجيل
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.access_time, size: 14, color: AppTheme.grey600),
+                  const SizedBox(width: 4),
+                  Text(
+                    'التسجيل: ${dateFormatter.format(user.createdAt)}',
+                    style: TextStyle(color: AppTheme.grey600, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
+
+            // أزرار الإجراءات
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: onReject,
-                    icon: const Icon(Icons.close, color: AppTheme.errorColor),
-                    label: const Text(
-                      'رفض',
-                      style: TextStyle(color: AppTheme.errorColor),
-                    ),
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('رفض'),
                     style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.errorColor,
                       side: const BorderSide(color: AppTheme.errorColor),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
@@ -391,10 +623,11 @@ class _PendingUserCard extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: onApprove,
-                    icon: const Icon(Icons.check),
+                    icon: const Icon(Icons.check, size: 18),
                     label: const Text('موافقة'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.successColor,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
@@ -417,23 +650,34 @@ class _UserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
       child: ListTile(
         onTap: onTap,
         leading: CircleAvatar(
+          backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
           backgroundImage: user.photoUrl != null
               ? NetworkImage(user.photoUrl!)
               : null,
           child: user.photoUrl == null
-              ? Text(user.name[0].toUpperCase())
+              ? Text(
+                  user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
               : null,
         ),
-        title: Text(user.name),
-        subtitle: Text(user.email),
+        title: Text(
+          user.name,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(user.email, style: const TextStyle(fontSize: 12)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildStatusBadge(),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             Icon(Icons.chevron_left, color: AppTheme.grey400),
           ],
         ),
@@ -444,22 +688,28 @@ class _UserCard extends StatelessWidget {
   Widget _buildStatusBadge() {
     Color color;
     String text;
+    IconData icon;
 
     if (user.isPending) {
       color = AppTheme.warningColor;
       text = 'معلق';
+      icon = Icons.hourglass_empty;
     } else if (user.isRejected) {
       color = AppTheme.errorColor;
       text = 'مرفوض';
+      icon = Icons.cancel;
     } else if (!user.isActive) {
       color = AppTheme.grey600;
       text = 'معطل';
+      icon = Icons.block;
     } else if (user.isAdmin) {
       color = AppTheme.primaryColor;
       text = 'مدير';
+      icon = Icons.admin_panel_settings;
     } else {
       color = AppTheme.successColor;
       text = 'نشط';
+      icon = Icons.check_circle;
     }
 
     return Container(
@@ -468,13 +718,20 @@ class _UserCard extends StatelessWidget {
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -497,6 +754,7 @@ class _UserDetailsSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // المقبض
           Container(
             width: 40,
             height: 4,
@@ -506,43 +764,74 @@ class _UserDetailsSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+
+          // صورة المستخدم
           CircleAvatar(
             radius: 40,
+            backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
             backgroundImage: user.photoUrl != null
                 ? NetworkImage(user.photoUrl!)
                 : null,
             child: user.photoUrl == null
                 ? Text(
-                    user.name[0].toUpperCase(),
-                    style: const TextStyle(fontSize: 32),
+                    user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
                   )
                 : null,
           ),
           const SizedBox(height: 16),
+
+          // الاسم
           Text(
             user.name,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           Text(user.email, style: TextStyle(color: Colors.grey[600])),
           const SizedBox(height: 24),
-          _buildInfoRow('الحالة', _getStatusText()),
-          _buildInfoRow('الدور', user.isAdmin ? 'مدير' : 'موظف'),
+
+          // المعلومات
+          _buildInfoRow('الحالة', _getStatusText(), _getStatusColor()),
+          _buildInfoRow('الدور', user.isAdmin ? 'مدير' : 'موظف', null),
           _buildInfoRow(
             'طريقة التسجيل',
             user.authProvider == 'google' ? 'Google' : 'البريد الإلكتروني',
+            null,
           ),
-          _buildInfoRow('تاريخ التسجيل', dateFormatter.format(user.createdAt)),
+          _buildInfoRow(
+            'تاريخ التسجيل',
+            dateFormatter.format(user.createdAt),
+            null,
+          ),
+          if (user.lastLoginAt != null)
+            _buildInfoRow(
+              'آخر دخول',
+              dateFormatter.format(user.lastLoginAt!),
+              null,
+            ),
           if (user.approvedAt != null)
             _buildInfoRow(
               'تاريخ الموافقة',
               dateFormatter.format(user.approvedAt!),
+              null,
             ),
           if (user.rejectionReason != null)
-            _buildInfoRow('سبب الرفض', user.rejectionReason!),
+            _buildInfoRow(
+              'سبب الرفض',
+              user.rejectionReason!,
+              AppTheme.errorColor,
+            ),
+
           const SizedBox(height: 24),
+
+          // الأزرار
           if (!user.isAdmin) ...[
             Row(
               children: [
+                // زر تعطيل/تفعيل
                 if (user.isApproved && user.isActive)
                   Expanded(
                     child: OutlinedButton.icon(
@@ -551,14 +840,16 @@ class _UserDetailsSheet extends StatelessWidget {
                         await authService.deactivateUser(user.id);
                         onUpdate();
                       },
-                      icon: const Icon(Icons.block, color: AppTheme.errorColor),
-                      label: const Text(
-                        'تعطيل',
-                        style: TextStyle(color: AppTheme.errorColor),
+                      icon: const Icon(Icons.block),
+                      label: const Text('تعطيل'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.errorColor,
+                        side: const BorderSide(color: AppTheme.errorColor),
                       ),
                     ),
                   ),
-                if (!user.isActive && user.isApproved) ...[
+
+                if (!user.isActive && user.isApproved)
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () async {
@@ -573,7 +864,8 @@ class _UserDetailsSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                ],
+
+                // أزرار للمستخدمين المعلقين
                 if (user.isPending) ...[
                   Expanded(
                     child: OutlinedButton.icon(
@@ -585,10 +877,11 @@ class _UserDetailsSheet extends StatelessWidget {
                         );
                         onUpdate();
                       },
-                      icon: const Icon(Icons.close, color: AppTheme.errorColor),
-                      label: const Text(
-                        'رفض',
-                        style: TextStyle(color: AppTheme.errorColor),
+                      icon: const Icon(Icons.close),
+                      label: const Text('رفض'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.errorColor,
+                        side: const BorderSide(color: AppTheme.errorColor),
                       ),
                     ),
                   ),
@@ -617,14 +910,17 @@ class _UserDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, String value, Color? valueColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(color: Colors.grey[600])),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(
+            value,
+            style: TextStyle(fontWeight: FontWeight.w500, color: valueColor),
+          ),
         ],
       ),
     );
@@ -635,5 +931,12 @@ class _UserDetailsSheet extends StatelessWidget {
     if (user.isRejected) return 'مرفوض';
     if (!user.isActive) return 'معطل';
     return 'نشط';
+  }
+
+  Color _getStatusColor() {
+    if (user.isPending) return AppTheme.warningColor;
+    if (user.isRejected) return AppTheme.errorColor;
+    if (!user.isActive) return AppTheme.grey600;
+    return AppTheme.successColor;
   }
 }
