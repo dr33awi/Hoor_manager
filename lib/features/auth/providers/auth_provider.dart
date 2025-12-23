@@ -1,494 +1,423 @@
 // lib/features/auth/providers/auth_provider.dart
-// مُصحح - مع دعم التحقق من الإيميل الكامل
+// مزود المصادقة المحسن - مع إدارة حالة أفضل ومعالجة أخطاء موحدة
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../../../core/services/auth_service.dart';
+import 'package:hoor_manager/features/auth/services/auth_service.dart';
 import '../../../core/services/logger_service.dart';
 import '../models/user_model.dart';
+
+/// حالات المصادقة
+enum AuthState {
+  initial, // الحالة الأولية
+  loading, // جاري التحميل
+  authenticated, // مصادق
+  unauthenticated, // غير مصادق
+  needsEmailVerification, // يحتاج تفعيل الإيميل
+  pendingApproval, // ينتظر موافقة المدير
+  rejected, // مرفوض
+  disabled, // معطل
+  error, // خطأ
+}
+
+/// نموذج معلومات الخطأ
+class AuthError {
+  final String message;
+  final AuthErrorType type;
+  final String? code;
+  final bool canRetry;
+  final bool requiresAction;
+
+  const AuthError({
+    required this.message,
+    required this.type,
+    this.code,
+    this.canRetry = true,
+    this.requiresAction = false,
+  });
+
+  /// هل يجب إظهار dialog بدلاً من snackbar؟
+  bool get showAsDialog =>
+      type == AuthErrorType.accountPending ||
+      type == AuthErrorType.accountRejected ||
+      type == AuthErrorType.accountDisabled;
+
+  /// الأيقونة المناسبة للخطأ
+  String get icon {
+    switch (type) {
+      case AuthErrorType.emailNotVerified:
+        return '📧';
+      case AuthErrorType.accountPending:
+        return '⏳';
+      case AuthErrorType.accountRejected:
+        return '❌';
+      case AuthErrorType.accountDisabled:
+        return '🚫';
+      case AuthErrorType.networkError:
+        return '🌐';
+      case AuthErrorType.tooManyRequests:
+        return '⏱️';
+      default:
+        return '⚠️';
+    }
+  }
+}
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
+  // الحالة
+  AuthState _state = AuthState.initial;
   UserModel? _currentUser;
-  bool _isLoading = true;
-  String? _error;
-  String? _errorCode;
-  String? _pendingVerificationEmail;
-  bool _needsEmailVerification = false;
+  AuthError? _lastError;
+  String? _pendingEmail;
   StreamSubscription<User?>? _authSubscription;
 
   // Getters
+  AuthState get state => _state;
   UserModel? get currentUser => _currentUser;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  String? get errorCode => _errorCode;
-  String? get pendingVerificationEmail => _pendingVerificationEmail;
-  bool get needsEmailVerification => _needsEmailVerification;
-  bool get isAuthenticated => _currentUser != null && _currentUser!.isApproved;
-  bool get isAdmin => _currentUser?.role == 'admin';
+  AuthError? get lastError => _lastError;
+  String? get pendingEmail => _pendingEmail;
+  bool get isLoading => _state == AuthState.loading;
+
+  bool get isAuthenticated =>
+      _state == AuthState.authenticated && _currentUser != null;
+
+  bool get needsEmailVerification => _state == AuthState.needsEmailVerification;
+  bool get isPendingApproval => _state == AuthState.pendingApproval;
+
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
   String? get userName => _currentUser?.name;
   String? get userPhoto => _currentUser?.photoUrl;
   bool get isGoogleUser => _currentUser?.isGoogleUser ?? false;
+
+  // للتوافق مع الكود القديم
+  String? get error => _lastError?.message;
+  String? get errorCode => _lastError?.code;
+  bool get needsEmailVerificationLegacy =>
+      _state == AuthState.needsEmailVerification;
+  String? get pendingVerificationEmail => _pendingEmail;
 
   AuthProvider() {
     _init();
   }
 
   void _init() {
-    _authSubscription = _firebaseAuth.authStateChanges().listen((user) async {
-      if (user != null) {
-        await _loadUserData(user.uid);
-      } else {
-        _currentUser = null;
-        _authService.setCurrentUser(null);
-      }
-      _isLoading = false;
-      notifyListeners();
-    });
+    _authSubscription = _firebaseAuth.authStateChanges().listen(_onAuthChanged);
   }
 
-  Future<void> checkAuthStatus() async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final user = _firebaseAuth.currentUser;
-      if (user != null) {
-        await _loadUserData(user.uid);
-      } else {
-        _currentUser = null;
-      }
-    } catch (e) {
-      AppLogger.e('Error checking auth status', error: e);
+  Future<void> _onAuthChanged(User? user) async {
+    if (user != null) {
+      await _loadUserData(user.uid);
+    } else {
       _currentUser = null;
+      _authService.setCurrentUser(null);
+      if (_state != AuthState.needsEmailVerification &&
+          _state != AuthState.pendingApproval) {
+        _state = AuthState.unauthenticated;
+      }
     }
-
-    _isLoading = false;
     notifyListeners();
   }
 
   Future<void> _loadUserData(String uid) async {
     try {
-      final result = await _authService.getUserById(uid);
+      // استخدام الدالة الجديدة التي تدعم الأوفلاين
+      final result = await _authService.getUserDataWithOfflineSupport(uid);
+
       if (result.success && result.data != null) {
         _currentUser = result.data;
         _authService.setCurrentUser(_currentUser);
 
-        if (_currentUser!.status == 'pending') {
-          _errorCode = 'account-pending';
-          _error = 'حسابك قيد المراجعة من قبل المدير';
-        } else if (_currentUser!.status == 'rejected') {
-          _errorCode = 'account-rejected';
-          _error = _currentUser!.rejectionReason ?? 'تم رفض حسابك';
-        } else if (!_currentUser!.isActive) {
-          _errorCode = 'account-disabled';
-          _error = 'تم تعطيل حسابك. تواصل مع المدير';
+        // تحديد الحالة بناءً على بيانات المستخدم
+        final status = _currentUser!.status;
+
+        // إذا لم يكن هناك status أو كان approved/active
+        if (status == null || status == 'approved' || status == 'active') {
+          if (!_currentUser!.isActive) {
+            _state = AuthState.disabled;
+          } else {
+            _state = AuthState.authenticated;
+          }
+        } else if (status == 'pending') {
+          _state = AuthState.pendingApproval;
+        } else if (status == 'rejected') {
+          _state = AuthState.rejected;
         } else {
-          _errorCode = null;
-          _error = null;
+          // أي حالة أخرى نعتبرها authenticated
+          _state = AuthState.authenticated;
         }
+
+        AppLogger.d('✅ تم تحميل بيانات المستخدم: ${_currentUser!.name}');
       } else {
-        final firebaseUser = _firebaseAuth.currentUser;
-        if (firebaseUser != null) {
-          _currentUser = UserModel(
-            id: firebaseUser.uid,
-            email: firebaseUser.email ?? '',
-            name: firebaseUser.displayName ?? 'مستخدم',
-            role: 'employee',
-            status: 'pending',
-            isActive: true,
-            createdAt: DateTime.now(),
-          );
-          await _authService.createOrUpdateUser(_currentUser!);
-          _authService.setCurrentUser(_currentUser);
-          _errorCode = 'account-pending';
-          _error = 'حسابك قيد المراجعة من قبل المدير';
-        }
+        _state = AuthState.unauthenticated;
       }
     } catch (e) {
-      AppLogger.e('Error loading user data', error: e);
+      AppLogger.e('خطأ في تحميل بيانات المستخدم', error: e);
+
+      // محاولة استخدام البيانات المحلية في حالة الخطأ
+      final cachedUser = await _authService.getCachedUserData();
+      if (cachedUser != null && cachedUser.id == uid) {
+        _currentUser = cachedUser;
+        _authService.setCurrentUser(_currentUser);
+        _state = AuthState.authenticated;
+        AppLogger.i('📱 تم استخدام البيانات المحلية');
+      } else {
+        _state = AuthState.error;
+      }
     }
   }
 
-  /// تسجيل الدخول بالبريد وكلمة المرور
+  /// ==================== تسجيل الدخول بالإيميل ====================
   Future<bool> signInWithEmail(String email, String password) async {
-    _isLoading = true;
-    _error = null;
-    _errorCode = null;
-    notifyListeners();
+    _setLoading();
 
-    try {
-      final credential = await _firebaseAuth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
+    final result = await _authService.signInWithEmail(email, password);
 
-      // ✅ التحقق من تفعيل الإيميل أولاً
-      if (!credential.user!.emailVerified) {
-        _error =
-            '📧 يرجى تفعيل بريدك الإلكتروني أولاً\n\nتحقق من صندوق الوارد أو مجلد السبام';
-        _errorCode = 'email-not-verified';
-        _pendingVerificationEmail = email;
-        _needsEmailVerification = true;
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
+    AppLogger.d('📧 signInWithEmail result: success=${result.success}');
+    AppLogger.d('📧 result.errorMessage: ${result.errorMessage}');
+    AppLogger.d('📧 result.errorType: ${result.errorType}');
 
-      final userResult = await _authService.getUserById(credential.user!.uid);
-
-      if (!userResult.success || userResult.data == null) {
-        await _firebaseAuth.signOut();
-        _error = 'حدث خطأ في تحميل بيانات المستخدم';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      final user = userResult.data!;
-
-      // ✅ التحقق من حالة الحساب
-      if (user.status == 'pending') {
-        await _firebaseAuth.signOut();
-        _error =
-            '⏳ حسابك قيد المراجعة\n\nيرجى الانتظار حتى يتم تفعيل حسابك من قبل المدير.';
-        _errorCode = 'account-pending';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      if (user.status == 'rejected') {
-        await _firebaseAuth.signOut();
-        final reason = user.rejectionReason ?? 'لم يتم تحديد السبب';
-        _error = '❌ تم رفض حسابك\n\nالسبب: $reason';
-        _errorCode = 'account-rejected';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      if (!user.isActive) {
-        await _firebaseAuth.signOut();
-        _error =
-            '🚫 حسابك معطل\n\nتم تعطيل حسابك من قبل المدير. تواصل معه لمعرفة السبب.';
-        _errorCode = 'account-disabled';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // ✅ الحساب نشط ومفعل
-      _currentUser = user;
-      _authService.setCurrentUser(_currentUser);
-      _error = null;
-      _errorCode = null;
-      _needsEmailVerification = false;
-      _isLoading = false;
+    if (result.success) {
+      _currentUser = result.data;
+      _state = AuthState.authenticated;
+      _clearError();
       notifyListeners();
       return true;
-    } on FirebaseAuthException catch (e) {
-      AppLogger.e('❌ FirebaseAuthException: ${e.code}', error: e);
-      _error = _getFirebaseErrorMessage(e.code);
-      _errorCode = e.code;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } on FirebaseException catch (e) {
-      AppLogger.e('❌ FirebaseException: ${e.code}', error: e);
-      _error = _getFirebaseErrorMessage(e.code ?? 'unknown');
-      _errorCode = e.code;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      AppLogger.e('❌ Unknown error during sign in', error: e);
-      // ✅ محاولة استخراج رسالة الخطأ من النص
-      final errorString = e.toString().toLowerCase();
-      if (errorString.contains('invalid-credential') ||
-          errorString.contains('wrong-password') ||
-          errorString.contains('incorrect')) {
-        _error = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
-        _errorCode = 'invalid-credential';
-      } else if (errorString.contains('user-not-found')) {
-        _error = 'لا يوجد حساب بهذا البريد الإلكتروني';
-        _errorCode = 'user-not-found';
-      } else if (errorString.contains('network')) {
-        _error = 'خطأ في الاتصال بالإنترنت';
-        _errorCode = 'network-request-failed';
-      } else {
-        _error = 'حدث خطأ أثناء تسجيل الدخول';
-        _errorCode = 'unknown';
-      }
-      _isLoading = false;
-      notifyListeners();
-      return false;
     }
+
+    // معالجة الخطأ
+    AppLogger.d('📧 Calling _handleAuthError...');
+    _handleAuthError(result, email);
+    AppLogger.d('📧 After _handleAuthError, lastError: $_lastError');
+    return false;
   }
 
+  /// ==================== تسجيل الدخول بـ Google ====================
   Future<bool> signInWithGoogle() async {
-    _isLoading = true;
-    _error = null;
-    _errorCode = null;
-    notifyListeners();
+    _setLoading();
 
-    try {
-      final result = await _authService.signInWithGoogle();
-      if (result.success) {
-        await _loadUserData(_firebaseAuth.currentUser!.uid);
+    final result = await _authService.signInWithGoogle();
 
-        if (_currentUser != null && !_currentUser!.isApproved) {
-          await _firebaseAuth.signOut();
-          if (_currentUser!.status == 'pending') {
-            _error =
-                '⏳ حسابك قيد المراجعة\n\nيرجى الانتظار حتى يتم تفعيل حسابك من قبل المدير.';
-            _errorCode = 'account-pending';
-          } else if (_currentUser!.status == 'rejected') {
-            final reason =
-                _currentUser!.rejectionReason ?? 'لم يتم تحديد السبب';
-            _error = '❌ تم رفض حسابك\n\nالسبب: $reason';
-            _errorCode = 'account-rejected';
-          } else {
-            _error = '🚫 حسابك معطل';
-            _errorCode = 'account-disabled';
-          }
-          _currentUser = null;
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _error = result.error;
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _error = 'حدث خطأ أثناء تسجيل الدخول بـ Google';
-      _isLoading = false;
+    if (result.success) {
+      _currentUser = result.data;
+      _state = AuthState.authenticated;
+      _clearError();
       notifyListeners();
-      return false;
+      return true;
     }
+
+    // معالجة الخطأ
+    _handleAuthError(result, null);
+    return false;
   }
 
+  /// ==================== إنشاء حساب جديد ====================
   Future<bool> signUp(String email, String password, String name) async {
     return signUpWithEmail(email, password, name);
   }
 
-  /// ✅ تسجيل مستخدم جديد مع إرسال رابط التحقق
   Future<bool> signUpWithEmail(
     String email,
     String password,
     String name,
   ) async {
-    _isLoading = true;
-    _error = null;
-    _errorCode = null;
-    notifyListeners();
+    _setLoading();
 
-    try {
-      AppLogger.i('🔐 بدء إنشاء حساب جديد: $email');
+    final result = await _authService.signUp(email, password, name);
 
-      final result = await _authService.signUp(email, password, name);
-
-      if (result.success) {
-        AppLogger.i('✅ تم إنشاء الحساب وإرسال رابط التحقق');
-
-        // حفظ البريد للاستخدام في شاشة التحقق
-        _pendingVerificationEmail = email;
-        _needsEmailVerification = true;
-
-        // ✅ لا نسجل الخروج هنا - المستخدم يحتاج يظل مسجل لإعادة إرسال الرابط
-
-        _isLoading = false;
-        _error = null;
-        _errorCode = null;
-        notifyListeners();
-        return true;
-      } else {
-        AppLogger.e('❌ فشل إنشاء الحساب: ${result.error}');
-        _error = result.error;
-        _errorCode = _getErrorCodeFromMessage(result.error);
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-    } on FirebaseAuthException catch (e) {
-      AppLogger.e('❌ Firebase Auth Error: ${e.code}');
-      _error = _getFirebaseErrorMessage(e.code);
-      _errorCode = e.code;
-      _isLoading = false;
+    if (result.success) {
+      _pendingEmail = email;
+      _state = AuthState.needsEmailVerification;
+      _clearError();
       notifyListeners();
-      return false;
-    } catch (e) {
-      AppLogger.e('❌ خطأ غير متوقع: $e');
-      _error = 'حدث خطأ أثناء إنشاء الحساب';
-      _isLoading = false;
-      notifyListeners();
-      return false;
+      return true;
     }
+
+    _handleAuthError(result, email);
+    return false;
   }
 
-  /// ✅ إعادة إرسال رابط التحقق
+  /// ==================== إعادة إرسال رابط التحقق ====================
   Future<bool> resendVerificationEmail() async {
-    try {
-      final result = await _authService.resendVerificationEmail();
-      if (!result.success) {
-        _error = result.error;
-        notifyListeners();
-      }
-      return result.success;
-    } catch (e) {
-      _error = 'حدث خطأ في إرسال رابط التحقق';
+    final result = await _authService.resendVerificationEmail();
+
+    if (!result.success) {
+      _lastError = AuthError(
+        message: result.errorMessage ?? 'حدث خطأ',
+        type: result.errorType ?? AuthErrorType.unknown,
+        code: result.errorCode,
+      );
       notifyListeners();
-      return false;
     }
+
+    return result.success;
   }
 
-  /// ✅ التحقق من تفعيل الإيميل فقط (بدون تغيير حالة المستخدم)
+  /// ==================== التحقق من تفعيل الإيميل ====================
   Future<bool> checkEmailVerificationOnly() async {
-    try {
-      final result = await _authService.checkEmailVerification();
-      return result.success && result.data == true;
-    } catch (e) {
-      AppLogger.e('Error checking email verification', error: e);
-      return false;
-    }
-  }
-
-  /// ✅ تسجيل الخروج بعد التحقق من الإيميل (للانتقال لشاشة الانتظار)
-  Future<void> signOutAfterVerification() async {
-    try {
-      await _firebaseAuth.signOut();
-      _currentUser = null;
-      _needsEmailVerification = false;
-      // لا نمسح _pendingVerificationEmail لاستخدامه في شاشة الانتظار
-    } catch (e) {
-      AppLogger.e('Error signing out after verification', error: e);
-    }
-    notifyListeners();
-  }
-
-  Future<void> signOut() async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      await _authService.signOut();
-      _currentUser = null;
-      _error = null;
-      _errorCode = null;
-      _pendingVerificationEmail = null;
-      _needsEmailVerification = false;
-    } catch (e) {
-      AppLogger.e('Error signing out', error: e);
-    }
-
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<bool> resetPassword(String email) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final result = await _authService.resetPassword(email);
-      _isLoading = false;
-      if (!result.success) {
-        _error = result.error;
-      }
-      notifyListeners();
-      return result.success;
-    } catch (e) {
-      _error = 'حدث خطأ';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    final result = await _authService.checkEmailVerification();
+    return result.success && result.data == true;
   }
 
   Future<bool> checkVerificationAndLogin() async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading();
 
-    try {
-      final result = await _authService.checkVerificationAndLogin();
-      if (result.success && result.data == true) {
-        await _loadUserData(_firebaseAuth.currentUser!.uid);
-        _needsEmailVerification = false;
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        _needsEmailVerification = true;
-        _errorCode = 'email-not-verified';
-        _isLoading = false;
-        notifyListeners();
-        return false;
+    final result = await _authService.checkEmailVerification();
+
+    if (result.success && result.data == true) {
+      // الإيميل مفعل - تحميل بيانات المستخدم
+      final user = _firebaseAuth.currentUser;
+      if (user != null) {
+        await _loadUserData(user.uid);
+
+        if (_currentUser != null && _currentUser!.isApproved) {
+          _state = AuthState.authenticated;
+          notifyListeners();
+          return true;
+        }
       }
-    } catch (e) {
-      _isLoading = false;
+
+      // الإيميل مفعل لكن الحساب يحتاج موافقة
+      _state = AuthState.pendingApproval;
       notifyListeners();
-      return false;
+      return true;
     }
+
+    _state = AuthState.needsEmailVerification;
+    notifyListeners();
+    return false;
   }
 
-  void clearVerificationState() {
-    _pendingVerificationEmail = null;
-    _needsEmailVerification = false;
-    _errorCode = null;
+  /// ==================== تسجيل الخروج ====================
+  Future<void> signOut() async {
+    _setLoading();
+    await _authService.signOut();
+    await _authService.clearCachedUserData(); // مسح البيانات المحلية
+    _currentUser = null;
+    _state = AuthState.unauthenticated;
+    _clearError();
+    _pendingEmail = null;
     notifyListeners();
+  }
+
+  /// تسجيل الخروج بعد تفعيل الإيميل (للانتقال لشاشة الانتظار)
+  Future<void> signOutAfterVerification() async {
+    await _firebaseAuth.signOut();
+    _currentUser = null;
+    _state = AuthState.pendingApproval;
+    notifyListeners();
+  }
+
+  /// ==================== إعادة تعيين كلمة المرور ====================
+  Future<bool> resetPassword(String email) async {
+    _setLoading();
+
+    final result = await _authService.resetPassword(email);
+
+    _state = AuthState.unauthenticated;
+
+    if (!result.success) {
+      _lastError = AuthError(
+        message: result.errorMessage ?? 'حدث خطأ',
+        type: result.errorType ?? AuthErrorType.unknown,
+        code: result.errorCode,
+      );
+    }
+
+    notifyListeners();
+    return result.success;
+  }
+
+  /// ==================== التحقق من حالة المصادقة ====================
+  Future<void> checkAuthStatus() async {
+    _setLoading();
+
+    final user = _firebaseAuth.currentUser;
+    if (user != null) {
+      await _loadUserData(user.uid);
+    } else {
+      _currentUser = null;
+      _state = AuthState.unauthenticated;
+    }
+
+    notifyListeners();
+  }
+
+  /// ==================== دوال مساعدة ====================
+
+  void _setLoading() {
+    _state = AuthState.loading;
+    _clearError();
+    // لا نستدعي notifyListeners هنا لأن الـ UI يدير الـ loading state محلياً
+  }
+
+  void _clearError() {
+    _lastError = null;
   }
 
   void clearError() {
-    _error = null;
-    _errorCode = null;
+    _lastError = null;
     notifyListeners();
   }
 
-  String _getFirebaseErrorMessage(String code) {
-    switch (code) {
-      case 'user-not-found':
-        return 'لا يوجد حساب بهذا البريد الإلكتروني';
-      case 'wrong-password':
-        return 'كلمة المرور غير صحيحة';
-      case 'invalid-credential':
-        return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
-      case 'email-already-in-use':
-        return 'البريد الإلكتروني مستخدم بالفعل';
-      case 'weak-password':
-        return 'كلمة المرور ضعيفة جداً';
-      case 'invalid-email':
-        return 'البريد الإلكتروني غير صالح';
-      case 'user-disabled':
-        return 'هذا الحساب معطل';
-      case 'too-many-requests':
-        return 'محاولات كثيرة جداً. حاول لاحقاً';
-      case 'network-request-failed':
-        return 'خطأ في الاتصال بالإنترنت';
-      default:
-        return 'حدث خطأ أثناء تسجيل الدخول';
+  void clearVerificationState() {
+    _pendingEmail = null;
+    if (_state == AuthState.needsEmailVerification ||
+        _state == AuthState.pendingApproval) {
+      _state = AuthState.unauthenticated;
     }
+    notifyListeners();
   }
 
-  String? _getErrorCodeFromMessage(String? message) {
-    if (message == null) return null;
-    if (message.contains('قيد المراجعة')) return 'account-pending';
-    if (message.contains('رفض')) return 'account-rejected';
-    if (message.contains('معطل')) return 'account-disabled';
-    if (message.contains('مستخدم بالفعل')) return 'email-already-in-use';
-    if (message.contains('ضعيفة')) return 'weak-password';
-    return null;
+  void _handleAuthError<T>(AuthResult<T> result, String? email) {
+    _pendingEmail = email;
+
+    // تحديد الحالة بناءً على نوع الخطأ
+    switch (result.errorType) {
+      case AuthErrorType.emailNotVerified:
+        _state = AuthState.needsEmailVerification;
+        break;
+      case AuthErrorType.accountPending:
+        _state = AuthState.pendingApproval;
+        break;
+      case AuthErrorType.accountRejected:
+        _state = AuthState.rejected;
+        break;
+      case AuthErrorType.accountDisabled:
+        _state = AuthState.disabled;
+        break;
+      case AuthErrorType.operationCancelled:
+        _state = AuthState.unauthenticated;
+        break;
+      default:
+        // للأخطاء العادية (مثل كلمة مرور خاطئة)، نبقى في حالة unauthenticated
+        // حتى لا يُعاد بناء الـ UI
+        _state = AuthState.unauthenticated;
+    }
+
+    _lastError = AuthError(
+      message: result.errorMessage ?? 'حدث خطأ',
+      type: result.errorType ?? AuthErrorType.unknown,
+      code: result.errorCode,
+      canRetry:
+          result.errorType != AuthErrorType.accountRejected &&
+          result.errorType != AuthErrorType.accountDisabled,
+      requiresAction:
+          result.errorType == AuthErrorType.emailNotVerified ||
+          result.errorType == AuthErrorType.accountPending,
+    );
+
+    // لا نستدعي notifyListeners للأخطاء البسيطة حتى لا يُعاد بناء الـ UI
+    // الـ UI سيقرأ lastError مباشرة
+    if (result.errorType == AuthErrorType.emailNotVerified ||
+        result.errorType == AuthErrorType.accountPending ||
+        result.errorType == AuthErrorType.accountRejected ||
+        result.errorType == AuthErrorType.accountDisabled) {
+      notifyListeners();
+    }
   }
 
   @override

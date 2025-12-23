@@ -1,11 +1,11 @@
 // lib/features/auth/screens/user_management_screen.dart
-// شاشة إدارة المستخدمين
+// شاشة إدارة المستخدمين - محدثة للتوافق مع AuthService المحسن
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/services/auth_service.dart';
+import '../services/auth_service.dart';
 import '../models/user_model.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -64,18 +64,47 @@ class _UserManagementScreenState extends State<UserManagementScreen>
           .toList();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في تحميل المستخدمين: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        _showErrorSnackBar('خطأ في تحميل المستخدمين: $e');
       }
     }
 
     if (mounted) {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: AppTheme.successColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -209,6 +238,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('الموافقة على المستخدم'),
         content: Text('هل تريد الموافقة على "${user.name}"؟'),
         actions: [
@@ -233,22 +263,16 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         if (result.success) {
           await _loadUsers();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('تمت الموافقة على "${user.name}"'),
-                backgroundColor: AppTheme.successColor,
-              ),
-            );
+            _showSuccessSnackBar('تمت الموافقة على "${user.name}"');
+          }
+        } else {
+          if (mounted) {
+            _showErrorSnackBar(result.errorMessage ?? 'حدث خطأ');
           }
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('خطأ: $e'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
+          _showErrorSnackBar('خطأ: $e');
         }
       }
     }
@@ -260,6 +284,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('رفض المستخدم'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -269,9 +294,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             const SizedBox(height: 16),
             TextField(
               controller: reasonController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'سبب الرفض (اختياري)',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               maxLines: 3,
             ),
@@ -295,22 +322,16 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 if (result.success) {
                   await _loadUsers();
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('تم رفض "${user.name}"'),
-                        backgroundColor: AppTheme.warningColor,
-                      ),
-                    );
+                    _showSuccessSnackBar('تم رفض "${user.name}"');
+                  }
+                } else {
+                  if (mounted) {
+                    _showErrorSnackBar(result.errorMessage ?? 'حدث خطأ');
                   }
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('خطأ: $e'),
-                      backgroundColor: AppTheme.errorColor,
-                    ),
-                  );
+                  _showErrorSnackBar('خطأ: $e');
                 }
               }
             },
@@ -331,8 +352,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) =>
-          _UserDetailsSheet(user: user, onRefresh: _loadUsers),
+      builder: (context) => _UserDetailsSheet(
+        user: user,
+        authService: _authService,
+        onRefresh: _loadUsers,
+      ),
     );
   }
 }
@@ -355,9 +379,10 @@ class _PendingUserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -367,10 +392,12 @@ class _PendingUserCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     backgroundColor: AppTheme.warningColor.withOpacity(0.1),
+                    radius: 24,
                     child: Text(
                       user.name.isNotEmpty ? user.name[0] : '?',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
+                        fontSize: 18,
                         color: AppTheme.warningColor,
                       ),
                     ),
@@ -387,6 +414,7 @@ class _PendingUserCard extends StatelessWidget {
                             fontSize: 16,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           user.email,
                           style: const TextStyle(
@@ -397,12 +425,49 @@ class _PendingUserCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warningColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'جديد',
+                      style: TextStyle(
+                        color: AppTheme.warningColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
-              Text(
-                'تاريخ التسجيل: ${DateFormat('dd/MM/yyyy - hh:mm a').format(user.createdAt)}',
-                style: const TextStyle(color: AppTheme.grey600, fontSize: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.grey200.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.access_time, size: 16, color: AppTheme.grey600),
+                    const SizedBox(width: 6),
+                    Text(
+                      'تاريخ التسجيل: ${DateFormat('dd/MM/yyyy - hh:mm a', 'ar').format(user.createdAt)}',
+                      style: const TextStyle(
+                        color: AppTheme.grey600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               Row(
@@ -410,10 +475,15 @@ class _PendingUserCard extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: onReject,
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.close, size: 20),
                       label: const Text('رفض'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.errorColor,
+                        side: const BorderSide(color: AppTheme.errorColor),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -421,10 +491,15 @@ class _PendingUserCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: onApprove,
-                      icon: const Icon(Icons.check),
+                      icon: const Icon(Icons.check, size: 20),
                       label: const Text('موافقة'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.successColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -449,8 +524,10 @@ class _UserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
         onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: _getStatusColor().withOpacity(0.1),
           backgroundImage: user.photoUrl != null
@@ -468,15 +545,21 @@ class _UserCard extends StatelessWidget {
         ),
         title: Row(
           children: [
-            Expanded(child: Text(user.name)),
+            Expanded(
+              child: Text(
+                user.name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
             _buildStatusBadge(),
           ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(user.email),
             const SizedBox(height: 4),
+            Text(user.email, style: const TextStyle(fontSize: 13)),
+            const SizedBox(height: 6),
             Row(
               children: [
                 _buildRoleBadge(),
@@ -484,18 +567,27 @@ class _UserCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                      horizontal: 8,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.g_mobiledata, size: 14, color: Colors.red),
-                        Text(
+                        Image.network(
+                          'https://www.google.com/favicon.ico',
+                          height: 12,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.g_mobiledata,
+                            size: 12,
+                            color: Colors.red,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text(
                           'Google',
                           style: TextStyle(fontSize: 10, color: Colors.red),
                         ),
@@ -507,7 +599,7 @@ class _UserCard extends StatelessWidget {
             ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_left),
+        trailing: const Icon(Icons.chevron_left, color: AppTheme.grey400),
       ),
     );
   }
@@ -531,15 +623,15 @@ class _UserCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           color: color,
           fontWeight: FontWeight.bold,
         ),
@@ -549,17 +641,17 @@ class _UserCard extends StatelessWidget {
 
   Widget _buildRoleBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: user.isAdmin
             ? AppTheme.primaryColor.withOpacity(0.1)
             : AppTheme.grey200,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         user.isAdmin ? 'مدير' : 'موظف',
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           color: user.isAdmin ? AppTheme.primaryColor : AppTheme.grey600,
           fontWeight: FontWeight.bold,
         ),
@@ -578,9 +670,14 @@ class _UserCard extends StatelessWidget {
 // صفحة تفاصيل المستخدم
 class _UserDetailsSheet extends StatelessWidget {
   final UserModel user;
+  final AuthService authService;
   final VoidCallback onRefresh;
 
-  const _UserDetailsSheet({required this.user, required this.onRefresh});
+  const _UserDetailsSheet({
+    required this.user,
+    required this.authService,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -640,23 +737,9 @@ class _UserDetailsSheet extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // معلومات
-                  _buildInfoRow('الحالة', _getStatusText()),
-                  _buildInfoRow('الدور', user.isAdmin ? 'مدير' : 'موظف'),
-                  _buildInfoRow(
-                    'تاريخ التسجيل',
-                    DateFormat('dd/MM/yyyy').format(user.createdAt),
-                  ),
-                  if (user.lastLoginAt != null)
-                    _buildInfoRow(
-                      'آخر دخول',
-                      DateFormat(
-                        'dd/MM/yyyy - hh:mm a',
-                      ).format(user.lastLoginAt!),
-                    ),
-                  if (user.rejectionReason != null)
-                    _buildInfoRow('سبب الرفض', user.rejectionReason!),
+                  _buildInfoCard(context),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
                   // الإجراءات
                   _buildActions(context),
@@ -669,16 +752,55 @@ class _UserDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildInfoCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.grey200.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
         children: [
-          Text(label, style: const TextStyle(color: AppTheme.grey600)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          _buildInfoRow('الحالة', _getStatusText(), _getStatusColor()),
+          const Divider(height: 24),
+          _buildInfoRow('الدور', user.isAdmin ? 'مدير' : 'موظف', null),
+          const Divider(height: 24),
+          _buildInfoRow(
+            'تاريخ التسجيل',
+            DateFormat('dd/MM/yyyy').format(user.createdAt),
+            null,
+          ),
+          if (user.lastLoginAt != null) ...[
+            const Divider(height: 24),
+            _buildInfoRow(
+              'آخر دخول',
+              DateFormat('dd/MM/yyyy - hh:mm a').format(user.lastLoginAt!),
+              null,
+            ),
+          ],
+          if (user.rejectionReason != null) ...[
+            const Divider(height: 24),
+            _buildInfoRow(
+              'سبب الرفض',
+              user.rejectionReason!,
+              AppTheme.errorColor,
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, Color? valueColor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: AppTheme.grey600)),
+        Text(
+          value,
+          style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
+        ),
+      ],
     );
   }
 
@@ -689,54 +811,117 @@ class _UserDetailsSheet extends StatelessWidget {
     return 'نشط';
   }
 
-  Widget _buildActions(BuildContext context) {
-    final authService = AuthService();
+  Color _getStatusColor() {
+    if (user.isPending) return AppTheme.warningColor;
+    if (user.isRejected) return AppTheme.errorColor;
+    if (!user.isActive) return AppTheme.grey600;
+    return AppTheme.successColor;
+  }
 
+  Widget _buildActions(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 12,
+      runSpacing: 12,
       alignment: WrapAlignment.center,
       children: [
+        // زر التعطيل (للمستخدمين النشطين)
         if (user.isActive && !user.isPending && !user.isRejected)
-          ElevatedButton.icon(
+          _ActionButton(
+            icon: Icons.block,
+            label: 'تعطيل',
+            color: AppTheme.errorColor,
             onPressed: () async {
               Navigator.pop(context);
-              await authService.deactivateUser(user.id);
-              onRefresh();
+              final result = await authService.deactivateUser(user.id);
+              if (result.success) {
+                onRefresh();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('تم تعطيل "${user.name}"'),
+                      backgroundColor: AppTheme.warningColor,
+                    ),
+                  );
+                }
+              }
             },
-            icon: const Icon(Icons.block),
-            label: const Text('تعطيل'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-            ),
           ),
+
+        // زر التفعيل (للمستخدمين المعطلين)
         if (!user.isActive)
-          ElevatedButton.icon(
+          _ActionButton(
+            icon: Icons.check_circle,
+            label: 'تفعيل',
+            color: AppTheme.successColor,
             onPressed: () async {
               Navigator.pop(context);
-              await authService.activateUser(user.id);
-              onRefresh();
+              final result = await authService.activateUser(user.id);
+              if (result.success) {
+                onRefresh();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('تم تفعيل "${user.name}"'),
+                      backgroundColor: AppTheme.successColor,
+                    ),
+                  );
+                }
+              }
             },
-            icon: const Icon(Icons.check_circle),
-            label: const Text('تفعيل'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.successColor,
-            ),
           ),
+
+        // زر الموافقة (للمستخدمين المرفوضين)
         if (user.isRejected)
-          ElevatedButton.icon(
+          _ActionButton(
+            icon: Icons.check,
+            label: 'موافقة',
+            color: AppTheme.successColor,
             onPressed: () async {
               Navigator.pop(context);
-              await authService.approveUser(user.id);
-              onRefresh();
+              final result = await authService.approveUser(user.id);
+              if (result.success) {
+                onRefresh();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('تمت الموافقة على "${user.name}"'),
+                      backgroundColor: AppTheme.successColor,
+                    ),
+                  );
+                }
+              }
             },
-            icon: const Icon(Icons.check),
-            label: const Text('موافقة'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.successColor,
-            ),
           ),
       ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 }

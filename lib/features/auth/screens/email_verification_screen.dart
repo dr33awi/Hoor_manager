@@ -1,5 +1,5 @@
 // lib/features/auth/screens/email_verification_screen.dart
-// شاشة التحقق من البريد الإلكتروني - مُصححة
+// شاشة التحقق من البريد الإلكتروني المحسنة
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -19,39 +19,59 @@ class EmailVerificationScreen extends StatefulWidget {
       _EmailVerificationScreenState();
 }
 
-class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
+class _EmailVerificationScreenState extends State<EmailVerificationScreen>
+    with SingleTickerProviderStateMixin {
   bool _isResending = false;
   bool _isChecking = false;
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
   Timer? _autoCheckTimer;
 
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
-    // بدء التحقق التلقائي كل 3 ثواني
+    _setupAnimations();
     _startAutoCheck();
+  }
+
+  void _setupAnimations() {
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _pulseController.repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _cooldownTimer?.cancel();
     _autoCheckTimer?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 
-  /// بدء التحقق التلقائي
   void _startAutoCheck() {
+    // حفظ المرجع قبل بدء الـ Timer
+    final authProvider = context.read<AuthProvider>();
+
     _autoCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!_isChecking) {
-        _checkVerificationSilently();
+      if (!_isChecking && mounted) {
+        _checkVerificationSilently(authProvider);
       }
     });
   }
 
-  /// تحقق صامت (بدون إظهار loading)
-  Future<void> _checkVerificationSilently() async {
-    final authProvider = context.read<AuthProvider>();
+  Future<void> _checkVerificationSilently(AuthProvider authProvider) async {
+    if (!mounted) return;
+
     final isVerified = await authProvider.checkEmailVerificationOnly();
 
     if (isVerified && mounted) {
@@ -64,9 +84,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     setState(() => _resendCooldown = 60);
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_resendCooldown > 0) {
-        if (mounted) {
-          setState(() => _resendCooldown--);
-        }
+        if (mounted) setState(() => _resendCooldown--);
       } else {
         timer.cancel();
       }
@@ -76,9 +94,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Future<void> _resendEmail() async {
     if (_resendCooldown > 0) return;
 
+    // حفظ المراجع
+    final authProvider = context.read<AuthProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     setState(() => _isResending = true);
 
-    final authProvider = context.read<AuthProvider>();
     final success = await authProvider.resendVerificationEmail();
 
     if (mounted) {
@@ -86,23 +107,27 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
       if (success) {
         _startCooldown();
-        _showMessage(
+        _showMessageSafe(
+          scaffoldMessenger,
           'تم إرسال رابط التحقق إلى بريدك الإلكتروني',
           isSuccess: true,
         );
       } else {
-        _showMessage(authProvider.error ?? 'حدث خطأ', isSuccess: false);
+        _showMessageSafe(
+          scaffoldMessenger,
+          authProvider.error ?? 'حدث خطأ',
+          isSuccess: false,
+        );
       }
     }
   }
 
   Future<void> _checkVerification() async {
-    setState(() => _isChecking = true);
-
+    // حفظ المراجع
     final authProvider = context.read<AuthProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    AppLogger.d('=== بدء التحقق من تفعيل البريد ===');
-    AppLogger.d('البريد: ${widget.email}');
+    setState(() => _isChecking = true);
 
     final isVerified = await authProvider.checkEmailVerificationOnly();
 
@@ -110,55 +135,77 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       setState(() => _isChecking = false);
 
       if (isVerified) {
-        // ✅ تم التحقق من الإيميل بنجاح
         AppLogger.i('✅ تم التحقق من البريد الإلكتروني');
-        _showMessage('تم تفعيل البريد بنجاح! ✓', isSuccess: true);
-
-        // إيقاف التحقق التلقائي
+        _showMessageSafe(
+          scaffoldMessenger,
+          'تم تفعيل البريد بنجاح! ✓',
+          isSuccess: true,
+        );
         _autoCheckTimer?.cancel();
-
-        // انتظار قليل ثم الانتقال
         await Future.delayed(const Duration(milliseconds: 800));
-
-        if (mounted) {
-          _navigateToPendingApproval();
-        }
+        if (mounted) _navigateToPendingApproval();
       } else {
-        // ❌ البريد لم يتم تفعيله بعد
-        AppLogger.w('❌ البريد لم يتم تفعيله بعد');
-        _showMessage('البريد الإلكتروني لم يتم تفعيله بعد', isSuccess: false);
+        _showMessageSafe(
+          scaffoldMessenger,
+          'البريد الإلكتروني لم يتم تفعيله بعد',
+          isSuccess: false,
+        );
       }
     }
   }
 
   void _navigateToPendingApproval() {
-    // تسجيل الخروج أولاً لأن الحساب يحتاج موافقة المدير
-    context.read<AuthProvider>().signOutAfterVerification();
+    // حفظ المراجع قبل أي عملية
+    final navigator = Navigator.of(context);
+    final authProvider = context.read<AuthProvider>();
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PendingApprovalScreen(
+    authProvider.signOutAfterVerification();
+
+    navigator.pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => PendingApprovalScreen(
           email: widget.email,
           isNewAccount: true,
-          onBackToLogin: () {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
+          onBackToLogin: () => navigator.popUntil((route) => route.isFirst),
         ),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
       ),
     );
   }
 
   void _showMessage(String message, {required bool isSuccess}) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+    _showMessageSafe(
+      ScaffoldMessenger.of(context),
+      message,
+      isSuccess: isSuccess,
+    );
+  }
+
+  void _showMessageSafe(
+    ScaffoldMessengerState messenger,
+    String message, {
+    required bool isSuccess,
+  }) {
+    messenger.showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              isSuccess ? Icons.check_circle : Icons.error,
-              color: Colors.white,
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                isSuccess ? Icons.check_circle : Icons.error_outline,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
         ),
@@ -166,6 +213,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             ? AppTheme.successColor
             : AppTheme.errorColor,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
         duration: Duration(seconds: isSuccess ? 2 : 4),
       ),
     );
@@ -177,238 +226,27 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.primaryColor,
-              AppTheme.primaryColor.withOpacity(0.8),
-            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.primaryColor, AppTheme.primaryDark],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // أيقونة البريد
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppTheme.warningColor.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.mark_email_unread_outlined,
-                          size: 64,
-                          color: AppTheme.warningColor,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Column(
+                  children: [
+                    // خطوات التسجيل
+                    _buildProgressSteps(),
 
-                      // العنوان
-                      Text(
-                        'تحقق من بريدك الإلكتروني',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                      // الوصف
-                      Text(
-                        'لقد أرسلنا رابط التحقق إلى:',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-
-                      // البريد الإلكتروني
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.email, color: AppTheme.primaryColor),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                widget.email,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                textDirection: TextDirection.ltr,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // خطوات التسجيل
-                      _buildProgressSteps(),
-                      const SizedBox(height: 24),
-
-                      // التعليمات
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.infoColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppTheme.infoColor.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: AppTheme.infoColor,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'خطوات التفعيل:',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _buildInstruction('1', 'افتح بريدك الإلكتروني'),
-                            _buildInstruction('2', 'ابحث عن رسالة من التطبيق'),
-                            _buildInstruction('3', 'اضغط على رابط التفعيل'),
-                            _buildInstruction('4', 'عد هنا واضغط "تم التفعيل"'),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // زر التحقق من التفعيل
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _isChecking ? null : _checkVerification,
-                          icon: _isChecking
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.check_circle_outline),
-                          label: Text(
-                            _isChecking
-                                ? 'جاري التحقق...'
-                                : 'تم التفعيل - متابعة',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // إعادة إرسال الرابط
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'لم تصلك الرسالة؟',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                          TextButton(
-                            onPressed: (_isResending || _resendCooldown > 0)
-                                ? null
-                                : _resendEmail,
-                            child: _isResending
-                                ? const SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(
-                                    _resendCooldown > 0
-                                        ? 'إعادة الإرسال ($_resendCooldown)'
-                                        : 'إعادة الإرسال',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: _resendCooldown > 0
-                                          ? Colors.grey
-                                          : null,
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      // الرجوع
-                      TextButton.icon(
-                        onPressed: () {
-                          context.read<AuthProvider>().signOut();
-                          Navigator.of(
-                            context,
-                          ).popUntil((route) => route.isFirst);
-                        },
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text('الرجوع لتسجيل الدخول'),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // ملاحظة
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.lightbulb_outline,
-                              color: Colors.grey[600],
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'تحقق من مجلد الرسائل غير المرغوب فيها (Spam) إذا لم تجد الرسالة',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    // البطاقة الرئيسية
+                    _buildMainCard(),
+                  ],
                 ),
               ),
             ),
@@ -418,57 +256,285 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     );
   }
 
-  /// عرض خطوات التسجيل
   Widget _buildProgressSteps() {
-    return Row(
-      children: [
-        _buildProgressStep('1', 'إنشاء\nالحساب', true, true),
-        _buildProgressLine(true),
-        _buildProgressStep('2', 'تفعيل\nالبريد', true, false),
-        _buildProgressLine(false),
-        _buildProgressStep('3', 'موافقة\nالمدير', false, false),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          _buildStep(1, 'إنشاء الحساب', false, true),
+          _buildStepLine(true),
+          _buildStep(2, 'تفعيل البريد', true, false),
+          _buildStepLine(false),
+          _buildStep(3, 'موافقة المدير', false, false),
+        ],
+      ),
     );
   }
 
-  Widget _buildProgressStep(
-    String number,
-    String label,
-    bool isActive,
-    bool isCompleted,
-  ) {
+  Widget _buildStep(int number, String label, bool isActive, bool isCompleted) {
     return Expanded(
       child: Column(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: isCompleted
                   ? AppTheme.successColor
-                  : (isActive ? AppTheme.primaryColor : AppTheme.grey300),
+                  : isActive
+                  ? Colors.white
+                  : Colors.white.withOpacity(0.3),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: isCompleted
-                  ? const Icon(Icons.check, color: Colors.white, size: 20)
+                  ? const Icon(Icons.check, color: Colors.white, size: 18)
                   : Text(
-                      number,
+                      '$number',
                       style: TextStyle(
-                        color: isActive ? Colors.white : AppTheme.grey600,
+                        color: isActive
+                            ? AppTheme.primaryColor
+                            : Colors.white.withOpacity(0.7),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             label,
-            textAlign: TextAlign.center,
             style: TextStyle(
+              color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
               fontSize: 11,
-              color: isActive ? AppTheme.primaryColor : AppTheme.grey600,
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepLine(bool isActive) {
+    return Container(
+      width: 24,
+      height: 2,
+      margin: const EdgeInsets.only(bottom: 20),
+      color: isActive ? AppTheme.successColor : Colors.white.withOpacity(0.3),
+    );
+  }
+
+  Widget _buildMainCard() {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // أيقونة البريد المتحركة
+          ScaleTransition(
+            scale: _pulseAnimation,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.warningColor.withOpacity(0.15),
+                    AppTheme.warningColor.withOpacity(0.05),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.mark_email_unread_rounded,
+                size: 56,
+                color: AppTheme.warningColor,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // العنوان
+          const Text(
+            'تحقق من بريدك الإلكتروني',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: 12),
+
+          Text(
+            'لقد أرسلنا رابط التحقق إلى:',
+            style: TextStyle(color: AppTheme.grey600, fontSize: 15),
+          ),
+
+          const SizedBox(height: 12),
+
+          // البريد الإلكتروني
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.email_rounded,
+                  color: AppTheme.primaryColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    widget.email,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                    textDirection: TextDirection.ltr,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // التعليمات
+          _buildInstructions(),
+
+          const SizedBox(height: 28),
+
+          // زر التحقق
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isChecking ? null : _checkVerification,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.successColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: _isChecking
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded, size: 22),
+                        SizedBox(width: 10),
+                        Text(
+                          'تم التفعيل - متابعة',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // إعادة الإرسال
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'لم تصلك الرسالة؟',
+                style: TextStyle(color: AppTheme.grey600),
+              ),
+              TextButton(
+                onPressed: (_isResending || _resendCooldown > 0)
+                    ? null
+                    : _resendEmail,
+                child: _isResending
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        _resendCooldown > 0
+                            ? 'إعادة الإرسال ($_resendCooldown)'
+                            : 'إعادة الإرسال',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _resendCooldown > 0 ? AppTheme.grey400 : null,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // الرجوع
+          TextButton.icon(
+            onPressed: () {
+              final authProvider = context.read<AuthProvider>();
+              final navigator = Navigator.of(context);
+              authProvider.signOut();
+              navigator.popUntil((route) => route.isFirst);
+            },
+            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+            label: const Text('الرجوع لتسجيل الدخول'),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.grey600),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ملاحظة Spam
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.grey200.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.lightbulb_outline_rounded,
+                  color: AppTheme.grey600,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'تحقق من مجلد الرسائل غير المرغوب فيها (Spam)',
+                    style: TextStyle(color: AppTheme.grey600, fontSize: 12),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -476,34 +542,64 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     );
   }
 
-  Widget _buildProgressLine(bool isActive) {
+  Widget _buildInstructions() {
     return Container(
-      width: 30,
-      height: 2,
-      margin: const EdgeInsets.only(bottom: 30),
-      color: isActive ? AppTheme.successColor : AppTheme.grey300,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.infoColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.infoColor.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.checklist_rounded,
+                color: AppTheme.infoColor,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'خطوات التفعيل:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.infoColor,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildInstructionItem(1, 'افتح بريدك الإلكتروني'),
+          _buildInstructionItem(2, 'ابحث عن رسالة التفعيل'),
+          _buildInstructionItem(3, 'اضغط على رابط التفعيل'),
+          _buildInstructionItem(4, 'عد هنا واضغط "تم التفعيل"'),
+        ],
+      ),
     );
   }
 
-  Widget _buildInstruction(String number, String text) {
+  Widget _buildInstructionItem(int number, String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Container(
-            width: 24,
-            height: 24,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
               child: Text(
-                number,
+                '$number',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 13,
                 ),
               ),
             ),
