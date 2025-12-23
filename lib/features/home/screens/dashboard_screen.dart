@@ -1,8 +1,8 @@
 // lib/features/home/screens/dashboard_screen.dart
-// شاشة لوحة التحكم
+// شاشة لوحة التحكم - مُصححة
 
-import 'package:hoor_manager/features/sales/providers/product_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:hoor_manager/features/sales/providers/sale_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';

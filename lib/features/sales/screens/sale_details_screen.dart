@@ -1,7 +1,7 @@
 // lib/features/sales/screens/sale_details_screen.dart
 // شاشة تفاصيل الفاتورة
 
-import 'package:hoor_manager/features/sales/providers/product_provider.dart';
+import 'package:hoor_manager/features/sales/providers/sale_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';

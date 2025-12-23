@@ -1,8 +1,8 @@
 // lib/features/home/screens/home_screen.dart
-// الشاشة الرئيسية
+// الشاشة الرئيسية - مُصححة
 
-import 'package:hoor_manager/features/sales/providers/product_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:hoor_manager/features/sales/providers/sale_provider.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -75,9 +75,24 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // قائمة المستخدم
           PopupMenuButton<String>(
-            icon: const CircleAvatar(
+            icon: CircleAvatar(
               radius: 16,
-              child: Icon(Icons.person, size: 20),
+              backgroundColor: Colors.white24,
+              child: authProvider.userPhoto != null
+                  ? ClipOval(
+                      child: Image.network(
+                        authProvider.userPhoto!,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.person,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                      ),
+                    )
+                  : const Icon(Icons.person, size: 20, color: Colors.white),
             ),
             itemBuilder: (context) => [
               PopupMenuItem(
@@ -89,9 +104,54 @@ class _HomeScreenState extends State<HomeScreen> {
                       authProvider.userName ?? 'المستخدم',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    Text(
-                      authProvider.isAdmin ? 'مدير' : 'موظف',
-                      style: TextStyle(fontSize: 12, color: AppTheme.grey600),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: authProvider.isAdmin
+                                ? AppTheme.primaryColor.withOpacity(0.1)
+                                : AppTheme.grey200,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            authProvider.isAdmin ? 'مدير' : 'موظف',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: authProvider.isAdmin
+                                  ? AppTheme.primaryColor
+                                  : AppTheme.grey600,
+                            ),
+                          ),
+                        ),
+                        if (authProvider.isGoogleUser) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.g_mobiledata,
+                                  size: 14,
+                                  color: Colors.red,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -110,6 +170,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               const PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline),
+                    SizedBox(width: 12),
+                    Text('الملف الشخصي'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'settings',
                 child: Row(
                   children: [
@@ -119,6 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
+              const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'logout',
                 child: Row(
@@ -134,20 +205,29 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
             onSelected: (value) async {
-              if (value == 'logout') {
-                final confirm = await _showLogoutConfirmation();
-                if (confirm == true) {
-                  await authProvider.signOut();
-                }
-              } else if (value == 'settings') {
-                // TODO: الإعدادات
-              } else if (value == 'users') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const UserManagementScreen(),
-                  ),
-                );
+              switch (value) {
+                case 'logout':
+                  final confirm = await _showLogoutConfirmation();
+                  if (confirm == true) {
+                    await authProvider.signOut();
+                  }
+                  break;
+                case 'settings':
+                  // TODO: الإعدادات
+                  _showComingSoon('الإعدادات');
+                  break;
+                case 'profile':
+                  // TODO: الملف الشخصي
+                  _showComingSoon('الملف الشخصي');
+                  break;
+                case 'users':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UserManagementScreen(),
+                    ),
+                  );
+                  break;
               }
             },
           ),
@@ -209,10 +289,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Text('$feature - قريباً!'),
+          ],
+        ),
+        backgroundColor: AppTheme.infoColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<bool?> _showLogoutConfirmation() {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        icon: Icon(Icons.logout, color: AppTheme.errorColor, size: 48),
         title: const Text('تسجيل الخروج'),
         content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
         actions: [

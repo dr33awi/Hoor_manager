@@ -1,7 +1,7 @@
 // lib/features/reports/screens/reports_screen.dart
 // شاشة التقارير
 
-import 'package:hoor_manager/features/sales/providers/product_provider.dart';
+import 'package:hoor_manager/features/sales/providers/sale_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';

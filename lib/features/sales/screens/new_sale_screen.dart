@@ -1,7 +1,7 @@
 // lib/features/sales/screens/new_sale_screen.dart
 // شاشة إنشاء فاتورة جديدة
 
-import 'package:hoor_manager/features/sales/providers/product_provider.dart';
+import 'package:hoor_manager/features/sales/providers/sale_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';

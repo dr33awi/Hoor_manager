@@ -1,10 +1,10 @@
 // lib/main.dart
-// نقطة البداية للتطبيق - محسن
+// نقطة البداية للتطبيق - محسن ومصحح
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:hoor_manager/features/sales/providers/product_provider.dart';
+import 'package:hoor_manager/features/sales/providers/sale_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/firebase_service.dart';
@@ -149,15 +149,30 @@ class _AuthWrapperState extends State<AuthWrapper> {
       builder: (context, authProvider, _) {
         // جاري التحميل
         if (authProvider.isLoading) {
-          return const Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('جاري التحميل...'),
-                ],
+          return Scaffold(
+            body: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.primaryColor,
+                    AppTheme.primaryColor.withOpacity(0.8),
+                  ],
+                ),
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 24),
+                    Text(
+                      'جاري التحميل...',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

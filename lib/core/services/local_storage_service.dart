@@ -1,9 +1,11 @@
 // lib/core/services/local_storage_service.dart
-// خدمة التخزين المحلي باستخدام SharedPreferences و Hive
+// خدمة التخزين المحلي باستخدام SharedPreferences و Hive - محسنة مع التشفير
 
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:math';
 import '../constants/app_constants.dart';
 import 'base_service.dart';
 import 'logger_service.dart';
@@ -17,6 +19,9 @@ class LocalStorageService extends BaseService {
 
   SharedPreferences? _prefs;
   bool _initialized = false;
+
+  // ✅ مفتاح التشفير (في الإنتاج يجب تخزينه في مكان آمن)
+  String? _encryptionKey;
 
   bool get isInitialized => _initialized;
 
@@ -33,6 +38,9 @@ class LocalStorageService extends BaseService {
       // تهيئة Hive
       await Hive.initFlutter();
 
+      // ✅ تهيئة مفتاح التشفير
+      await _initEncryptionKey();
+
       // فتح الصناديق المطلوبة
       await _openBoxes();
 
@@ -42,6 +50,67 @@ class LocalStorageService extends BaseService {
     } catch (e, stackTrace) {
       AppLogger.e('فشل تهيئة LocalStorage', error: e, stackTrace: stackTrace);
       return ServiceResult.failure(handleError(e));
+    }
+  }
+
+  /// ✅ تهيئة مفتاح التشفير
+  Future<void> _initEncryptionKey() async {
+    const keyName = 'encryption_key_v1';
+    _encryptionKey = _prefs?.getString(keyName);
+
+    if (_encryptionKey == null) {
+      // إنشاء مفتاح جديد
+      _encryptionKey = _generateSecureKey(32);
+      await _prefs?.setString(keyName, _encryptionKey!);
+      AppLogger.d('تم إنشاء مفتاح تشفير جديد');
+    }
+  }
+
+  /// ✅ إنشاء مفتاح آمن عشوائي
+  String _generateSecureKey(int length) {
+    final random = Random.secure();
+    final values = List<int>.generate(length, (i) => random.nextInt(256));
+    return base64Encode(values);
+  }
+
+  /// ✅ تشفير النص
+  String _encrypt(String plainText) {
+    if (_encryptionKey == null) return plainText;
+
+    try {
+      // تشفير بسيط باستخدام XOR (في الإنتاج استخدم مكتبة تشفير حقيقية)
+      final keyBytes = utf8.encode(_encryptionKey!);
+      final textBytes = utf8.encode(plainText);
+      final encryptedBytes = <int>[];
+
+      for (int i = 0; i < textBytes.length; i++) {
+        encryptedBytes.add(textBytes[i] ^ keyBytes[i % keyBytes.length]);
+      }
+
+      return base64Encode(encryptedBytes);
+    } catch (e) {
+      AppLogger.e('خطأ في التشفير', error: e);
+      return plainText;
+    }
+  }
+
+  /// ✅ فك التشفير
+  String _decrypt(String encryptedText) {
+    if (_encryptionKey == null) return encryptedText;
+
+    try {
+      final keyBytes = utf8.encode(_encryptionKey!);
+      final encryptedBytes = base64Decode(encryptedText);
+      final decryptedBytes = <int>[];
+
+      for (int i = 0; i < encryptedBytes.length; i++) {
+        decryptedBytes.add(encryptedBytes[i] ^ keyBytes[i % keyBytes.length]);
+      }
+
+      return utf8.decode(decryptedBytes);
+    } catch (e) {
+      AppLogger.e('خطأ في فك التشفير', error: e);
+      return encryptedText;
     }
   }
 
@@ -64,6 +133,19 @@ class LocalStorageService extends BaseService {
   /// قراءة قيمة String
   String? getString(String key) {
     return _prefs?.getString(key);
+  }
+
+  /// ✅ حفظ قيمة String مشفرة
+  Future<bool> setSecureString(String key, String value) async {
+    final encrypted = _encrypt(value);
+    return await _prefs?.setString('secure_$key', encrypted) ?? false;
+  }
+
+  /// ✅ قراءة قيمة String مشفرة
+  String? getSecureString(String key) {
+    final encrypted = _prefs?.getString('secure_$key');
+    if (encrypted == null) return null;
+    return _decrypt(encrypted);
   }
 
   /// حفظ قيمة int
@@ -119,6 +201,23 @@ class LocalStorageService extends BaseService {
       return jsonDecode(value) as Map<String, dynamic>;
     } catch (e) {
       AppLogger.e('خطأ في قراءة JSON', error: e);
+      return null;
+    }
+  }
+
+  /// ✅ حفظ كائن JSON مشفر
+  Future<bool> setSecureJson(String key, Map<String, dynamic> value) async {
+    return await setSecureString(key, jsonEncode(value));
+  }
+
+  /// ✅ قراءة كائن JSON مشفر
+  Map<String, dynamic>? getSecureJson(String key) {
+    final value = getSecureString(key);
+    if (value == null) return null;
+    try {
+      return jsonDecode(value) as Map<String, dynamic>;
+    } catch (e) {
+      AppLogger.e('خطأ في قراءة JSON المشفر', error: e);
       return null;
     }
   }
@@ -241,12 +340,23 @@ class LocalStorageService extends BaseService {
 
   // ==================== User Session ====================
 
-  /// حفظ بيانات الجلسة
+  /// ✅ حفظ بيانات الجلسة (مشفرة)
   Future<void> saveSession({
     required String userId,
     required String userName,
     required String userRole,
   }) async {
+    // ✅ تشفير بيانات الجلسة
+    final sessionData = {
+      'userId': userId,
+      'userName': userName,
+      'userRole': userRole,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    await setSecureJson('session_data', sessionData);
+
+    // أيضاً حفظ بشكل عادي للوصول السريع (غير حساس)
     await setString(AppConstants.userIdKey, userId);
     await setString(AppConstants.userNameKey, userName);
     await setString(AppConstants.userRoleKey, userRole);
@@ -254,6 +364,17 @@ class LocalStorageService extends BaseService {
 
   /// قراءة بيانات الجلسة
   Map<String, String?> getSession() {
+    // محاولة قراءة الجلسة المشفرة أولاً
+    final secureSession = getSecureJson('session_data');
+    if (secureSession != null) {
+      return {
+        'userId': secureSession['userId'] as String?,
+        'userName': secureSession['userName'] as String?,
+        'userRole': secureSession['userRole'] as String?,
+      };
+    }
+
+    // الرجوع للطريقة القديمة
     return {
       'userId': getString(AppConstants.userIdKey),
       'userName': getString(AppConstants.userNameKey),
@@ -261,8 +382,9 @@ class LocalStorageService extends BaseService {
     };
   }
 
-  /// مسح الجلسة
+  /// ✅ مسح الجلسة بشكل آمن
   Future<void> clearSession() async {
+    await remove('secure_session_data');
     await remove(AppConstants.userIdKey);
     await remove(AppConstants.userNameKey);
     await remove(AppConstants.userRoleKey);
@@ -270,7 +392,23 @@ class LocalStorageService extends BaseService {
 
   /// التحقق من وجود جلسة
   bool hasSession() {
-    return containsKey(AppConstants.userIdKey);
+    return containsKey(AppConstants.userIdKey) ||
+        containsKey('secure_session_data');
+  }
+
+  /// ✅ التحقق من صلاحية الجلسة
+  bool isSessionValid() {
+    final secureSession = getSecureJson('session_data');
+    if (secureSession == null) return false;
+
+    final timestamp = DateTime.tryParse(
+      secureSession['timestamp'] as String? ?? '',
+    );
+    if (timestamp == null) return false;
+
+    // الجلسة صالحة لمدة 30 يوم
+    final maxAge = const Duration(days: 30);
+    return DateTime.now().difference(timestamp) < maxAge;
   }
 
   // ==================== Cleanup ====================

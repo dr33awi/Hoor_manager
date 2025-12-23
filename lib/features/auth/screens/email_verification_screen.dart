@@ -1,5 +1,5 @@
 // lib/features/auth/screens/email_verification_screen.dart
-// شاشة التحقق من البريد الإلكتروني - مُصححة
+// شاشة التحقق من البريد الإلكتروني - مُصححة ومحسنة
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -35,7 +35,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     setState(() => _resendCooldown = 60);
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_resendCooldown > 0) {
-        setState(() => _resendCooldown--);
+        if (mounted) {
+          setState(() => _resendCooldown--);
+        }
       } else {
         timer.cancel();
       }
@@ -118,6 +120,17 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         // ❌ الحساب مرفوض
         AppLogger.w('❌ الحساب مرفوض');
         _showMessage(authProvider.error ?? 'تم رفض حسابك', isSuccess: false);
+      } else if (authProvider.errorCode == 'no-pending-data') {
+        // ❌ انتهت صلاحية البيانات
+        AppLogger.w('❌ انتهت صلاحية بيانات التحقق');
+        _showMessage(
+          'انتهت صلاحية البيانات، يرجى إعادة تسجيل الدخول',
+          isSuccess: false,
+        );
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          Navigator.pop(context);
+        }
       } else if (authProvider.error != null) {
         // ❌ خطأ آخر
         AppLogger.e('❌ خطأ: ${authProvider.error}');
