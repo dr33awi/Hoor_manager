@@ -4,8 +4,8 @@
 import 'package:flutter/foundation.dart';
 import '../models/product_model.dart';
 import '../models/category_model.dart';
-import '../services/product_service.dart';
-import '../services/category_service.dart';
+import '../../../core/services/product_service.dart';
+import '../../../core/services/category_service.dart';
 
 class ProductProvider extends ChangeNotifier {
   final ProductService _productService = ProductService();

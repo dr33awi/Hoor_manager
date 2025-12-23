@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../services/auth_service.dart';
+import '../../../core/services/auth_service.dart';
 import '../models/user_model.dart';
 
 class UserManagementScreen extends StatefulWidget {

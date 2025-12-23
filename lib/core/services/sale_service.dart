@@ -2,13 +2,13 @@
 // خدمة المبيعات (محدّث - بدون ضريبة وطريقة دفع)
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/services/base_service.dart';
-import '../../../core/services/firebase_service.dart';
-import '../../auth/services/auth_service.dart';
-import '../../../core/services/audit_service.dart';
-import '../../../core/services/logger_service.dart';
-import '../models/sale_model.dart';
+import '../constants/app_constants.dart';
+import 'base_service.dart';
+import 'firebase_service.dart';
+import 'auth_service.dart';
+import 'audit_service.dart';
+import 'logger_service.dart';
+import '../../features/sales/models/sale_model.dart';
 
 class SaleService extends BaseService {
   final FirebaseService _firebase = FirebaseService();

@@ -2,10 +2,10 @@
 // خدمة الفئات
 
 import 'package:uuid/uuid.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/services/base_service.dart';
-import '../../../core/services/firebase_service.dart';
-import '../models/category_model.dart';
+import '../constants/app_constants.dart';
+import 'base_service.dart';
+import 'firebase_service.dart';
+import '../../features/products/models/category_model.dart';
 
 class CategoryService extends BaseService {
   final FirebaseService _firebase = FirebaseService();

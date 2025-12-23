@@ -34,7 +34,7 @@ dependencies:
   path_provider: ^2.1.5
   
   # PDF & Printing
-  pdf: ^3.11.2
+  pdf: ^3.11.3
   printing: ^5.14.2
   
   # Storage
@@ -43,6 +43,9 @@ dependencies:
   # Logging
   logger: ^2.6.2
   hive_flutter: ^1.1.0
+  mobile_scanner: ^7.1.4
+  barcode_widget: ^2.0.4
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:

@@ -1,8 +1,8 @@
 // lib/features/products/widgets/barcode_label_dialog.dart
-// حوار طباعة ملصق الباركود
+// ✅ حوار طباعة ملصق الباركود - محدّث
 
 import 'package:flutter/material.dart';
-import '../../../core/services/print_service.dart';
+import 'package:hoor_manager/features/products/widgets/barcode_display_widget.dart';
 
 class BarcodeLabelDialog extends StatefulWidget {
   final String barcode;
@@ -26,6 +26,7 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
   final GlobalKey _repaintKey = GlobalKey();
   int _copies = 1;
   bool _isPrinting = false;
+  BarcodeType _selectedType = BarcodeType.Code128;
 
   @override
   Widget build(BuildContext context) {
@@ -46,10 +47,7 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
                       color: const Color(0xFF8B5CF6).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.print,
-                      color: Color(0xFF8B5CF6),
-                    ),
+                    child: const Icon(Icons.print, color: Color(0xFF8B5CF6)),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -65,10 +63,7 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
                         ),
                         Text(
                           'معاينة وطباعة',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -79,26 +74,69 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // معاينة الملصق
+              RepaintBoundary(key: _repaintKey, child: _buildLabelPreview()),
+
+              const SizedBox(height: 20),
+
+              // نوع الباركود
               Container(
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  color: Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: BarcodeLabelWidget(
-                  barcode: widget.barcode,
-                  productName: widget.productName,
-                  variant: widget.variant,
-                  price: widget.price,
-                  repaintKey: _repaintKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'نوع الباركود:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<BarcodeType>(
+                      value: _selectedType,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      items: [
+                        _buildDropdownItem(
+                          BarcodeType.Code128,
+                          'Code 128',
+                          '(الأفضل)',
+                        ),
+                        _buildDropdownItem(BarcodeType.EAN13, 'EAN-13', ''),
+                        _buildDropdownItem(BarcodeType.EAN8, 'EAN-8', ''),
+                        _buildDropdownItem(BarcodeType.UPCA, 'UPC-A', ''),
+                        _buildDropdownItem(BarcodeType.QRCode, 'QR Code', ''),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedType = value);
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
-              
-              const SizedBox(height: 20),
-              
+
+              const SizedBox(height: 16),
+
               // عدد النسخ
               Container(
                 padding: const EdgeInsets.all(16),
@@ -142,35 +180,43 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // أزرار سريعة لعدد النسخ
               Wrap(
                 spacing: 8,
-                children: [5, 10, 20, 50].map((n) => GestureDetector(
-                  onTap: () => setState(() => _copies = n),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _copies == n 
-                          ? const Color(0xFF1A1A2E) 
-                          : Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      '$n',
-                      style: TextStyle(
-                        color: _copies == n ? Colors.white : Colors.black,
-                        fontSize: 12,
+                children: [5, 10, 20, 50]
+                    .map(
+                      (n) => GestureDetector(
+                        onTap: () => setState(() => _copies = n),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _copies == n
+                                ? const Color(0xFF1A1A2E)
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            '$n',
+                            style: TextStyle(
+                              color: _copies == n ? Colors.white : Colors.black,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                )).toList(),
+                    )
+                    .toList(),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // زر الطباعة
               SizedBox(
                 width: double.infinity,
@@ -187,7 +233,9 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
                           ),
                         )
                       : const Icon(Icons.print),
-                  label: Text(_isPrinting ? 'جاري الطباعة...' : 'طباعة $_copies نسخة'),
+                  label: Text(
+                    _isPrinting ? 'جاري الطباعة...' : 'طباعة $_copies نسخة',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A1A2E),
                     shape: RoundedRectangleBorder(
@@ -196,16 +244,13 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // ملاحظة
               Text(
                 'سيتم الطباعة على طابعة الملصقات المتصلة',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade500,
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
               ),
             ],
           ),
@@ -214,7 +259,93 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
     );
   }
 
-  Widget _buildCopyButton({required IconData icon, required VoidCallback onTap}) {
+  DropdownMenuItem<BarcodeType> _buildDropdownItem(
+    BarcodeType type,
+    String label,
+    String hint,
+  ) {
+    return DropdownMenuItem(
+      value: type,
+      child: Row(
+        children: [
+          Text(label),
+          if (hint.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Text(
+              hint,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabelPreview() {
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // اسم المنتج
+          Text(
+            widget.productName,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+
+          // اللون والمقاس
+          Text(
+            widget.variant,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 12),
+
+          // الباركود
+          BarcodeDisplayWidget(
+            data: widget.barcode,
+            type: _selectedType,
+            width: 240,
+            height: 80,
+            showText: true,
+          ),
+
+          const SizedBox(height: 12),
+
+          // السعر
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A2E),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${widget.price.toStringAsFixed(0)} ر.س',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCopyButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -231,11 +362,14 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
 
   Future<void> _print() async {
     setState(() => _isPrinting = true);
-    
+
     try {
-      // محاكاة الطباعة - في الإنتاج استخدم مكتبة printing
+      // هنا يمكنك إضافة كود الطباعة الفعلي
+      // مثال: استخدام مكتبة printing
+
+      // محاكاة الطباعة
       await Future.delayed(const Duration(seconds: 2));
-      
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(

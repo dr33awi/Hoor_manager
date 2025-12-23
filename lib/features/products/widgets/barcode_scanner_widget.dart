@@ -1,17 +1,19 @@
 // lib/features/products/widgets/barcode_scanner_widget.dart
-// ويدجت ماسح الباركود
+// ✅ ويدجت مسح الباركود الحقيقي - محدّث
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 
-/// ويدجت ماسح الباركود
-/// ملاحظة: في الإنتاج، استخدم مكتبة mobile_scanner أو flutter_barcode_scanner
+/// ويدجت مسح الباركود باستخدام mobile_scanner
 class BarcodeScannerWidget extends StatefulWidget {
   final Function(String barcode) onBarcodeScanned;
+  final bool enableManualEntry;
 
   const BarcodeScannerWidget({
     super.key,
     required this.onBarcodeScanned,
+    this.enableManualEntry = true,
   });
 
   @override
@@ -20,28 +22,127 @@ class BarcodeScannerWidget extends StatefulWidget {
 
 class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
     with SingleTickerProviderStateMixin {
+  final MobileScannerController _scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    formats: [
+      BarcodeFormat.code128,
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.upcA, // ✅ تصحيح: upcA بدلاً من upca
+      BarcodeFormat.upcE, // ✅ تصحيح: upcE بدلاً من upce
+      BarcodeFormat.qrCode,
+    ],
+  );
+
   final _manualController = TextEditingController();
   late AnimationController _animationController;
   late Animation<double> _animation;
+
   bool _isScanning = true;
-  bool _flashOn = false;
+  bool _hasPermission = false;
+  bool _isProcessing = false;
+  String? _lastScannedCode;
 
   @override
   void initState() {
     super.initState();
+    _checkPermission();
+
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
-    
+
     _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _scannerController.dispose();
     _manualController.dispose();
+    _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkPermission() async {
+    final status = await Permission.camera.request();
+    setState(() {
+      _hasPermission = status.isGranted;
+    });
+
+    if (!status.isGranted) {
+      _showPermissionDialog();
+    }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.camera_alt, color: Color(0xFFEF4444)),
+            SizedBox(width: 12),
+            Text('صلاحية الكاميرا'),
+          ],
+        ),
+        content: const Text(
+          'نحتاج إلى صلاحية الكاميرا لمسح الباركود. '
+          'يرجى تفعيل الصلاحية من إعدادات التطبيق.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1A1A2E),
+            ),
+            child: const Text('فتح الإعدادات'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onBarcodeDetected(BarcodeCapture capture) {
+    if (_isProcessing) return;
+
+    final barcode = capture.barcodes.firstOrNull?.rawValue;
+
+    if (barcode != null && barcode.isNotEmpty && barcode != _lastScannedCode) {
+      setState(() {
+        _isProcessing = true;
+        _lastScannedCode = barcode;
+      });
+
+      // Haptic feedback
+      _playSuccessSound();
+
+      // استدعاء الـ callback
+      widget.onBarcodeScanned(barcode);
+
+      // Reset بعد ثانية
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+            _lastScannedCode = null;
+          });
+        }
+      });
+    }
+  }
+
+  void _playSuccessSound() {
+    // يمكنك إضافة صوت أو اهتزاز هنا
+    // HapticFeedback.mediumImpact();
   }
 
   @override
@@ -64,7 +165,7 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // العنوان
           Padding(
             padding: const EdgeInsets.all(16),
@@ -77,228 +178,233 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                 ),
                 const Text(
                   'مسح الباركود',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 IconButton(
-                  icon: Icon(_flashOn ? Icons.flash_on : Icons.flash_off),
-                  onPressed: () => setState(() => _flashOn = !_flashOn),
+                  icon: Icon(
+                    _scannerController.torchEnabled
+                        ? Icons.flash_on
+                        : Icons.flash_off,
+                  ),
+                  onPressed: () => _scannerController.toggleTorch(),
                 ),
               ],
             ),
           ),
-          
+
           // منطقة المسح
           Expanded(
             child: _isScanning ? _buildScannerView() : _buildManualEntry(),
           ),
-          
+
           // التبديل بين المسح والإدخال اليدوي
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _isScanning = true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: _isScanning
-                            ? const Color(0xFF1A1A2E)
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.qr_code_scanner,
-                            color: _isScanning ? Colors.white : Colors.grey.shade600,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'مسح',
-                            style: TextStyle(
-                              color: _isScanning ? Colors.white : Colors.grey.shade600,
-                              fontWeight: FontWeight.w600,
+          if (widget.enableManualEntry)
+            Container(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _isScanning = true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: _isScanning
+                              ? const Color(0xFF1A1A2E)
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.qr_code_scanner,
+                              color: _isScanning
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                              size: 20,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              'مسح',
+                              style: TextStyle(
+                                color: _isScanning
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _isScanning = false),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: !_isScanning
-                            ? const Color(0xFF1A1A2E)
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.keyboard,
-                            color: !_isScanning ? Colors.white : Colors.grey.shade600,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'إدخال يدوي',
-                            style: TextStyle(
-                              color: !_isScanning ? Colors.white : Colors.grey.shade600,
-                              fontWeight: FontWeight.w600,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _isScanning = false),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: !_isScanning
+                              ? const Color(0xFF1A1A2E)
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.keyboard,
+                              color: !_isScanning
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                              size: 20,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              'إدخال يدوي',
+                              style: TextStyle(
+                                color: !_isScanning
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
   Widget _buildScannerView() {
+    if (!_hasPermission) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.camera_alt_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'صلاحية الكاميرا مطلوبة',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'يرجى تفعيل صلاحية الكاميرا',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => openAppSettings(),
+              icon: const Icon(Icons.settings),
+              label: const Text('فتح الإعدادات'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A1A2E),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.black,
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Stack(
-        children: [
-          // محاكاة عرض الكاميرا
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.camera_alt_outlined,
-                  size: 60,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'وجّه الكاميرا نحو الباركود',
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'ملاحظة: في الإنتاج استخدم mobile_scanner',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // إطار المسح المتحرك
-          Center(
-            child: Container(
-              width: 250,
-              height: 150,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Stack(
-                children: [
-                  // زوايا ملونة
-                  _buildCorner(Alignment.topLeft),
-                  _buildCorner(Alignment.topRight),
-                  _buildCorner(Alignment.bottomLeft),
-                  _buildCorner(Alignment.bottomRight),
-                  
-                  // خط المسح المتحرك
-                  AnimatedBuilder(
-                    animation: _animation,
-                    builder: (context, child) {
-                      return Positioned(
-                        top: _animation.value * 140,
-                        left: 10,
-                        right: 10,
-                        child: Container(
-                          height: 2,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.transparent,
-                                const Color(0xFF10B981),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // زر المسح اليدوي للاختبار
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: ElevatedButton.icon(
-              onPressed: _simulateScan,
-              icon: const Icon(Icons.qr_code),
-              label: const Text('محاكاة المسح (للاختبار)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 10,
+            spreadRadius: 2,
           ),
         ],
       ),
-    );
-  }
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            // الكاميرا
+            MobileScanner(
+              controller: _scannerController,
+              onDetect: _onBarcodeDetected,
+            ),
 
-  Widget _buildCorner(Alignment alignment) {
-    final isTop = alignment == Alignment.topLeft || alignment == Alignment.topRight;
-    final isLeft = alignment == Alignment.topLeft || alignment == Alignment.bottomLeft;
-    
-    return Positioned(
-      top: isTop ? 0 : null,
-      bottom: !isTop ? 0 : null,
-      left: isLeft ? 0 : null,
-      right: !isLeft ? 0 : null,
-      child: Container(
-        width: 20,
-        height: 20,
-        decoration: BoxDecoration(
-          border: Border(
-            top: isTop ? const BorderSide(color: Color(0xFF10B981), width: 3) : BorderSide.none,
-            bottom: !isTop ? const BorderSide(color: Color(0xFF10B981), width: 3) : BorderSide.none,
-            left: isLeft ? const BorderSide(color: Color(0xFF10B981), width: 3) : BorderSide.none,
-            right: !isLeft ? const BorderSide(color: Color(0xFF10B981), width: 3) : BorderSide.none,
-          ),
+            // Overlay مع إطار المسح
+            CustomPaint(
+              painter: ScannerOverlayPainter(
+                scanWindow: Rect.fromCenter(
+                  center: Offset(
+                    MediaQuery.of(context).size.width / 2,
+                    MediaQuery.of(context).size.height * 0.4,
+                  ),
+                  width: 280,
+                  height: 180,
+                ),
+                animation: _animation,
+              ),
+              child: Container(),
+            ),
+
+            // رسالة التوجيه
+            Positioned(
+              bottom: 40,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _isProcessing
+                          ? Icons.check_circle
+                          : Icons.center_focus_weak,
+                      color: _isProcessing
+                          ? const Color(0xFF10B981)
+                          : Colors.white,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      _isProcessing
+                          ? 'تم المسح بنجاح!'
+                          : 'وجّه الكاميرا نحو الباركود',
+                      style: TextStyle(
+                        color: _isProcessing
+                            ? const Color(0xFF10B981)
+                            : Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -326,15 +432,13 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                 const SizedBox(height: 16),
                 const Text(
                   'أدخل رقم الباركود يدوياً',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 20),
                 TextField(
                   controller: _manualController,
                   textAlign: TextAlign.center,
+                  autofocus: true,
                   style: const TextStyle(
                     fontSize: 18,
                     fontFamily: 'monospace',
@@ -355,12 +459,17 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF1A1A2E), width: 2),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF1A1A2E),
+                        width: 2,
+                      ),
                     ),
                   ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\-]')),
-                  ],
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty) {
+                      widget.onBarcodeScanned(value.trim());
+                    }
+                  },
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -394,15 +503,121 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
       ),
     );
   }
+}
 
-  void _simulateScan() {
-    // محاكاة مسح باركود للاختبار
-    final testBarcodes = [
-      'SHO2506123456',
-      '1234567890123',
-      'SHO2506-BK-42',
-    ];
-    final randomBarcode = testBarcodes[DateTime.now().second % testBarcodes.length];
-    widget.onBarcodeScanned(randomBarcode);
+/// رسام الـ Overlay للمسح
+class ScannerOverlayPainter extends CustomPainter {
+  final Rect scanWindow;
+  final Animation<double> animation;
+
+  ScannerOverlayPainter({required this.scanWindow, required this.animation})
+    : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // خلفية شبه شفافة
+    final backgroundPath = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final windowPath = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(scanWindow, const Radius.circular(12)),
+      );
+
+    final backgroundPaint = Paint()..color = Colors.black.withOpacity(0.5);
+
+    canvas.drawPath(
+      Path.combine(PathOperation.difference, backgroundPath, windowPath),
+      backgroundPaint,
+    );
+
+    // إطار النافذة
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(scanWindow, const Radius.circular(12)),
+      borderPaint,
+    );
+
+    // الزوايا الملونة
+    final cornerPaint = Paint()
+      ..color = const Color(0xFF10B981)
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    const cornerLength = 30.0;
+
+    // الزاوية العلوية اليسرى
+    canvas.drawLine(
+      scanWindow.topLeft,
+      scanWindow.topLeft + const Offset(cornerLength, 0),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      scanWindow.topLeft,
+      scanWindow.topLeft + const Offset(0, cornerLength),
+      cornerPaint,
+    );
+
+    // الزاوية العلوية اليمنى
+    canvas.drawLine(
+      scanWindow.topRight,
+      scanWindow.topRight + const Offset(-cornerLength, 0),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      scanWindow.topRight,
+      scanWindow.topRight + const Offset(0, cornerLength),
+      cornerPaint,
+    );
+
+    // الزاوية السفلية اليسرى
+    canvas.drawLine(
+      scanWindow.bottomLeft,
+      scanWindow.bottomLeft + const Offset(cornerLength, 0),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      scanWindow.bottomLeft,
+      scanWindow.bottomLeft + const Offset(0, -cornerLength),
+      cornerPaint,
+    );
+
+    // الزاوية السفلية اليمنى
+    canvas.drawLine(
+      scanWindow.bottomRight,
+      scanWindow.bottomRight + const Offset(-cornerLength, 0),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      scanWindow.bottomRight,
+      scanWindow.bottomRight + const Offset(0, -cornerLength),
+      cornerPaint,
+    );
+
+    // خط المسح المتحرك
+    final scanLinePaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          Colors.transparent,
+          const Color(0xFF10B981).withOpacity(0.8),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromLTWH(scanWindow.left, 0, scanWindow.width, 2));
+
+    final scanLineY = scanWindow.top + (scanWindow.height * animation.value);
+
+    canvas.drawRect(
+      Rect.fromLTWH(scanWindow.left, scanLineY, scanWindow.width, 2),
+      scanLinePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant ScannerOverlayPainter oldDelegate) {
+    return oldDelegate.animation != animation;
   }
 }
