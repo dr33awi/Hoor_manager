@@ -1,10 +1,11 @@
 // lib/features/auth/screens/register_screen.dart
-// شاشة التسجيل
+// شاشة التسجيل - تنتقل لشاشة التحقق من الإيميل
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
+import 'email_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -38,8 +39,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     final authProvider = context.read<AuthProvider>();
+    final email = _emailController.text.trim();
+
     final success = await authProvider.signUpWithEmail(
-      _emailController.text.trim(),
+      email,
       _passwordController.text,
       _nameController.text.trim(),
     );
@@ -49,34 +52,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (success) {
-      // تم إنشاء الحساب بنجاح
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم إنشاء الحساب بنجاح! حسابك قيد المراجعة.'),
-          backgroundColor: AppTheme.successColor,
+      // ✅ تم إنشاء الحساب بنجاح - الانتقال لشاشة التحقق من الإيميل
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EmailVerificationScreen(email: email),
         ),
       );
-      Navigator.pop(context);
     } else {
-      // فشل التسجيل
-      final errorCode = authProvider.errorCode;
-      String errorMessage = authProvider.error ?? 'حدث خطأ أثناء إنشاء الحساب';
-
-      if (errorCode == 'email-already-in-use') {
-        errorMessage = 'البريد الإلكتروني مستخدم بالفعل';
-      } else if (errorCode == 'weak-password') {
-        errorMessage = 'كلمة المرور ضعيفة جداً';
-      } else if (errorCode == 'invalid-email') {
-        errorMessage = 'البريد الإلكتروني غير صالح';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      // فشل التسجيل - عرض رسالة الخطأ
+      _showErrorSnackBar(authProvider.error ?? 'حدث خطأ أثناء إنشاء الحساب');
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -265,7 +261,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 16),
 
-                // ملاحظة
+                // ملاحظة - خطوات التسجيل
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -275,19 +271,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: AppTheme.infoColor.withOpacity(0.3),
                     ),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline, color: AppTheme.infoColor),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'سيتم مراجعة حسابك من قبل المدير قبل تفعيله.',
-                          style: TextStyle(
-                            color: AppTheme.infoColor,
-                            fontSize: 13,
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, color: AppTheme.infoColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            'خطوات التسجيل:',
+                            style: TextStyle(
+                              color: AppTheme.infoColor,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
+                      const SizedBox(height: 12),
+                      _buildStep('1', 'إنشاء الحساب', true),
+                      _buildStep('2', 'تفعيل البريد الإلكتروني', false),
+                      _buildStep('3', 'انتظار موافقة المدير', false),
                     ],
                   ),
                 ),
@@ -295,6 +298,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStep(String number, String text, bool isCurrent) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: isCurrent ? AppTheme.primaryColor : AppTheme.grey300,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: TextStyle(
+                  color: isCurrent ? Colors.white : AppTheme.grey600,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: isCurrent ? AppTheme.primaryColor : AppTheme.grey600,
+              fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,11 +1,13 @@
 // lib/features/auth/screens/login_screen.dart
-// شاشة تسجيل الدخول مع عرض رسائل خطأ واضحة
+// شاشة تسجيل الدخول - مع التوجيه لشاشة الانتظار عند الحساب المعلق
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
+import 'pending_approval_screen.dart';
+import 'email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,18 +36,26 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final authProvider = context.read<AuthProvider>();
+    final email = _emailController.text.trim();
     final success = await authProvider.signInWithEmail(
-      _emailController.text.trim(),
+      email,
       _passwordController.text,
     );
 
-    setState(() => _isLoading = false);
-
+    // ✅ التحقق من mounted قبل setState
     if (!mounted) return;
 
-    if (!success && authProvider.error != null) {
-      // عرض رسالة الخطأ في Dialog
-      _showErrorDialog(authProvider.error!, authProvider.errorCode);
+    setState(() => _isLoading = false);
+
+    if (!success) {
+      // ✅ التوجيه حسب نوع الخطأ
+      final errorCode = authProvider.errorCode;
+      if (errorCode != null) {
+        _handleLoginError(errorCode, authProvider.error, email);
+      } else if (authProvider.error != null) {
+        // إذا لم يكن هناك errorCode لكن يوجد error
+        _showErrorSnackBar(authProvider.error!);
+      }
     }
   }
 
@@ -55,42 +65,133 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.signInWithGoogle();
 
-    setState(() => _isLoading = false);
-
+    // ✅ التحقق من mounted قبل setState
     if (!mounted) return;
 
-    if (!success && authProvider.error != null) {
-      _showErrorDialog(authProvider.error!, authProvider.errorCode);
+    setState(() => _isLoading = false);
+
+    if (!success) {
+      final errorCode = authProvider.errorCode;
+      if (errorCode != null) {
+        _handleLoginError(
+          errorCode,
+          authProvider.error,
+          authProvider.pendingVerificationEmail ?? '',
+        );
+      } else if (authProvider.error != null) {
+        _showErrorSnackBar(authProvider.error!);
+      }
     }
   }
 
-  void _showErrorDialog(String message, String? errorCode) {
-    IconData icon;
-    Color color;
-    String title;
-
+  /// ✅ معالجة أخطاء تسجيل الدخول والتوجيه المناسب
+  void _handleLoginError(String errorCode, String? errorMessage, String email) {
+    debugPrint('🔴 _handleLoginError called with errorCode: $errorCode');
     switch (errorCode) {
       case 'account-pending':
-        icon = Icons.hourglass_empty;
-        color = AppTheme.warningColor;
-        title = 'حساب قيد المراجعة';
+        // ✅ الانتقال لشاشة انتظار الموافقة
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PendingApprovalScreen(
+              email: email,
+              isNewAccount: false,
+              onBackToLogin: () => Navigator.pop(context),
+            ),
+          ),
+        );
         break;
-      case 'account-rejected':
-        icon = Icons.cancel;
-        color = AppTheme.errorColor;
-        title = 'تم رفض الحساب';
-        break;
-      case 'account-disabled':
-        icon = Icons.block;
-        color = AppTheme.grey600;
-        title = 'حساب معطل';
-        break;
-      default:
-        icon = Icons.error_outline;
-        color = AppTheme.errorColor;
-        title = 'خطأ في تسجيل الدخول';
-    }
 
+      case 'email-not-verified':
+        // ✅ الانتقال لشاشة التحقق من الإيميل
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationScreen(email: email),
+          ),
+        );
+        break;
+
+      case 'account-rejected':
+        // عرض Dialog للحساب المرفوض
+        _showErrorDialog(
+          title: 'تم رفض الحساب',
+          message: errorMessage ?? 'تم رفض حسابك من قبل المدير',
+          icon: Icons.cancel,
+          color: AppTheme.errorColor,
+        );
+        break;
+
+      case 'account-disabled':
+        // عرض Dialog للحساب المعطل
+        _showErrorDialog(
+          title: 'حساب معطل',
+          message: errorMessage ?? 'تم تعطيل حسابك. تواصل مع المدير',
+          icon: Icons.block,
+          color: AppTheme.grey600,
+        );
+        break;
+
+      // ✅ أخطاء بيانات الدخول الخاطئة
+      case 'user-not-found':
+        _showErrorSnackBar('لا يوجد حساب بهذا البريد الإلكتروني');
+        break;
+
+      case 'wrong-password':
+        _showErrorSnackBar('كلمة المرور غير صحيحة');
+        break;
+
+      case 'invalid-credential':
+        _showErrorSnackBar('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+        break;
+
+      case 'invalid-email':
+        _showErrorSnackBar('البريد الإلكتروني غير صالح');
+        break;
+
+      case 'too-many-requests':
+        _showErrorSnackBar('محاولات كثيرة جداً. حاول لاحقاً');
+        break;
+
+      case 'network-request-failed':
+        _showErrorSnackBar('خطأ في الاتصال بالإنترنت');
+        break;
+
+      default:
+        // عرض SnackBar للأخطاء الأخرى
+        _showErrorSnackBar(errorMessage ?? 'حدث خطأ أثناء تسجيل الدخول');
+    }
+  }
+
+  /// ✅ عرض رسالة خطأ سريعة
+  void _showErrorSnackBar(String message) {
+    debugPrint('🔴 _showErrorSnackBar called with: $message');
+    debugPrint('🔴 mounted: $mounted');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showErrorDialog({
+    required String title,
+    required String message,
+    required IconData icon,
+    required Color color,
+  }) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

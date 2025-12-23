@@ -1,4 +1,6 @@
 // lib/core/services/auth_service.dart
+// خدمة المصادقة - مع دعم التحقق من الإيميل
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -41,6 +43,12 @@ class AuthService extends BaseService {
         email: email.trim(),
         password: password,
       );
+
+      // ✅ التحقق من تفعيل الإيميل أولاً
+      if (!credential.user!.emailVerified) {
+        AppLogger.w('⚠️ Email not verified');
+        return ServiceResult.failure('يرجى تفعيل بريدك الإلكتروني أولاً');
+      }
 
       final userDoc = await _firestore
           .collection(_usersCollection)
@@ -103,26 +111,37 @@ class AuthService extends BaseService {
     }
   }
 
+  /// ✅ تسجيل مستخدم جديد مع إرسال رابط التحقق
   Future<ServiceResult<UserCredential>> signUp(
     String email,
     String password,
     String name,
   ) async {
     try {
+      AppLogger.i('🔐 Creating new account: $email');
+
+      // إنشاء الحساب
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
 
+      // تحديث اسم المستخدم
       await credential.user!.updateDisplayName(name);
 
+      // ✅ إرسال رابط التحقق من الإيميل
+      await credential.user!.sendEmailVerification();
+      AppLogger.i('📧 Verification email sent to: $email');
+
+      // إنشاء سجل المستخدم في Firestore (حالة: pending)
       final user = UserModel(
         id: credential.user!.uid,
         email: email.trim(),
         name: name.trim(),
         role: 'employee',
-        status: 'pending',
+        status: 'pending', // سيظل pending حتى يوافق المدير
         isActive: true,
+        emailVerified: false, // ✅ حقل جديد لتتبع حالة التحقق
         createdAt: DateTime.now(),
       );
 
@@ -132,9 +151,99 @@ class AuthService extends BaseService {
           .set(user.toMap());
 
       _currentUser = user;
+
+      AppLogger.i('✅ Account created successfully, verification email sent');
       return ServiceResult.success(credential);
     } on FirebaseAuthException catch (e) {
+      AppLogger.e('❌ Firebase Auth Error: ${e.code}');
       return ServiceResult.failure(_getAuthErrorMessage(e.code));
+    } catch (e) {
+      AppLogger.e('❌ Sign up error', error: e);
+      return ServiceResult.failure(handleError(e));
+    }
+  }
+
+  /// ✅ إعادة إرسال رابط التحقق
+  Future<ServiceResult<void>> resendVerificationEmail() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return ServiceResult.failure('لا يوجد مستخدم مسجل');
+      }
+
+      if (user.emailVerified) {
+        return ServiceResult.failure('البريد الإلكتروني مفعّل بالفعل');
+      }
+
+      await user.sendEmailVerification();
+      AppLogger.i('📧 Verification email resent to: ${user.email}');
+      return ServiceResult.success();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'too-many-requests') {
+        return ServiceResult.failure(
+          'تم إرسال الكثير من الطلبات. انتظر قليلاً',
+        );
+      }
+      return ServiceResult.failure(_getAuthErrorMessage(e.code));
+    } catch (e) {
+      return ServiceResult.failure(handleError(e));
+    }
+  }
+
+  /// ✅ التحقق من حالة تفعيل الإيميل
+  Future<ServiceResult<bool>> checkEmailVerification() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return ServiceResult.failure('لا يوجد مستخدم مسجل');
+      }
+
+      // إعادة تحميل بيانات المستخدم من Firebase
+      await user.reload();
+      final refreshedUser = _auth.currentUser;
+
+      if (refreshedUser?.emailVerified == true) {
+        AppLogger.i('✅ Email verified successfully');
+
+        // ✅ تحديث حالة التحقق في Firestore
+        await _firestore
+            .collection(_usersCollection)
+            .doc(refreshedUser!.uid)
+            .update({'emailVerified': true});
+
+        return ServiceResult.success(true);
+      }
+
+      AppLogger.w('⚠️ Email not verified yet');
+      return ServiceResult.success(false);
+    } catch (e) {
+      AppLogger.e('❌ Error checking email verification', error: e);
+      return ServiceResult.failure(handleError(e));
+    }
+  }
+
+  /// ✅ التحقق من الإيميل والدخول (للاستخدام من شاشة التحقق)
+  Future<ServiceResult<bool>> checkVerificationAndLogin() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return ServiceResult.failure('لا يوجد مستخدم مسجل');
+      }
+
+      await user.reload();
+      final refreshedUser = _auth.currentUser;
+
+      if (refreshedUser?.emailVerified == true) {
+        // تحديث Firestore
+        await _firestore
+            .collection(_usersCollection)
+            .doc(refreshedUser!.uid)
+            .update({'emailVerified': true});
+
+        return ServiceResult.success(true);
+      }
+
+      return ServiceResult.success(false);
     } catch (e) {
       return ServiceResult.failure(handleError(e));
     }
@@ -199,9 +308,10 @@ class AuthService extends BaseService {
         name: firebaseUser.displayName ?? 'مستخدم',
         photoUrl: firebaseUser.photoURL,
         role: 'employee',
-        status: 'approved',
+        status: 'pending', // ✅ حتى مستخدمي Google يحتاجون موافقة
         isActive: true,
         isGoogleUser: true,
+        emailVerified: true, // Google يتحقق من الإيميل تلقائياً
         createdAt: DateTime.now(),
       );
       await docRef.set(user.toMap());
@@ -243,7 +353,6 @@ class AuthService extends BaseService {
     }
   }
 
-  /// رفض مستخدم - المعامل الثاني اختياري
   Future<ServiceResult<void>> rejectUser(String uid, [String? reason]) async {
     try {
       await _firestore.collection(_usersCollection).doc(uid).update({
@@ -301,38 +410,6 @@ class AuthService extends BaseService {
         'isActive': isActive,
       });
       return ServiceResult.success();
-    } catch (e) {
-      return ServiceResult.failure(handleError(e));
-    }
-  }
-
-  Future<ServiceResult<void>> resendVerificationEmail() async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null && !user.emailVerified) {
-        await user.sendEmailVerification();
-        return ServiceResult.success();
-      }
-      return ServiceResult.failure('لا يوجد مستخدم');
-    } catch (e) {
-      return ServiceResult.failure(handleError(e));
-    }
-  }
-
-  Future<ServiceResult<bool>> checkVerificationAndLogin() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        return ServiceResult.failure('لا يوجد مستخدم');
-      }
-
-      await user.reload();
-      final refreshedUser = _auth.currentUser;
-
-      if (refreshedUser?.emailVerified == true) {
-        return ServiceResult.success(true);
-      }
-      return ServiceResult.success(false);
     } catch (e) {
       return ServiceResult.failure(handleError(e));
     }

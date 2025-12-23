@@ -1,7 +1,10 @@
 // lib/features/auth/providers/auth_provider.dart
+// مُصحح - مع دعم التحقق من الإيميل الكامل
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/logger_service.dart';
 import '../models/user_model.dart';
@@ -124,6 +127,18 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
 
+      // ✅ التحقق من تفعيل الإيميل أولاً
+      if (!credential.user!.emailVerified) {
+        _error =
+            '📧 يرجى تفعيل بريدك الإلكتروني أولاً\n\nتحقق من صندوق الوارد أو مجلد السبام';
+        _errorCode = 'email-not-verified';
+        _pendingVerificationEmail = email;
+        _needsEmailVerification = true;
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
       final userResult = await _authService.getUserById(credential.user!.uid);
 
       if (!userResult.success || userResult.data == null) {
@@ -136,7 +151,7 @@ class AuthProvider extends ChangeNotifier {
 
       final user = userResult.data!;
 
-      // ✅ التحقق من حالة الحساب وعرض رسالة مناسبة
+      // ✅ التحقق من حالة الحساب
       if (user.status == 'pending') {
         await _firebaseAuth.signOut();
         _error =
@@ -172,17 +187,43 @@ class AuthProvider extends ChangeNotifier {
       _authService.setCurrentUser(_currentUser);
       _error = null;
       _errorCode = null;
+      _needsEmailVerification = false;
       _isLoading = false;
       notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
+      AppLogger.e('❌ FirebaseAuthException: ${e.code}', error: e);
       _error = _getFirebaseErrorMessage(e.code);
       _errorCode = e.code;
       _isLoading = false;
       notifyListeners();
       return false;
+    } on FirebaseException catch (e) {
+      AppLogger.e('❌ FirebaseException: ${e.code}', error: e);
+      _error = _getFirebaseErrorMessage(e.code ?? 'unknown');
+      _errorCode = e.code;
+      _isLoading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
-      _error = 'حدث خطأ أثناء تسجيل الدخول';
+      AppLogger.e('❌ Unknown error during sign in', error: e);
+      // ✅ محاولة استخراج رسالة الخطأ من النص
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('invalid-credential') ||
+          errorString.contains('wrong-password') ||
+          errorString.contains('incorrect')) {
+        _error = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+        _errorCode = 'invalid-credential';
+      } else if (errorString.contains('user-not-found')) {
+        _error = 'لا يوجد حساب بهذا البريد الإلكتروني';
+        _errorCode = 'user-not-found';
+      } else if (errorString.contains('network')) {
+        _error = 'خطأ في الاتصال بالإنترنت';
+        _errorCode = 'network-request-failed';
+      } else {
+        _error = 'حدث خطأ أثناء تسجيل الدخول';
+        _errorCode = 'unknown';
+      }
       _isLoading = false;
       notifyListeners();
       return false;
@@ -242,6 +283,7 @@ class AuthProvider extends ChangeNotifier {
     return signUpWithEmail(email, password, name);
   }
 
+  /// ✅ تسجيل مستخدم جديد مع إرسال رابط التحقق
   Future<bool> signUpWithEmail(
     String email,
     String password,
@@ -253,26 +295,86 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      AppLogger.i('🔐 بدء إنشاء حساب جديد: $email');
+
       final result = await _authService.signUp(email, password, name);
+
       if (result.success) {
+        AppLogger.i('✅ تم إنشاء الحساب وإرسال رابط التحقق');
+
+        // حفظ البريد للاستخدام في شاشة التحقق
         _pendingVerificationEmail = email;
-        await _firebaseAuth.signOut();
+        _needsEmailVerification = true;
+
+        // ✅ لا نسجل الخروج هنا - المستخدم يحتاج يظل مسجل لإعادة إرسال الرابط
+
         _isLoading = false;
+        _error = null;
+        _errorCode = null;
         notifyListeners();
         return true;
       } else {
+        AppLogger.e('❌ فشل إنشاء الحساب: ${result.error}');
         _error = result.error;
         _errorCode = _getErrorCodeFromMessage(result.error);
         _isLoading = false;
         notifyListeners();
         return false;
       }
+    } on FirebaseAuthException catch (e) {
+      AppLogger.e('❌ Firebase Auth Error: ${e.code}');
+      _error = _getFirebaseErrorMessage(e.code);
+      _errorCode = e.code;
+      _isLoading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
+      AppLogger.e('❌ خطأ غير متوقع: $e');
       _error = 'حدث خطأ أثناء إنشاء الحساب';
       _isLoading = false;
       notifyListeners();
       return false;
     }
+  }
+
+  /// ✅ إعادة إرسال رابط التحقق
+  Future<bool> resendVerificationEmail() async {
+    try {
+      final result = await _authService.resendVerificationEmail();
+      if (!result.success) {
+        _error = result.error;
+        notifyListeners();
+      }
+      return result.success;
+    } catch (e) {
+      _error = 'حدث خطأ في إرسال رابط التحقق';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// ✅ التحقق من تفعيل الإيميل فقط (بدون تغيير حالة المستخدم)
+  Future<bool> checkEmailVerificationOnly() async {
+    try {
+      final result = await _authService.checkEmailVerification();
+      return result.success && result.data == true;
+    } catch (e) {
+      AppLogger.e('Error checking email verification', error: e);
+      return false;
+    }
+  }
+
+  /// ✅ تسجيل الخروج بعد التحقق من الإيميل (للانتقال لشاشة الانتظار)
+  Future<void> signOutAfterVerification() async {
+    try {
+      await _firebaseAuth.signOut();
+      _currentUser = null;
+      _needsEmailVerification = false;
+      // لا نمسح _pendingVerificationEmail لاستخدامه في شاشة الانتظار
+    } catch (e) {
+      AppLogger.e('Error signing out after verification', error: e);
+    }
+    notifyListeners();
   }
 
   Future<void> signOut() async {
@@ -309,22 +411,6 @@ class AuthProvider extends ChangeNotifier {
       return result.success;
     } catch (e) {
       _error = 'حدث خطأ';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> resendVerificationEmail() async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final result = await _authService.resendVerificationEmail();
-      _isLoading = false;
-      notifyListeners();
-      return result.success;
-    } catch (e) {
       _isLoading = false;
       notifyListeners();
       return false;
@@ -400,6 +486,8 @@ class AuthProvider extends ChangeNotifier {
     if (message.contains('قيد المراجعة')) return 'account-pending';
     if (message.contains('رفض')) return 'account-rejected';
     if (message.contains('معطل')) return 'account-disabled';
+    if (message.contains('مستخدم بالفعل')) return 'email-already-in-use';
+    if (message.contains('ضعيفة')) return 'weak-password';
     return null;
   }
 

@@ -1,5 +1,5 @@
 // lib/features/auth/screens/email_verification_screen.dart
-// شاشة التحقق من البريد الإلكتروني - مُصححة ومحسنة
+// شاشة التحقق من البريد الإلكتروني - مُصححة
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -24,11 +24,40 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   bool _isChecking = false;
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
+  Timer? _autoCheckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // بدء التحقق التلقائي كل 3 ثواني
+    _startAutoCheck();
+  }
 
   @override
   void dispose() {
     _cooldownTimer?.cancel();
+    _autoCheckTimer?.cancel();
     super.dispose();
+  }
+
+  /// بدء التحقق التلقائي
+  void _startAutoCheck() {
+    _autoCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!_isChecking) {
+        _checkVerificationSilently();
+      }
+    });
+  }
+
+  /// تحقق صامت (بدون إظهار loading)
+  Future<void> _checkVerificationSilently() async {
+    final authProvider = context.read<AuthProvider>();
+    final isVerified = await authProvider.checkEmailVerificationOnly();
+
+    if (isVerified && mounted) {
+      _autoCheckTimer?.cancel();
+      _navigateToPendingApproval();
+    }
   }
 
   void _startCooldown() {
@@ -75,68 +104,49 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     AppLogger.d('=== بدء التحقق من تفعيل البريد ===');
     AppLogger.d('البريد: ${widget.email}');
 
-    final success = await authProvider.checkVerificationAndLogin();
-
-    AppLogger.d('نتيجة التحقق: success=$success');
-    AppLogger.d('errorCode: ${authProvider.errorCode}');
-    AppLogger.d('error: ${authProvider.error}');
-    AppLogger.d(
-      'needsEmailVerification: ${authProvider.needsEmailVerification}',
-    );
+    final isVerified = await authProvider.checkEmailVerificationOnly();
 
     if (mounted) {
       setState(() => _isChecking = false);
 
-      if (success) {
-        // ✅ تم التحقق بنجاح والحساب موافق عليه
-        AppLogger.i('✅ تم التحقق والدخول بنجاح');
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      } else if (authProvider.errorCode == 'account-pending') {
-        // ✅ تم تفعيل البريد لكن الحساب في انتظار الموافقة
-        AppLogger.i('✅ البريد مفعّل - الحساب في انتظار الموافقة');
+      if (isVerified) {
+        // ✅ تم التحقق من الإيميل بنجاح
+        AppLogger.i('✅ تم التحقق من البريد الإلكتروني');
         _showMessage('تم تفعيل البريد بنجاح! ✓', isSuccess: true);
+
+        // إيقاف التحقق التلقائي
+        _autoCheckTimer?.cancel();
 
         // انتظار قليل ثم الانتقال
         await Future.delayed(const Duration(milliseconds: 800));
 
         if (mounted) {
-          // مسح حالة التحقق
-          authProvider.clearVerificationState();
-
-          // الانتقال لشاشة الانتظار
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PendingApprovalScreen(email: widget.email),
-            ),
-          );
+          _navigateToPendingApproval();
         }
-      } else if (authProvider.needsEmailVerification ||
-          authProvider.errorCode == 'email-not-verified') {
+      } else {
         // ❌ البريد لم يتم تفعيله بعد
         AppLogger.w('❌ البريد لم يتم تفعيله بعد');
         _showMessage('البريد الإلكتروني لم يتم تفعيله بعد', isSuccess: false);
-      } else if (authProvider.errorCode == 'account-rejected') {
-        // ❌ الحساب مرفوض
-        AppLogger.w('❌ الحساب مرفوض');
-        _showMessage(authProvider.error ?? 'تم رفض حسابك', isSuccess: false);
-      } else if (authProvider.errorCode == 'no-pending-data') {
-        // ❌ انتهت صلاحية البيانات
-        AppLogger.w('❌ انتهت صلاحية بيانات التحقق');
-        _showMessage(
-          'انتهت صلاحية البيانات، يرجى إعادة تسجيل الدخول',
-          isSuccess: false,
-        );
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) {
-          Navigator.pop(context);
-        }
-      } else if (authProvider.error != null) {
-        // ❌ خطأ آخر
-        AppLogger.e('❌ خطأ: ${authProvider.error}');
-        _showMessage(authProvider.error!, isSuccess: false);
       }
     }
+  }
+
+  void _navigateToPendingApproval() {
+    // تسجيل الخروج أولاً لأن الحساب يحتاج موافقة المدير
+    context.read<AuthProvider>().signOutAfterVerification();
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PendingApprovalScreen(
+          email: widget.email,
+          isNewAccount: true,
+          onBackToLogin: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          },
+        ),
+      ),
+    );
   }
 
   void _showMessage(String message, {required bool isSuccess}) {
@@ -252,6 +262,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       ),
                       const SizedBox(height: 24),
 
+                      // خطوات التسجيل
+                      _buildProgressSteps(),
+                      const SizedBox(height: 24),
+
                       // التعليمات
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -278,10 +292,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            _buildStep('1', 'افتح بريدك الإلكتروني'),
-                            _buildStep('2', 'ابحث عن رسالة من التطبيق'),
-                            _buildStep('3', 'اضغط على رابط التفعيل'),
-                            _buildStep('4', 'عد هنا واضغط "تم التفعيل"'),
+                            _buildInstruction('1', 'افتح بريدك الإلكتروني'),
+                            _buildInstruction('2', 'ابحث عن رسالة من التطبيق'),
+                            _buildInstruction('3', 'اضغط على رابط التفعيل'),
+                            _buildInstruction('4', 'عد هنا واضغط "تم التفعيل"'),
                           ],
                         ),
                       ),
@@ -355,8 +369,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       // الرجوع
                       TextButton.icon(
                         onPressed: () {
-                          context.read<AuthProvider>().clearVerificationState();
-                          Navigator.pop(context);
+                          context.read<AuthProvider>().signOut();
+                          Navigator.of(
+                            context,
+                          ).popUntil((route) => route.isFirst);
                         },
                         icon: const Icon(Icons.arrow_back),
                         label: const Text('الرجوع لتسجيل الدخول'),
@@ -402,7 +418,74 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     );
   }
 
-  Widget _buildStep(String number, String text) {
+  /// عرض خطوات التسجيل
+  Widget _buildProgressSteps() {
+    return Row(
+      children: [
+        _buildProgressStep('1', 'إنشاء\nالحساب', true, true),
+        _buildProgressLine(true),
+        _buildProgressStep('2', 'تفعيل\nالبريد', true, false),
+        _buildProgressLine(false),
+        _buildProgressStep('3', 'موافقة\nالمدير', false, false),
+      ],
+    );
+  }
+
+  Widget _buildProgressStep(
+    String number,
+    String label,
+    bool isActive,
+    bool isCompleted,
+  ) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isCompleted
+                  ? AppTheme.successColor
+                  : (isActive ? AppTheme.primaryColor : AppTheme.grey300),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: isCompleted
+                  ? const Icon(Icons.check, color: Colors.white, size: 20)
+                  : Text(
+                      number,
+                      style: TextStyle(
+                        color: isActive ? Colors.white : AppTheme.grey600,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: isActive ? AppTheme.primaryColor : AppTheme.grey600,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressLine(bool isActive) {
+    return Container(
+      width: 30,
+      height: 2,
+      margin: const EdgeInsets.only(bottom: 30),
+      color: isActive ? AppTheme.successColor : AppTheme.grey300,
+    );
+  }
+
+  Widget _buildInstruction(String number, String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

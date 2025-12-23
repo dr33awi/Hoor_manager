@@ -10,6 +10,7 @@ class UserModel {
   final String status; // 'pending', 'approved', 'rejected'
   final bool isActive;
   final bool isGoogleUser;
+  final bool emailVerified; // ✅ حقل جديد
   final DateTime createdAt;
   final DateTime? lastLoginAt;
   final DateTime? approvedAt;
@@ -25,6 +26,7 @@ class UserModel {
     this.status = 'pending',
     this.isActive = true,
     this.isGoogleUser = false,
+    this.emailVerified = false, // ✅ افتراضي false
     required this.createdAt,
     this.lastLoginAt,
     this.approvedAt,
@@ -43,6 +45,7 @@ class UserModel {
       status: data['status'] ?? 'approved',
       isActive: data['isActive'] ?? true,
       isGoogleUser: data['isGoogleUser'] ?? false,
+      emailVerified: data['emailVerified'] ?? false, // ✅
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastLoginAt: (data['lastLoginAt'] as Timestamp?)?.toDate(),
       approvedAt: (data['approvedAt'] as Timestamp?)?.toDate(),
@@ -61,6 +64,7 @@ class UserModel {
       status: data['status'] ?? 'approved',
       isActive: data['isActive'] ?? true,
       isGoogleUser: data['isGoogleUser'] ?? false,
+      emailVerified: data['emailVerified'] ?? false, // ✅
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastLoginAt: (data['lastLoginAt'] as Timestamp?)?.toDate(),
       approvedAt: (data['approvedAt'] as Timestamp?)?.toDate(),
@@ -78,6 +82,7 @@ class UserModel {
       'status': status,
       'isActive': isActive,
       'isGoogleUser': isGoogleUser,
+      'emailVerified': emailVerified, // ✅
       'createdAt': Timestamp.fromDate(createdAt),
       'lastLoginAt': lastLoginAt != null
           ? Timestamp.fromDate(lastLoginAt!)
@@ -97,6 +102,7 @@ class UserModel {
     String? status,
     bool? isActive,
     bool? isGoogleUser,
+    bool? emailVerified,
     DateTime? createdAt,
     DateTime? lastLoginAt,
     DateTime? approvedAt,
@@ -112,6 +118,7 @@ class UserModel {
       status: status ?? this.status,
       isActive: isActive ?? this.isActive,
       isGoogleUser: isGoogleUser ?? this.isGoogleUser,
+      emailVerified: emailVerified ?? this.emailVerified,
       createdAt: createdAt ?? this.createdAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       approvedAt: approvedAt ?? this.approvedAt,
@@ -129,5 +136,5 @@ class UserModel {
 
   @override
   String toString() =>
-      'UserModel(id: $id, name: $name, role: $role, status: $status)';
+      'UserModel(id: $id, name: $name, role: $role, status: $status, emailVerified: $emailVerified)';
 }
