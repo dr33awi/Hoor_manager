@@ -1,12 +1,11 @@
 // lib/features/auth/screens/account_status_screen.dart
-// شاشة حالة الحساب (مرفوض / معطل)
+// شاشة حالة الحساب - تصميم حديث
 
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
 
 enum AccountStatusType { rejected, disabled, pending }
 
-class AccountStatusScreen extends StatefulWidget {
+class AccountStatusScreen extends StatelessWidget {
   final AccountStatusType status;
   final String email;
   final String message;
@@ -21,212 +20,146 @@ class AccountStatusScreen extends StatefulWidget {
   });
 
   @override
-  State<AccountStatusScreen> createState() => _AccountStatusScreenState();
-}
-
-class _AccountStatusScreenState extends State<AccountStatusScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _setupAnimations();
-  }
-
-  void _setupAnimations() {
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
-      ),
-    );
-
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_getStatusColor().withOpacity(0.1), Colors.white],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                const Spacer(flex: 1),
-
-                // الأيقونة المتحركة
-                ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Container(
-                    width: 140,
-                    height: 140,
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Icon
+                  Container(
+                    width: 80,
+                    height: 80,
                     decoration: BoxDecoration(
-                      color: _getStatusColor().withOpacity(0.15),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: _getStatusColor().withOpacity(0.2),
-                          blurRadius: 30,
-                          spreadRadius: 5,
-                        ),
-                      ],
+                      color: _getColor().withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    child: Icon(
-                      _getStatusIcon(),
-                      size: 70,
-                      color: _getStatusColor(),
-                    ),
+                    child: Icon(_getIcon(), size: 40, color: _getColor()),
                   ),
-                ),
 
-                const SizedBox(height: 40),
+                  const SizedBox(height: 28),
 
-                // العنوان
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Text(
-                    _getStatusTitle(),
+                  // Title
+                  Text(
+                    _getTitle(),
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: _getStatusColor(),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: _getColor(),
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                ),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                // الرسالة الرئيسية
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
+                  // Message Box
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _getStatusColor().withOpacity(0.3),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 20,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: Column(
                       children: [
                         Text(
-                          widget.message,
+                          message,
                           style: TextStyle(
-                            fontSize: 18,
-                            color: AppTheme.grey600,
+                            fontSize: 15,
+                            color: Colors.grey.shade700,
                             height: 1.6,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 20),
-                        // البريد الإلكتروني
+                        const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                            horizontal: 14,
+                            vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.grey200,
-                            borderRadius: BorderRadius.circular(30),
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.email_outlined,
-                                size: 20,
-                                color: AppTheme.grey600,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                widget.email,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: AppTheme.grey600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            email,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textDirection: TextDirection.ltr,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // معلومات إضافية
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: _buildInfoCard(),
-                ),
-
-                const Spacer(flex: 2),
-
-                // زر العودة
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: widget.onBackToLogin,
-                    icon: const Icon(Icons.arrow_back_rounded, size: 22),
-                    label: const Text(
-                      'العودة لتسجيل الدخول',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  // Info
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F9FF),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 2,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 20,
+                          color: const Color(0xFF0369A1),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _getInfoMessage(),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF0369A1),
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
-              ],
+                  const SizedBox(height: 36),
+
+                  // Back Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: onBackToLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A1A2E),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'العودة لتسجيل الدخول',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -234,57 +167,19 @@ class _AccountStatusScreenState extends State<AccountStatusScreen>
     );
   }
 
-  Widget _buildInfoCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.infoColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.infoColor.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.infoColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.info_outline_rounded,
-              color: AppTheme.infoColor,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              _getInfoMessage(),
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.grey600,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _getStatusColor() {
-    switch (widget.status) {
+  Color _getColor() {
+    switch (status) {
       case AccountStatusType.rejected:
-        return AppTheme.errorColor;
+        return const Color(0xFFEF4444);
       case AccountStatusType.disabled:
-        return AppTheme.warningColor;
+        return const Color(0xFFD97706);
       case AccountStatusType.pending:
-        return AppTheme.infoColor;
+        return const Color(0xFF3B82F6);
     }
   }
 
-  IconData _getStatusIcon() {
-    switch (widget.status) {
+  IconData _getIcon() {
+    switch (status) {
       case AccountStatusType.rejected:
         return Icons.cancel_rounded;
       case AccountStatusType.disabled:
@@ -294,8 +189,8 @@ class _AccountStatusScreenState extends State<AccountStatusScreen>
     }
   }
 
-  String _getStatusTitle() {
-    switch (widget.status) {
+  String _getTitle() {
+    switch (status) {
       case AccountStatusType.rejected:
         return 'تم رفض الحساب';
       case AccountStatusType.disabled:
@@ -306,13 +201,13 @@ class _AccountStatusScreenState extends State<AccountStatusScreen>
   }
 
   String _getInfoMessage() {
-    switch (widget.status) {
+    switch (status) {
       case AccountStatusType.rejected:
-        return 'إذا كنت تعتقد أن هذا خطأ، يرجى التواصل مع المدير لمراجعة طلبك.';
+        return 'إذا كنت تعتقد أن هذا خطأ، تواصل مع المدير.';
       case AccountStatusType.disabled:
-        return 'تم تعطيل حسابك من قبل المدير. تواصل مع الدعم الفني لمعرفة السبب.';
+        return 'تم تعطيل حسابك. تواصل مع الدعم الفني.';
       case AccountStatusType.pending:
-        return 'طلبك قيد المراجعة. سيتم إعلامك عند الموافقة على حسابك.';
+        return 'طلبك قيد المراجعة. سيتم إعلامك عند الموافقة.';
     }
   }
 }

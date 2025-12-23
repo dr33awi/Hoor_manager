@@ -1,12 +1,10 @@
 // lib/features/auth/screens/pending_approval_screen.dart
-// شاشة انتظار موافقة المدير المحسنة - مع تسجيل دخول تلقائي عند الموافقة
+// شاشة انتظار الموافقة - تصميم حديث
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/logger_service.dart';
 import '../providers/auth_provider.dart';
 import '../../home/screens/home_screen.dart';
 
@@ -26,82 +24,46 @@ class PendingApprovalScreen extends StatefulWidget {
   State<PendingApprovalScreen> createState() => _PendingApprovalScreenState();
 }
 
-class _PendingApprovalScreenState extends State<PendingApprovalScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _rotationAnimation;
-
+class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
   StreamSubscription<QuerySnapshot>? _approvalSubscription;
-  bool _isCheckingApproval = false;
+  bool _isChecking = false;
   Timer? _periodicCheckTimer;
 
   @override
   void initState() {
     super.initState();
-    _setupAnimations();
     _startListeningForApproval();
     _startPeriodicCheck();
   }
 
-  void _setupAnimations() {
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    );
-
-    _rotationAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.linear),
-    );
-
-    _animationController.repeat();
-  }
-
-  /// بدء مراقبة حالة الموافقة في الوقت الفعلي
   void _startListeningForApproval() {
-    AppLogger.i('👂 بدء مراقبة حالة الموافقة للبريد: ${widget.email}');
-
     _approvalSubscription = FirebaseFirestore.instance
         .collection('users')
         .where('email', isEqualTo: widget.email)
         .limit(1)
         .snapshots()
-        .listen(
-          (snapshot) {
-            if (snapshot.docs.isNotEmpty) {
-              final userData = snapshot.docs.first.data();
-              final status = userData['status'] as String?;
-              final isActive = userData['isActive'] as bool? ?? true;
-
-              AppLogger.d(
-                '📊 تحديث حالة المستخدم: status=$status, isActive=$isActive',
-              );
-
-              // التحقق من الموافقة
-              if ((status == 'approved' || status == 'active') && isActive) {
-                AppLogger.i('✅ تمت الموافقة على الحساب!');
-                _onApprovalReceived();
-              }
+        .listen((snapshot) {
+          if (snapshot.docs.isNotEmpty) {
+            final data = snapshot.docs.first.data();
+            final status = data['status'] as String?;
+            final isActive = data['isActive'] as bool? ?? true;
+            if ((status == 'approved' || status == 'active') && isActive) {
+              _onApprovalReceived();
             }
-          },
-          onError: (error) {
-            AppLogger.e('❌ خطأ في مراقبة الموافقة', error: error);
-          },
-        );
+          }
+        });
   }
 
-  /// فحص دوري كل 10 ثوانٍ (احتياطي)
   void _startPeriodicCheck() {
     _periodicCheckTimer = Timer.periodic(
       const Duration(seconds: 10),
-      (_) => _checkApprovalManually(),
+      (_) => _checkManually(),
     );
   }
 
-  /// فحص يدوي لحالة الموافقة
-  Future<void> _checkApprovalManually() async {
-    if (_isCheckingApproval || !mounted) return;
-
-    _isCheckingApproval = true;
+  Future<void> _checkManually() async {
+    if (_isChecking || !mounted) return;
+    _isChecking = true;
 
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -111,131 +73,104 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
           .get();
 
       if (snapshot.docs.isNotEmpty && mounted) {
-        final userData = snapshot.docs.first.data();
-        final status = userData['status'] as String?;
-        final isActive = userData['isActive'] as bool? ?? true;
-
+        final data = snapshot.docs.first.data();
+        final status = data['status'] as String?;
+        final isActive = data['isActive'] as bool? ?? true;
         if ((status == 'approved' || status == 'active') && isActive) {
-          AppLogger.i('✅ تمت الموافقة (فحص يدوي)!');
           _onApprovalReceived();
         }
       }
-    } catch (e) {
-      AppLogger.e('❌ خطأ في الفحص اليدوي', error: e);
-    } finally {
-      _isCheckingApproval = false;
-    }
+    } catch (_) {}
+    _isChecking = false;
   }
 
-  /// عند استلام الموافقة
   void _onApprovalReceived() {
-    // إيقاف المراقبة والمؤقتات
     _approvalSubscription?.cancel();
     _periodicCheckTimer?.cancel();
-
     if (!mounted) return;
-
-    // عرض رسالة نجاح
-    _showApprovalSuccessDialog();
+    _showSuccessDialog();
   }
 
-  /// عرض dialog النجاح والانتقال للشاشة الرئيسية
-  void _showApprovalSuccessDialog() {
+  void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => WillPopScope(
-        onWillPop: () async => false,
-        child: AlertDialog(
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // أيقونة النجاح المتحركة
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 600),
-                builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.successColor.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.check_circle_rounded,
-                        color: AppTheme.successColor,
-                        size: 64,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'تمت الموافقة! 🎉',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'تم قبول حسابك بنجاح.\nجاري تسجيل الدخول...',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppTheme.grey600,
-                  height: 1.5,
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF10B981),
+                    size: 36,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              const CircularProgressIndicator(),
-            ],
+                const SizedBox(height: 20),
+                const Text(
+                  'تمت الموافقة! 🎉',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A2E),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'جاري تسجيل الدخول...',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 24),
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
 
-    // الانتظار قليلاً ثم تسجيل الدخول
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        _proceedToLogin();
-      }
+      if (mounted) _proceedToHome();
     });
   }
 
-  /// تسجيل الدخول والانتقال للشاشة الرئيسية
-  Future<void> _proceedToLogin() async {
+  Future<void> _proceedToHome() async {
     if (!mounted) return;
-
     final authProvider = context.read<AuthProvider>();
-
-    // تحديث حالة المصادقة
     await authProvider.checkAuthStatus();
-
     if (!mounted) return;
-
-    // إغلاق الـ dialog
     Navigator.of(context).pop();
-
-    // الانتقال للشاشة الرئيسية
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen()),
       (route) => false,
     );
   }
 
-  /// زر التحقق اليدوي
-  Future<void> _onManualCheckPressed() async {
-    if (_isCheckingApproval) return;
+  Future<void> _onCheckPressed() async {
+    if (_isChecking) return;
+    setState(() => _isChecking = true);
 
-    setState(() => _isCheckingApproval = true);
-
-    // حفظ المراجع
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final messenger = ScaffoldMessenger.of(context);
 
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -247,80 +182,47 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
       if (!mounted) return;
 
       if (snapshot.docs.isNotEmpty) {
-        final userData = snapshot.docs.first.data();
-        final status = userData['status'] as String?;
-        final isActive = userData['isActive'] as bool? ?? true;
+        final data = snapshot.docs.first.data();
+        final status = data['status'] as String?;
+        final isActive = data['isActive'] as bool? ?? true;
 
         if ((status == 'approved' || status == 'active') && isActive) {
           _onApprovalReceived();
           return;
         } else if (status == 'rejected') {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.error_outline, color: Colors.white),
-                  SizedBox(width: 12),
-                  Expanded(child: Text('تم رفض طلبك. تواصل مع المدير.')),
-                ],
-              ),
-              backgroundColor: AppTheme.errorColor,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
+          _showSnackBar(messenger, 'تم رفض طلبك', isSuccess: false);
           return;
         }
       }
 
-      // لا يزال في الانتظار
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.hourglass_empty, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(child: Text('طلبك لا يزال قيد المراجعة')),
-            ],
-          ),
-          backgroundColor: AppTheme.warningColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.wifi_off, color: Colors.white),
-                SizedBox(width: 12),
-                Expanded(child: Text('خطأ في الاتصال. حاول مرة أخرى.')),
-              ],
-            ),
-            backgroundColor: AppTheme.errorColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
+      _showSnackBar(messenger, 'لا يزال قيد المراجعة', isSuccess: false);
+    } catch (_) {
+      if (mounted) _showSnackBar(messenger, 'خطأ في الاتصال', isSuccess: false);
     } finally {
-      if (mounted) {
-        setState(() => _isCheckingApproval = false);
-      }
+      if (mounted) setState(() => _isChecking = false);
     }
+  }
+
+  void _showSnackBar(
+    ScaffoldMessengerState messenger,
+    String message, {
+    required bool isSuccess,
+  }) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isSuccess
+            ? const Color(0xFF10B981)
+            : const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     _approvalSubscription?.cancel();
     _periodicCheckTimer?.cancel();
     super.dispose();
@@ -329,31 +231,31 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: widget.onBackToLogin ?? () => Navigator.pop(context),
+          icon: Icon(
+            Icons.arrow_back_ios_rounded,
+            color: Colors.grey.shade700,
+            size: 20,
           ),
         ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Column(
-                  children: [
-                    // خطوات التسجيل
-                    _buildProgressSteps(),
-
-                    const SizedBox(height: 24),
-
-                    // البطاقة الرئيسية
-                    _buildMainCard(),
-                  ],
-                ),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Column(
+                children: [
+                  _buildSteps(),
+                  const SizedBox(height: 48),
+                  _buildContent(),
+                ],
               ),
             ),
           ),
@@ -362,365 +264,262 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
     );
   }
 
-  Widget _buildProgressSteps() {
+  Widget _buildSteps() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _stepDot(1, false, true),
+        _stepLine(true),
+        _stepDot(2, false, true),
+        _stepLine(true),
+        _stepDot(3, true, false),
+      ],
+    );
+  }
+
+  Widget _stepDot(int num, bool active, bool done) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      width: 32,
+      height: 32,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: done
+            ? const Color(0xFF10B981)
+            : active
+            ? const Color(0xFF1A1A2E)
+            : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        children: [
-          _buildStep(1, 'إنشاء الحساب', false, true),
-          _buildStepLine(true),
-          _buildStep(2, 'تفعيل البريد', false, true),
-          _buildStepLine(true),
-          _buildStep(3, 'موافقة المدير', true, false),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStep(int number, String label, bool isActive, bool isCompleted) {
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isCompleted
-                  ? AppTheme.successColor
-                  : isActive
-                  ? Colors.white
-                  : Colors.white.withOpacity(0.3),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: isCompleted
-                  ? const Icon(Icons.check, color: Colors.white, size: 18)
-                  : Text(
-                      '$number',
-                      style: TextStyle(
-                        color: isActive
-                            ? AppTheme.primaryColor
-                            : Colors.white.withOpacity(0.7),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
-              fontSize: 11,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      child: Center(
+        child: done
+            ? const Icon(Icons.check, color: Colors.white, size: 16)
+            : Text(
+                '$num',
+                style: TextStyle(
+                  color: active ? Colors.white : Colors.grey.shade400,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
       ),
     );
   }
 
-  Widget _buildStepLine(bool isActive) {
+  Widget _stepLine(bool active) {
     return Container(
-      width: 24,
+      width: 40,
       height: 2,
-      margin: const EdgeInsets.only(bottom: 20),
-      color: isActive ? AppTheme.successColor : Colors.white.withOpacity(0.3),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: active ? const Color(0xFF10B981) : Colors.grey.shade200,
     );
   }
 
-  Widget _buildMainCard() {
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
+  Widget _buildContent() {
+    return Column(
+      children: [
+        // Icon
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF3C7),
+            borderRadius: BorderRadius.circular(20),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // أيقونة الساعة المتحركة
-          RotationTransition(
-            turns: _rotationAnimation,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.warningColor.withOpacity(0.15),
-                    AppTheme.warningColor.withOpacity(0.05),
-                  ],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.hourglass_top_rounded,
-                size: 56,
-                color: AppTheme.warningColor,
-              ),
-            ),
+          child: const Icon(
+            Icons.hourglass_top_rounded,
+            size: 36,
+            color: Color(0xFFD97706),
           ),
+        ),
 
-          const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
-          // العنوان
-          Text(
-            widget.isNewAccount
-                ? 'تم إنشاء حسابك بنجاح!'
-                : 'حسابك قيد المراجعة',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+        Text(
+          widget.isNewAccount ? 'تم إنشاء حسابك!' : 'حسابك قيد المراجعة',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A2E),
           ),
+        ),
 
-          const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
-          Text(
-            'طلب تسجيلك قيد المراجعة من قبل المدير.\nسيتم تسجيل دخولك تلقائياً عند الموافقة.',
-            style: TextStyle(
-              color: AppTheme.grey600,
-              fontSize: 15,
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
+        Text(
+          'طلبك قيد المراجعة من قبل المدير',
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
           ),
-
-          const SizedBox(height: 24),
-
-          // البريد الإلكتروني
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+          child: Text(
+            widget.email,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: Color(0xFF1A1A2E),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.email_rounded,
-                  color: AppTheme.primaryColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    widget.email,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                    textDirection: TextDirection.ltr,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
+            textDirection: TextDirection.ltr,
           ),
+        ),
 
-          const SizedBox(height: 20),
+        const SizedBox(height: 24),
 
-          // مؤشر المراقبة النشطة
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppTheme.successColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.successColor.withOpacity(0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.successColor,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'نراقب حالة طلبك...',
-                  style: TextStyle(
-                    color: AppTheme.successColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+        // Status indicator
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10B981).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(20),
           ),
-
-          const SizedBox(height: 28),
-
-          // ماذا يحدث الآن؟
-          _buildInfoSection(),
-
-          const SizedBox(height: 28),
-
-          // زر التحقق اليدوي
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: _isCheckingApproval ? null : _onManualCheckPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.6),
-              ),
-              icon: _isCheckingApproval
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.refresh_rounded),
-              label: Text(
-                _isCheckingApproval ? 'جاري التحقق...' : 'تحقق الآن',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // زر العودة
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: widget.onBackToLogin ?? () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppTheme.grey400, width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              icon: const Icon(Icons.arrow_back_rounded),
-              label: const Text(
-                'العودة لتسجيل الدخول',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // ملاحظة التواصل
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.grey200.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.support_agent_rounded,
-                  color: AppTheme.grey600,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'إذا كان لديك استفسار، تواصل مع المدير',
-                    style: TextStyle(color: AppTheme.grey600, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.infoColor.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.infoColor.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.info_outline_rounded,
-                color: AppTheme.infoColor,
-                size: 22,
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: const Color(0xFF10B981),
+                ),
               ),
               const SizedBox(width: 10),
-              Text(
-                'ماذا يحدث الآن؟',
+              const Text(
+                'نراقب حالة طلبك',
                 style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.infoColor,
-                  fontSize: 15,
+                  color: Color(0xFF10B981),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          _buildInfoItem(
-            Icons.person_search_rounded,
-            'سيراجع المدير طلب تسجيلك',
+        ),
+
+        const SizedBox(height: 36),
+
+        // Info
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F9FF),
+            borderRadius: BorderRadius.circular(14),
           ),
-          _buildInfoItem(
-            Icons.auto_awesome_rounded,
-            'سيتم تسجيل دخولك تلقائياً عند الموافقة',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: const Color(0xFF0369A1),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'ماذا يحدث الآن؟',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0369A1),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _infoItem('سيراجع المدير طلبك'),
+              const SizedBox(height: 8),
+              _infoItem('سيتم تسجيل دخولك تلقائياً'),
+              const SizedBox(height: 8),
+              _infoItem('يمكنك الانتظار أو العودة لاحقاً'),
+            ],
           ),
-          _buildInfoItem(
-            Icons.notifications_active_rounded,
-            'يمكنك الانتظار أو العودة لاحقاً',
+        ),
+
+        const SizedBox(height: 28),
+
+        // Check Button
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton.icon(
+            onPressed: _isChecking ? null : _onCheckPressed,
+            icon: _isChecking
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.refresh_rounded, size: 20),
+            label: Text(
+              _isChecking ? 'جاري التحقق' : 'تحقق الآن',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1A1A2E),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
-        ],
-      ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Back Button
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton(
+            onPressed: widget.onBackToLogin ?? () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.grey.shade200),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'العودة لتسجيل الدخول',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildInfoItem(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 20, color: AppTheme.primaryColor),
+  Widget _infoItem(String text) {
+    return Row(
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0369A1),
+            borderRadius: BorderRadius.circular(3),
           ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          text,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF374151)),
+        ),
+      ],
     );
   }
 }

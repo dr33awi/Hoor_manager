@@ -1,16 +1,14 @@
 // lib/features/products/screens/add_edit_product_screen.dart
-// شاشة إضافة/تعديل منتج - بدون صور
+// شاشة إضافة/تعديل منتج - تصميم حديث
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/app_theme.dart';
 import '../providers/product_provider.dart';
 import '../models/product_model.dart';
 
 class AddEditProductScreen extends StatefulWidget {
   final ProductModel? product;
-
   const AddEditProductScreen({super.key, this.product});
 
   @override
@@ -40,53 +38,28 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _colors = [];
     _sizes = [];
     _inventory = {};
-
-    if (isEditing) {
-      _loadProductData();
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadCategories();
-    });
+    if (isEditing) _loadProductData();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCategories());
   }
 
   Future<void> _loadCategories() async {
     if (!mounted) return;
-
     final provider = context.read<ProductProvider>();
-
-    if (provider.categories.isEmpty) {
-      await provider.loadCategories();
-    }
-
-    if (mounted) {
-      setState(() {
-        _isCategoriesLoading = false;
-        _validateSelectedCategory(provider);
-      });
-    }
-  }
-
-  void _validateSelectedCategory(ProductProvider provider) {
-    if (_selectedCategory != null) {
-      final categoryNames = provider.categories.map((c) => c.name).toList();
-      if (!categoryNames.contains(_selectedCategory)) {
-        _selectedCategory = null;
-      }
-    }
+    if (provider.categories.isEmpty) await provider.loadCategories();
+    if (mounted) setState(() => _isCategoriesLoading = false);
   }
 
   void _loadProductData() {
-    final product = widget.product!;
-    _nameController.text = product.name;
-    _descriptionController.text = product.description;
-    _brandController.text = product.brand;
-    _priceController.text = product.price.toString();
-    _costPriceController.text = product.costPrice.toString();
-    _selectedCategory = product.category;
-    _colors = product.colors.toSet().toList();
-    _sizes = (product.sizes.toSet().toList())..sort();
-    _inventory = Map.from(product.inventory);
+    final p = widget.product!;
+    _nameController.text = p.name;
+    _descriptionController.text = p.description;
+    _brandController.text = p.brand;
+    _priceController.text = p.price.toString();
+    _costPriceController.text = p.costPrice.toString();
+    _selectedCategory = p.category;
+    _colors = p.colors.toSet().toList();
+    _sizes = (p.sizes.toSet().toList())..sort();
+    _inventory = Map.from(p.inventory);
   }
 
   @override
@@ -99,60 +72,114 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     super.dispose();
   }
 
+  void _showSnackBar(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError
+            ? const Color(0xFFEF4444)
+            : const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  InputDecoration _inputDeco(String label, IconData icon, {String? suffix}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+      prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 20),
+      suffixText: suffix,
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF1A1A2E), width: 1.5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
-        title: Text(isEditing ? 'تعديل المنتج' : 'إضافة منتج'),
-        actions: [
-          if (isEditing)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: _showDeleteConfirmation,
-              tooltip: 'حذف',
-            ),
-        ],
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(
+            Icons.arrow_back_ios_rounded,
+            size: 18,
+            color: Color(0xFF1A1A2E),
+          ),
+        ),
+        title: Text(
+          isEditing ? 'تعديل المنتج' : 'إضافة منتج',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1A1A2E),
+          ),
+        ),
+        centerTitle: true,
       ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // المعلومات الأساسية
-              _buildBasicInfoSection(),
+              _buildBasicInfo(),
               const SizedBox(height: 24),
-
-              // الألوان
               _buildColorsSection(),
               const SizedBox(height: 24),
-
-              // المقاسات
               _buildSizesSection(),
-              const SizedBox(height: 24),
-
-              // المخزون
-              if (_colors.isNotEmpty && _sizes.isNotEmpty)
-                _buildInventorySection(),
+              if (_colors.isNotEmpty && _sizes.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                _buildInventory(),
+              ],
               const SizedBox(height: 32),
-
-              // زر الحفظ
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _saveProduct,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A1A2E),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   child: _isLoading
                       ? const SizedBox(
-                          height: 24,
-                          width: 24,
+                          width: 22,
+                          height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppTheme.textOnPrimary,
+                            color: Colors.white,
                           ),
                         )
-                      : Text(isEditing ? 'تحديث المنتج' : 'إضافة المنتج'),
+                      : Text(
+                          isEditing ? 'تحديث' : 'إضافة',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -162,491 +189,337 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     );
   }
 
-  Widget _buildBasicInfoSection() {
+  Widget _buildBasicInfo() {
     return Consumer<ProductProvider>(
       builder: (context, provider, _) {
-        final uniqueCategories = provider.categories
-            .map((c) => c.name)
-            .toSet()
-            .toList();
-
-        final safeSelectedCategory =
-            (_selectedCategory != null &&
-                uniqueCategories.contains(_selectedCategory))
-            ? _selectedCategory
-            : null;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'المعلومات الأساسية',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-
-            // اسم المنتج
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'اسم المنتج *',
-                prefixIcon: Icon(Icons.inventory),
+        final cats = provider.categories.map((c) => c.name).toSet().toList();
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: _inputDeco(
+                  'اسم المنتج *',
+                  Icons.inventory_2_outlined,
+                ),
+                validator: (v) => v?.isEmpty == true ? 'مطلوب' : null,
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'الرجاء إدخال اسم المنتج';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // الوصف
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'الوصف',
-                prefixIcon: Icon(Icons.description),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: _inputDeco('الوصف', Icons.description_outlined),
+                maxLines: 2,
               ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-
-            // الفئة
-            _isCategoriesLoading
-                ? const Center(child: CircularProgressIndicator())
-                : Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: safeSelectedCategory,
-                          decoration: const InputDecoration(
-                            labelText: 'الفئة *',
-                            prefixIcon: Icon(Icons.category),
+              const SizedBox(height: 14),
+              _isCategoriesLoading
+                  ? const CircularProgressIndicator()
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: cats.contains(_selectedCategory)
+                                ? _selectedCategory
+                                : null,
+                            decoration: _inputDeco(
+                              'الفئة *',
+                              Icons.category_outlined,
+                            ),
+                            items: cats
+                                .map(
+                                  (n) => DropdownMenuItem(
+                                    value: n,
+                                    child: Text(n),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => _selectedCategory = v),
+                            validator: (v) => v == null ? 'مطلوب' : null,
                           ),
-                          hint: const Text('اختر الفئة'),
-                          items: uniqueCategories.isEmpty
-                              ? null
-                              : uniqueCategories.map((categoryName) {
-                                  return DropdownMenuItem<String>(
-                                    value: categoryName,
-                                    child: Text(categoryName),
-                                  );
-                                }).toList(),
-                          onChanged: uniqueCategories.isEmpty
-                              ? null
-                              : (value) {
-                                  setState(() => _selectedCategory = value);
-                                },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'الرجاء اختيار الفئة';
-                            }
-                            return null;
-                          },
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: _showAddCategoryDialog,
-                        icon: const Icon(Icons.add_circle_outline),
-                        tooltip: 'إضافة فئة جديدة',
-                        color: AppTheme.primaryColor,
-                      ),
-                    ],
-                  ),
-
-            if (!_isCategoriesLoading && uniqueCategories.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'لا توجد فئات - اضغط + لإضافة فئة جديدة',
-                  style: TextStyle(color: AppTheme.orange700, fontSize: 12),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: _addCategory,
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1A1A2E).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.add,
+                              color: Color(0xFF1A1A2E),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _brandController,
+                decoration: _inputDeco(
+                  'العلامة التجارية',
+                  Icons.branding_watermark_outlined,
                 ),
               ),
-
-            const SizedBox(height: 16),
-
-            // العلامة التجارية
-            TextFormField(
-              controller: _brandController,
-              decoration: const InputDecoration(
-                labelText: 'العلامة التجارية',
-                prefixIcon: Icon(Icons.branding_watermark),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDeco(
+                        'سعر البيع *',
+                        Icons.attach_money,
+                        suffix: 'ر.س',
+                      ),
+                      validator: (v) => v?.isEmpty == true ? 'مطلوب' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _costPriceController,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDeco(
+                        'التكلفة *',
+                        Icons.money_off_outlined,
+                        suffix: 'ر.س',
+                      ),
+                      validator: (v) => v?.isEmpty == true ? 'مطلوب' : null,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // السعر وسعر التكلفة
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _priceController,
-                    decoration: const InputDecoration(
-                      labelText: 'سعر البيع *',
-                      prefixIcon: Icon(Icons.attach_money),
-                      suffixText: 'ر.س',
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                    ],
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'الرجاء إدخال السعر';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'سعر غير صالح';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _costPriceController,
-                    decoration: const InputDecoration(
-                      labelText: 'سعر التكلفة *',
-                      prefixIcon: Icon(Icons.money_off),
-                      suffixText: 'ر.س',
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                    ],
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'الرجاء إدخال التكلفة';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'سعر غير صالح';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
   }
 
-  void _showAddCategoryDialog() {
-    final controller = TextEditingController();
-    bool isAdding = false;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('إضافة فئة جديدة'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'اسم الفئة',
-              hintText: 'مثال: رياضي، رسمي، كاجوال',
-              prefixIcon: Icon(Icons.category),
-            ),
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            enabled: !isAdding,
+  Widget _buildColorsSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'الألوان',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              GestureDetector(
+                onTap: _addColor,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A2E),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '+ إضافة',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: isAdding ? null : () => Navigator.pop(dialogContext),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: isAdding
-                  ? null
-                  : () async {
-                      final name = controller.text.trim();
-                      if (name.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('الرجاء إدخال اسم الفئة'),
-                            backgroundColor: AppTheme.errorColor,
-                          ),
-                        );
-                        return;
-                      }
-
-                      setDialogState(() => isAdding = true);
-
-                      final provider = context.read<ProductProvider>();
-                      final success = await provider.addCategory(name);
-
-                      if (!mounted) return;
-
-                      if (success) {
-                        Navigator.pop(dialogContext);
-
-                        setState(() {
-                          _selectedCategory = name;
-                        });
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('تم إضافة فئة "$name" بنجاح'),
-                            backgroundColor: AppTheme.successColor,
-                          ),
-                        );
-                      } else {
-                        setDialogState(() => isAdding = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(provider.error ?? 'فشل إضافة الفئة'),
-                            backgroundColor: AppTheme.errorColor,
-                          ),
-                        );
-                      }
-                    },
-              child: isAdding
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppTheme.textOnPrimary,
-                      ),
-                    )
-                  : const Text('إضافة'),
-            ),
-          ],
-        ),
+          const SizedBox(height: 12),
+          _colors.isEmpty
+              ? Text(
+                  'لم يتم إضافة ألوان',
+                  style: TextStyle(color: Colors.grey.shade400),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _colors
+                      .map(
+                        (c) => Chip(
+                          label: Text(c),
+                          onDeleted: () => setState(() {
+                            _colors.remove(c);
+                            _inventory.removeWhere(
+                              (k, _) => k.startsWith('$c-'),
+                            );
+                          }),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ],
       ),
     );
   }
 
-  Widget _buildColorsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'الألوان',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            TextButton.icon(
-              onPressed: _showAddColorDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('إضافة'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _colors
-              .map(
-                (color) => Chip(
-                  label: Text(color),
-                  deleteIcon: const Icon(Icons.close, size: 18),
-                  onDeleted: () {
-                    setState(() {
-                      _colors.remove(color);
-                      _inventory.removeWhere(
-                        (key, _) => key.startsWith('$color-'),
-                      );
-                    });
-                  },
-                ),
-              )
-              .toList(),
-        ),
-        if (_colors.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'لم يتم إضافة ألوان',
-              style: TextStyle(color: AppTheme.grey600),
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _buildSizesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'المقاسات',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            TextButton.icon(
-              onPressed: _showAddSizeDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('إضافة'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _sizes
-              .map(
-                (size) => Chip(
-                  label: Text('$size'),
-                  deleteIcon: const Icon(Icons.close, size: 18),
-                  onDeleted: () {
-                    setState(() {
-                      _sizes.remove(size);
-                      _inventory.removeWhere(
-                        (key, _) => key.endsWith('-$size'),
-                      );
-                    });
-                  },
-                ),
-              )
-              .toList(),
-        ),
-        if (_sizes.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'لم يتم إضافة مقاسات',
-              style: TextStyle(color: AppTheme.grey600),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildInventorySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'المخزون',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Table(
-              border: TableBorder.all(color: AppTheme.grey300),
-              children: [
-                // العنوان
-                TableRow(
-                  decoration: BoxDecoration(color: AppTheme.grey200),
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Text(
-                        'اللون / المقاس',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    ..._sizes.map(
-                      (size) => Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Text(
-                          '$size',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // الصفوف
-                ..._colors.map(
-                  (color) => TableRow(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Text(color),
-                      ),
-                      ..._sizes.map((size) {
-                        final key = '$color-$size';
-                        return Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: TextFormField(
-                            initialValue: (_inventory[key] ?? 0).toString(),
-                            keyboardType: TextInputType.number,
-                            textAlign: TextAlign.center,
-                            decoration: const InputDecoration(
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 8,
-                              ),
-                              isDense: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onChanged: (value) {
-                              _inventory[key] = int.tryParse(value) ?? 0;
-                            },
-                          ),
-                        );
-                      }),
-                    ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'المقاسات',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              GestureDetector(
+                onTap: _addSize,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A2E),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '+ إضافة',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          _sizes.isEmpty
+              ? Text(
+                  'لم يتم إضافة مقاسات',
+                  style: TextStyle(color: Colors.grey.shade400),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _sizes
+                      .map(
+                        (s) => Chip(
+                          label: Text('$s'),
+                          onDeleted: () => setState(() {
+                            _sizes.remove(s);
+                            _inventory.removeWhere((k, _) => k.endsWith('-$s'));
+                          }),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ],
+      ),
     );
   }
 
-  void _showAddColorDialog() {
-    final controller = TextEditingController();
+  Widget _buildInventory() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('المخزون', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
+              columns: [
+                const DataColumn(label: Text('اللون')),
+                ..._sizes.map(
+                  (s) => DataColumn(label: Text('$s'), numeric: true),
+                ),
+              ],
+              rows: _colors
+                  .map(
+                    (c) => DataRow(
+                      cells: [
+                        DataCell(Text(c)),
+                        ..._sizes.map((s) {
+                          final k = '$c-$s';
+                          return DataCell(
+                            SizedBox(
+                              width: 50,
+                              child: TextFormField(
+                                initialValue: (_inventory[k] ?? 0).toString(),
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                onChanged: (v) =>
+                                    _inventory[k] = int.tryParse(v) ?? 0,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.all(8),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addCategory() {
+    final ctrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('إضافة لون'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('فئة جديدة'),
         content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'اسم اللون',
-            hintText: 'مثال: أسود، أبيض، أزرق',
-          ),
+          controller: ctrl,
+          decoration: _inputDeco('الاسم', Icons.category_outlined),
           autofocus: true,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
-              final colorName = controller.text.trim();
-              if (colorName.isNotEmpty) {
-                if (_colors.contains(colorName)) {
-                  Navigator.pop(dialogContext);
-                  _showError('اللون "$colorName" موجود بالفعل');
-                  return;
-                }
-                setState(() {
-                  _colors.add(colorName);
-                });
-                Navigator.pop(dialogContext);
-              }
+            onPressed: () async {
+              if (ctrl.text.trim().isEmpty) return;
+              final success = await context.read<ProductProvider>().addCategory(
+                ctrl.text.trim(),
+              );
+              if (!mounted) return;
+              Navigator.pop(ctx);
+              if (success) setState(() => _selectedCategory = ctrl.text.trim());
             },
             child: const Text('إضافة'),
           ),
@@ -655,42 +528,63 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     );
   }
 
-  void _showAddSizeDialog() {
-    final controller = TextEditingController();
+  void _addColor() {
+    final ctrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('إضافة مقاس'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('لون جديد'),
         content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'المقاس',
-            hintText: 'مثال: 38، 39، 40',
-          ),
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          controller: ctrl,
+          decoration: _inputDeco('اللون', Icons.palette_outlined),
           autofocus: true,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              final size = int.tryParse(controller.text);
-              if (size != null) {
-                if (_sizes.contains(size)) {
-                  Navigator.pop(dialogContext);
-                  _showError('المقاس "$size" موجود بالفعل');
-                  return;
-                }
+              if (ctrl.text.trim().isNotEmpty &&
+                  !_colors.contains(ctrl.text.trim()))
+                setState(() => _colors.add(ctrl.text.trim()));
+              Navigator.pop(ctx);
+            },
+            child: const Text('إضافة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addSize() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('مقاس جديد'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: _inputDeco('المقاس', Icons.straighten_outlined),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final s = int.tryParse(ctrl.text);
+              if (s != null && !_sizes.contains(s))
                 setState(() {
-                  _sizes.add(size);
+                  _sizes.add(s);
                   _sizes.sort();
                 });
-                Navigator.pop(dialogContext);
-              }
+              Navigator.pop(ctx);
             },
             child: const Text('إضافة'),
           ),
@@ -701,19 +595,16 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
-
     if (_colors.isEmpty) {
-      _showError('الرجاء إضافة لون واحد على الأقل');
+      _showSnackBar('أضف لون واحد على الأقل', isError: true);
       return;
     }
-
     if (_sizes.isEmpty) {
-      _showError('الرجاء إضافة مقاس واحد على الأقل');
+      _showSnackBar('أضف مقاس واحد على الأقل', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
-
     final product = ProductModel(
       id: widget.product?.id ?? '',
       name: _nameController.text.trim(),
@@ -722,77 +613,23 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       brand: _brandController.text.trim(),
       price: double.parse(_priceController.text),
       costPrice: double.parse(_costPriceController.text),
-      colors: _colors.toSet().toList(),
-      sizes: _sizes.toSet().toList()..sort(),
+      colors: _colors,
+      sizes: _sizes,
       inventory: _inventory,
       createdAt: widget.product?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
 
     final provider = context.read<ProductProvider>();
-    bool success;
-
-    if (isEditing) {
-      success = await provider.updateProduct(product);
-    } else {
-      success = await provider.addProduct(product);
-    }
-
+    final success = isEditing
+        ? await provider.updateProduct(product)
+        : await provider.addProduct(product);
     setState(() => _isLoading = false);
 
     if (success && mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isEditing ? 'تم تحديث المنتج' : 'تم إضافة المنتج'),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
-    } else if (mounted) {
-      _showError(provider.error ?? 'حدث خطأ');
-    }
-  }
-
-  void _showDeleteConfirmation() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('حذف المنتج'),
-        content: const Text('هل أنت متأكد من حذف هذا المنتج؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              final provider = context.read<ProductProvider>();
-              final success = await provider.deleteProduct(widget.product!.id);
-              if (success && mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم حذف المنتج'),
-                    backgroundColor: AppTheme.successColor,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-            ),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
-    );
+      _showSnackBar(isEditing ? 'تم التحديث' : 'تمت الإضافة');
+    } else if (mounted)
+      _showSnackBar(provider.error ?? 'خطأ', isError: true);
   }
 }

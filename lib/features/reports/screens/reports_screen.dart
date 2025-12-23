@@ -1,10 +1,9 @@
 // lib/features/reports/screens/reports_screen.dart
-// شاشة التقارير
+// شاشة التقارير - تصميم حديث
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../products/providers/product_provider.dart';
 import '../../sales/providers/sale_provider.dart';
 
@@ -35,94 +34,74 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          // اختيار الفترة
-          _buildDateRangeSelector(),
-
-          // التبويبات
-          TabBar(
+    return Column(
+      children: [
+        _buildDateSelector(),
+        _buildTabs(),
+        Expanded(
+          child: TabBarView(
             controller: _tabController,
-            tabs: const [
-              Tab(text: 'المبيعات'),
-              Tab(text: 'المنتجات'),
-              Tab(text: 'المخزون'),
+            children: [
+              _buildSalesReport(),
+              _buildProductsReport(),
+              _buildInventoryReport(),
             ],
           ),
+        ),
+      ],
+    );
+  }
 
-          // المحتوى
+  Widget _buildDateSelector() {
+    final fmt = DateFormat('dd/MM/yyyy', 'ar');
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+      ),
+      child: Row(
+        children: [
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildSalesReport(),
-                _buildProductsReport(),
-                _buildInventoryReport(),
-              ],
+            child: _dateBox(fmt.format(_startDate), () => _selectDate(true)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Icon(
+              Icons.arrow_forward,
+              color: Colors.grey.shade400,
+              size: 20,
             ),
+          ),
+          Expanded(
+            child: _dateBox(fmt.format(_endDate), () => _selectDate(false)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDateRangeSelector() {
-    final dateFormat = DateFormat('dd/MM/yyyy', 'ar');
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.grey200,
-        border: Border(bottom: BorderSide(color: AppTheme.grey300)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectDate(true),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.grey300),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today, size: 18),
-                    const SizedBox(width: 8),
-                    Text(dateFormat.format(_startDate)),
-                  ],
-                ),
-              ),
+  Widget _dateBox(String text, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 18,
+              color: Colors.grey.shade500,
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Icon(Icons.arrow_forward, color: AppTheme.grey600),
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: () => _selectDate(false),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.grey300),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today, size: 18),
-                    const SizedBox(width: 8),
-                    Text(dateFormat.format(_endDate)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(text, style: const TextStyle(fontSize: 13)),
+          ],
+        ),
       ),
     );
   }
@@ -133,61 +112,79 @@ class _ReportsScreenState extends State<ReportsScreen>
       initialDate: isStart ? _startDate : _endDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      locale: const Locale('ar'),
     );
-
-    if (picked != null) {
+    if (picked != null)
       setState(() {
-        if (isStart) {
+        if (isStart)
           _startDate = picked;
-        } else {
+        else
           _endDate = picked;
-        }
       });
-    }
+  }
+
+  Widget _buildTabs() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: const Color(0xFF1A1A2E),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        indicatorPadding: const EdgeInsets.all(4),
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.grey.shade600,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        tabs: const [
+          Tab(text: 'المبيعات'),
+          Tab(text: 'المنتجات'),
+          Tab(text: 'المخزون'),
+        ],
+      ),
+    );
   }
 
   Widget _buildSalesReport() {
     return Consumer<SaleProvider>(
-      builder: (context, provider, _) {
-        final sales = provider.allSales.where((sale) {
-          return sale.saleDate.isAfter(
-                _startDate.subtract(const Duration(days: 1)),
-              ) &&
-              sale.saleDate.isBefore(_endDate.add(const Duration(days: 1)));
-        }).toList();
-
-        final totalRevenue = sales.fold<double>(
-          0,
-          (sum, sale) => sum + sale.total,
-        );
-
-        final completedSales = sales.where((s) => s.status == 'مكتمل').toList();
-        final cancelledSales = sales.where((s) => s.status == 'ملغي').toList();
+      builder: (_, provider, __) {
+        final sales = provider.allSales
+            .where(
+              (s) =>
+                  s.saleDate.isAfter(
+                    _startDate.subtract(const Duration(days: 1)),
+                  ) &&
+                  s.saleDate.isBefore(_endDate.add(const Duration(days: 1))),
+            )
+            .toList();
+        final total = sales.fold<double>(0, (sum, s) => sum + s.total);
+        final completed = sales.where((s) => s.status == 'مكتمل').length;
+        final cancelled = sales.where((s) => s.status == 'ملغي').length;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // بطاقات الإحصائيات
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard(
-                      title: 'إجمالي المبيعات',
-                      value: '${totalRevenue.toStringAsFixed(2)} ر.س',
-                      icon: Icons.attach_money,
-                      color: AppTheme.successColor,
+                    child: _statCard(
+                      'إجمالي المبيعات',
+                      '${total.toStringAsFixed(0)} ر.س',
+                      Icons.trending_up_rounded,
+                      const Color(0xFF10B981),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildStatCard(
-                      title: 'عدد الفواتير',
-                      value: '${sales.length}',
-                      icon: Icons.receipt,
-                      color: AppTheme.primaryColor,
+                    child: _statCard(
+                      'الفواتير',
+                      '${sales.length}',
+                      Icons.receipt_long_rounded,
+                      const Color(0xFF3B82F6),
                     ),
                   ),
                 ],
@@ -196,102 +193,107 @@ class _ReportsScreenState extends State<ReportsScreen>
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard(
-                      title: 'مكتملة',
-                      value: '${completedSales.length}',
-                      icon: Icons.check_circle,
-                      color: AppTheme.successColor,
+                    child: _statCard(
+                      'مكتملة',
+                      '$completed',
+                      Icons.check_circle_rounded,
+                      const Color(0xFF10B981),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildStatCard(
-                      title: 'ملغية',
-                      value: '${cancelledSales.length}',
-                      icon: Icons.cancel,
-                      color: AppTheme.errorColor,
+                    child: _statCard(
+                      'ملغية',
+                      '$cancelled',
+                      Icons.cancel_rounded,
+                      const Color(0xFFEF4444),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-
-              // قائمة المبيعات
-              Text(
-                'تفاصيل المبيعات',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
+              _sectionTitle('تفاصيل المبيعات'),
               const SizedBox(height: 12),
-
-              if (sales.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.receipt_long,
-                          size: 64,
-                          color: AppTheme.grey400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'لا توجد مبيعات في هذه الفترة',
-                          style: TextStyle(color: AppTheme.grey600),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: sales.length,
-                  itemBuilder: (context, index) {
-                    final sale = sales[index];
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: _getStatusColor(
-                            sale.status,
-                          ).withOpacity(0.1),
-                          child: Icon(
-                            Icons.receipt,
-                            color: _getStatusColor(sale.status),
+              sales.isEmpty
+                  ? _emptyState(Icons.receipt_long_outlined, 'لا توجد مبيعات')
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: sales.length,
+                      itemBuilder: (_, i) {
+                        final s = sales[i];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade100),
                           ),
-                        ),
-                        title: Text(sale.invoiceNumber),
-                        subtitle: Text(
-                          DateFormat(
-                            'dd/MM/yyyy - hh:mm a',
-                          ).format(sale.saleDate),
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '${sale.total.toStringAsFixed(2)} ر.س',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: _statusColor(
+                                    s.status,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.receipt_outlined,
+                                  color: _statusColor(s.status),
+                                  size: 20,
+                                ),
                               ),
-                            ),
-                            Text(
-                              sale.status,
-                              style: TextStyle(
-                                color: _getStatusColor(sale.status),
-                                fontSize: 12,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      s.invoiceNumber,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Text(
+                                      DateFormat(
+                                        'dd/MM - hh:mm a',
+                                      ).format(s.saleDate),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${s.total.toStringAsFixed(0)} ر.س',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    s.status,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: _statusColor(s.status),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
             ],
           ),
         );
@@ -301,99 +303,138 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildProductsReport() {
     return Consumer<ProductProvider>(
-      builder: (context, provider, _) {
+      builder: (_, provider, __) {
         final products = provider.allProducts;
-
-        // أكثر المنتجات مخزوناً
-        final sortedByStock = List.of(products)
+        final sorted = List.of(products)
           ..sort((a, b) => b.totalQuantity.compareTo(a.totalQuantity));
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // إحصائيات
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard(
-                      title: 'إجمالي المنتجات',
-                      value: '${products.length}',
-                      icon: Icons.inventory_2,
-                      color: AppTheme.primaryColor,
+                    child: _statCard(
+                      'المنتجات',
+                      '${products.length}',
+                      Icons.inventory_2_rounded,
+                      const Color(0xFF8B5CF6),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildStatCard(
-                      title: 'الفئات',
-                      value: '${provider.categories.length}',
-                      icon: Icons.category,
-                      color: AppTheme.infoColor,
+                    child: _statCard(
+                      'الفئات',
+                      '${provider.categories.length}',
+                      Icons.category_rounded,
+                      const Color(0xFF3B82F6),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-
-              // المنتجات حسب الفئة
-              Text(
-                'المنتجات حسب الفئة',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
+              _sectionTitle('حسب الفئة'),
               const SizedBox(height: 12),
-
-              ...provider.categories.map((category) {
-                final categoryProducts = products
-                    .where((p) => p.category == category.name)
-                    .toList();
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                      child: const Icon(
-                        Icons.category,
-                        color: AppTheme.primaryColor,
+              ...provider.categories.map((c) {
+                final count = products
+                    .where((p) => p.category == c.name)
+                    .length;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade100),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.category_outlined,
+                          color: Color(0xFF8B5CF6),
+                          size: 20,
+                        ),
                       ),
-                    ),
-                    title: Text(category.name),
-                    trailing: Text(
-                      '${categoryProducts.length} منتج',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          c.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Text(
+                        '$count منتج',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 );
               }),
-
               const SizedBox(height: 24),
-
-              // أعلى المنتجات مخزوناً
-              Text(
-                'أعلى المنتجات مخزوناً',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
+              _sectionTitle('أعلى مخزون'),
               const SizedBox(height: 12),
-
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: sortedByStock.take(10).length,
-                itemBuilder: (context, index) {
-                  final product = sortedByStock[index];
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(child: Text('${index + 1}')),
-                      title: Text(product.name),
-                      subtitle: Text(product.category),
-                      trailing: Text(
-                        '${product.totalQuantity} قطعة',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                itemCount: sorted.take(10).length,
+                itemBuilder: (_, i) {
+                  final p = sorted[i];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade100),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.grey.shade200,
+                          child: Text(
+                            '${i + 1}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                p.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                p.category,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${p.totalQuantity}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -407,10 +448,10 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildInventoryReport() {
     return Consumer<ProductProvider>(
-      builder: (context, provider, _) {
-        final lowStock = provider.lowStockProducts;
-        final outOfStock = provider.outOfStockProducts;
-        final totalQuantity = provider.allProducts.fold<int>(
+      builder: (_, provider, __) {
+        final low = provider.lowStockProducts;
+        final out = provider.outOfStockProducts;
+        final total = provider.allProducts.fold<int>(
           0,
           (sum, p) => sum + p.totalQuantity,
         );
@@ -418,140 +459,46 @@ class _ReportsScreenState extends State<ReportsScreen>
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // إحصائيات المخزون
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard(
-                      title: 'إجمالي المخزون',
-                      value: '$totalQuantity قطعة',
-                      icon: Icons.inventory,
-                      color: AppTheme.primaryColor,
+                    child: _statCard(
+                      'إجمالي',
+                      '$total قطعة',
+                      Icons.inventory_rounded,
+                      const Color(0xFF3B82F6),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildStatCard(
-                      title: 'منتجات منخفضة',
-                      value: '${lowStock.length}',
-                      icon: Icons.warning,
-                      color: AppTheme.warningColor,
+                    child: _statCard(
+                      'منخفض',
+                      '${low.length}',
+                      Icons.warning_rounded,
+                      const Color(0xFFD97706),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              _buildStatCard(
-                title: 'نفذ المخزون',
-                value: '${outOfStock.length}',
-                icon: Icons.error,
-                color: AppTheme.errorColor,
+              _statCard(
+                'نفذ',
+                '${out.length}',
+                Icons.error_rounded,
+                const Color(0xFFEF4444),
               ),
-              const SizedBox(height: 24),
-
-              // المنتجات النافذة
-              if (outOfStock.isNotEmpty) ...[
-                Text(
-                  'منتجات نفذت من المخزون',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: outOfStock.length,
-                  itemBuilder: (context, index) {
-                    final product = outOfStock[index];
-                    return Card(
-                      color: AppTheme.errorColor.withOpacity(0.05),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppTheme.errorColor.withOpacity(0.1),
-                          child: const Icon(
-                            Icons.error,
-                            color: AppTheme.errorColor,
-                          ),
-                        ),
-                        title: Text(product.name),
-                        subtitle: Text(product.category),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.errorColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'نفذ',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+              if (out.isNotEmpty) ...[
                 const SizedBox(height: 24),
-              ],
-
-              // المنتجات منخفضة المخزون
-              if (lowStock.isNotEmpty) ...[
-                Text(
-                  'منتجات منخفضة المخزون',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                _sectionTitle('نفذ المخزون'),
                 const SizedBox(height: 12),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: lowStock.length,
-                  itemBuilder: (context, index) {
-                    final product = lowStock[index];
-                    return Card(
-                      color: AppTheme.warningColor.withOpacity(0.05),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppTheme.warningColor.withOpacity(
-                            0.1,
-                          ),
-                          child: const Icon(
-                            Icons.warning,
-                            color: AppTheme.warningColor,
-                          ),
-                        ),
-                        title: Text(product.name),
-                        subtitle: Text(product.category),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.warningColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${product.totalQuantity} قطعة',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                ...out.map((p) => _stockItem(p, true)),
+              ],
+              if (low.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                _sectionTitle('مخزون منخفض'),
+                const SizedBox(height: 12),
+                ...low.map((p) => _stockItem(p, false)),
               ],
             ],
           ),
@@ -560,59 +507,148 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(color: AppTheme.grey600, fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+  Widget _stockItem(dynamic p, bool isOut) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: (isOut ? const Color(0xFFEF4444) : const Color(0xFFD97706))
+            .withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: (isOut ? const Color(0xFFEF4444) : const Color(0xFFD97706))
+              .withOpacity(0.2),
         ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: (isOut ? const Color(0xFFEF4444) : const Color(0xFFD97706))
+                  .withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isOut ? Icons.error_outline : Icons.warning_amber_rounded,
+              color: isOut ? const Color(0xFFEF4444) : const Color(0xFFD97706),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  p.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  p.category,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: isOut ? const Color(0xFFEF4444) : const Color(0xFFD97706),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              isOut ? 'نفذ' : '${p.totalQuantity}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
+  Widget _statCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _emptyState(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Icon(icon, size: 48, color: Colors.grey.shade300),
+          const SizedBox(height: 12),
+          Text(text, style: TextStyle(color: Colors.grey.shade500)),
+        ],
+      ),
+    );
+  }
+
+  Color _statusColor(String s) {
+    switch (s) {
       case 'مكتمل':
-        return AppTheme.successColor;
+        return const Color(0xFF10B981);
       case 'ملغي':
-        return AppTheme.errorColor;
+        return const Color(0xFFEF4444);
       default:
-        return AppTheme.grey600;
+        return const Color(0xFFD97706);
     }
   }
 }
