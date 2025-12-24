@@ -1,3 +1,20 @@
+/// نوع القسم (أطفال أو نسائي)
+enum ProductSection {
+  women('نسائي', 'women'),
+  kids('أطفال', 'kids');
+
+  final String arabicName;
+  final String value;
+  const ProductSection(this.arabicName, this.value);
+
+  static ProductSection fromString(String value) {
+    return ProductSection.values.firstWhere(
+      (e) => e.value == value || e.arabicName == value,
+      orElse: () => ProductSection.women,
+    );
+  }
+}
+
 /// متغير المنتج - يمثل تركيبة لون + مقاس مع الكمية
 class ProductVariant {
   final String id;
@@ -73,7 +90,8 @@ class ProductVariant {
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'ProductVariant(color: $color, size: $size, qty: $quantity)';
+  String toString() =>
+      'ProductVariant(color: $color, size: $size, qty: $quantity)';
 }
 
 /// ألوان شائعة للأحذية
@@ -108,19 +126,56 @@ class CommonColors {
   static List<String> get colorNames => colors.keys.toList();
 }
 
-/// مقاسات الأحذية الشائعة
-class CommonSizes {
+/// مقاسات الأحذية حسب القسم
+class SectionSizes {
   /// مقاسات نسائية
   static const List<String> womenSizes = [
-    '35', '36', '37', '38', '39', '40', '41', '42'
+    '35',
+    '36',
+    '37',
+    '38',
+    '39',
+    '40',
+    '41',
+    '42'
   ];
 
   /// مقاسات أطفال
   static const List<String> kidsSizes = [
-    '20', '21', '22', '23', '24', '25', '26', '27', 
-    '28', '29', '30', '31', '32', '33', '34'
+    '20',
+    '21',
+    '22',
+    '23',
+    '24',
+    '25',
+    '26',
+    '27',
+    '28',
+    '29',
+    '30',
+    '31',
+    '32',
+    '33',
+    '34'
   ];
+
+  /// الحصول على المقاسات حسب القسم
+  static List<String> getSizesForSection(ProductSection section) {
+    switch (section) {
+      case ProductSection.women:
+        return womenSizes;
+      case ProductSection.kids:
+        return kidsSizes;
+    }
+  }
 
   /// جميع المقاسات
   static List<String> get allSizes => [...kidsSizes, ...womenSizes];
+}
+
+// للتوافق مع الكود القديم
+class CommonSizes {
+  static List<String> get womenSizes => SectionSizes.womenSizes;
+  static List<String> get kidsSizes => SectionSizes.kidsSizes;
+  static List<String> get allSizes => SectionSizes.allSizes;
 }
