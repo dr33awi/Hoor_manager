@@ -105,38 +105,43 @@ class _UserManagementScreenState extends State<UserManagementScreen>
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh_rounded, color: Colors.grey.shade600),
-            onPressed: _loadUsers,
-          ),
-        ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
+          preferredSize: const Size.fromHeight(48),
           child: Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+              ),
             ),
             child: TabBar(
               controller: _tabController,
-              indicator: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              indicatorPadding: const EdgeInsets.all(4),
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.grey.shade600,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: Colors.grey.shade500,
+              indicatorColor: AppColors.primary,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.label,
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+              ),
+              dividerColor: Colors.transparent,
               tabs: [
                 Tab(
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppColors.warning,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       const Text('الانتظار'),
                       if (_pendingUsers.isNotEmpty) ...[
                         const SizedBox(width: 6),
@@ -161,7 +166,23 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                     ],
                   ),
                 ),
-                const Tab(text: 'الكل'),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppColors.success,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text('الكل'),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

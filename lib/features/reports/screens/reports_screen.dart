@@ -34,6 +34,17 @@ class _ReportsScreenState extends State<ReportsScreen>
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    debugPrint('🔄 ReportsScreen: Refreshing data...');
+    final productProvider = context.read<ProductProvider>();
+    final saleProvider = context.read<SaleProvider>();
+    await Future.wait([productProvider.loadAll(), saleProvider.loadSales()]);
+    // تأخير بسيط لإظهار مؤشر التحديث
+    await Future.delayed(const Duration(milliseconds: 300));
+    debugPrint('✅ ReportsScreen: Data refreshed!');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -43,9 +54,13 @@ class _ReportsScreenState extends State<ReportsScreen>
           child: TabBarView(
             controller: _tabController,
             children: [
-              _SalesReportTab(startDate: _startDate, endDate: _endDate),
-              const _ProductsReportTab(),
-              const _InventoryReportTab(),
+              _SalesReportTab(
+                startDate: _startDate,
+                endDate: _endDate,
+                onRefresh: _loadData,
+              ),
+              _ProductsReportTab(onRefresh: _loadData),
+              _InventoryReportTab(onRefresh: _loadData),
             ],
           ),
         ),
@@ -142,26 +157,38 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildTabs() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: TabBar(
         controller: _tabController,
-        indicator: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        indicatorPadding: const EdgeInsets.all(4),
-        labelColor: Colors.white,
-        unselectedLabelColor: Colors.grey.shade600,
+        labelColor: AppColors.primary,
+        unselectedLabelColor: Colors.grey.shade500,
+        indicatorColor: AppColors.primary,
+        indicatorWeight: 3,
+        indicatorSize: TabBarIndicatorSize.label,
         labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-        dividerColor: Colors.transparent,
-        tabs: const [
-          Tab(text: 'المبيعات'),
-          Tab(text: 'المنتجات'),
-          Tab(text: 'المخزون'),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+        dividerColor: Colors.grey.shade200,
+        tabs: [
+          _buildTab('المبيعات', AppColors.success),
+          _buildTab('المنتجات', AppColors.purple),
+          _buildTab('المخزون', AppColors.warning),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(String label, Color dotColor) {
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(label),
         ],
       ),
     );
@@ -239,8 +266,13 @@ class _DateBox extends StatelessWidget {
 class _SalesReportTab extends StatelessWidget {
   final DateTime startDate;
   final DateTime endDate;
+  final Future<void> Function() onRefresh;
 
-  const _SalesReportTab({required this.startDate, required this.endDate});
+  const _SalesReportTab({
+    required this.startDate,
+    required this.endDate,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -262,128 +294,134 @@ class _SalesReportTab extends StatelessWidget {
         final cancelled = sales.where((s) => s.status == 'ملغي').length;
         final formatter = NumberFormat('#,##0', 'ar');
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // Summary card
-              FadeInWidget(
-                child: GradientCard.success(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
+        return RefreshIndicator(
+          onRefresh: onRefresh,
+          color: AppColors.primary,
+          backgroundColor: Colors.white,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Summary card
+                FadeInWidget(
+                  child: GradientCard.success(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.trending_up_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.trending_up_rounded,
-                              color: Colors.white,
-                              size: 24,
+                            const SizedBox(width: 12),
+                            const Text(
+                              'إجمالي المبيعات',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'إجمالي المبيعات',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      AnimatedNumber(
-                        value: total,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                          ],
                         ),
-                        formatter: (v) => '${formatter.format(v)} ر.س',
+                        const SizedBox(height: 16),
+                        AnimatedNumber(
+                          value: total,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          formatter: (v) => '${formatter.format(v)} ر.س',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Stats row
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 100),
+                  child: Row(
+                    children: [
+                      _MiniStatCard(
+                        title: 'الفواتير',
+                        value: '${sales.length}',
+                        icon: Icons.receipt_outlined,
+                        color: AppColors.info,
+                      ),
+                      const SizedBox(width: 8),
+                      _MiniStatCard(
+                        title: 'مكتملة',
+                        value: '$completed',
+                        icon: Icons.check_circle_outline,
+                        color: AppColors.success,
+                      ),
+                      const SizedBox(width: 8),
+                      _MiniStatCard(
+                        title: 'معلقة',
+                        value: '$pending',
+                        icon: Icons.schedule,
+                        color: AppColors.warning,
+                      ),
+                      const SizedBox(width: 8),
+                      _MiniStatCard(
+                        title: 'ملغية',
+                        value: '$cancelled',
+                        icon: Icons.cancel_outlined,
+                        color: AppColors.error,
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-              // Stats row
-              FadeInWidget(
-                delay: const Duration(milliseconds: 100),
-                child: Row(
-                  children: [
-                    _MiniStatCard(
-                      title: 'الفواتير',
-                      value: '${sales.length}',
-                      icon: Icons.receipt_outlined,
-                      color: AppColors.info,
-                    ),
-                    const SizedBox(width: 8),
-                    _MiniStatCard(
-                      title: 'مكتملة',
-                      value: '$completed',
-                      icon: Icons.check_circle_outline,
-                      color: AppColors.success,
-                    ),
-                    const SizedBox(width: 8),
-                    _MiniStatCard(
-                      title: 'معلقة',
-                      value: '$pending',
-                      icon: Icons.schedule,
-                      color: AppColors.warning,
-                    ),
-                    const SizedBox(width: 8),
-                    _MiniStatCard(
-                      title: 'ملغية',
-                      value: '$cancelled',
-                      icon: Icons.cancel_outlined,
-                      color: AppColors.error,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Sales list
-              FadeInWidget(
-                delay: const Duration(milliseconds: 200),
-                child: Column(
-                  children: [
-                    SectionHeader(
-                      title: 'تفاصيل المبيعات',
-                      icon: Icons.list_alt_rounded,
-                      iconColor: AppColors.primary,
-                    ),
-                    const SizedBox(height: 12),
-                    sales.isEmpty
-                        ? const EmptyState(
-                            icon: Icons.receipt_long_outlined,
-                            title: 'لا توجد مبيعات',
-                          )
-                        : ElevatedCard(
-                            padding: EdgeInsets.zero,
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: sales.length,
-                              separatorBuilder: (_, __) => Divider(
-                                height: 1,
-                                color: Colors.grey.shade100,
+                // Sales list
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 200),
+                  child: Column(
+                    children: [
+                      SectionHeader(
+                        title: 'تفاصيل المبيعات',
+                        icon: Icons.list_alt_rounded,
+                        iconColor: AppColors.primary,
+                      ),
+                      const SizedBox(height: 12),
+                      sales.isEmpty
+                          ? const EmptyState(
+                              icon: Icons.receipt_long_outlined,
+                              title: 'لا توجد مبيعات',
+                            )
+                          : ElevatedCard(
+                              padding: EdgeInsets.zero,
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: sales.length,
+                                separatorBuilder: (_, __) => Divider(
+                                  height: 1,
+                                  color: Colors.grey.shade100,
+                                ),
+                                itemBuilder: (_, i) =>
+                                    _SaleListItem(sale: sales[i]),
                               ),
-                              itemBuilder: (_, i) =>
-                                  _SaleListItem(sale: sales[i]),
                             ),
-                          ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -394,7 +432,9 @@ class _SalesReportTab extends StatelessWidget {
 // ================= Products Report Tab =================
 
 class _ProductsReportTab extends StatelessWidget {
-  const _ProductsReportTab();
+  final Future<void> Function() onRefresh;
+
+  const _ProductsReportTab({required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -404,96 +444,104 @@ class _ProductsReportTab extends StatelessWidget {
         final sorted = List.of(products)
           ..sort((a, b) => b.totalQuantity.compareTo(a.totalQuantity));
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // Stats
-              FadeInWidget(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _AnimatedStatCardSmall(
-                        title: 'المنتجات',
-                        value: products.length,
-                        icon: Icons.inventory_2_rounded,
-                        color: AppColors.purple,
+        return RefreshIndicator(
+          onRefresh: onRefresh,
+          color: AppColors.primary,
+          backgroundColor: Colors.white,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Stats
+                FadeInWidget(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _AnimatedStatCardSmall(
+                          title: 'المنتجات',
+                          value: products.length,
+                          icon: Icons.inventory_2_rounded,
+                          color: AppColors.purple,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _AnimatedStatCardSmall(
-                        title: 'الفئات',
-                        value: provider.categories.length,
-                        icon: Icons.category_rounded,
-                        color: AppColors.info,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _AnimatedStatCardSmall(
+                          title: 'الفئات',
+                          value: provider.categories.length,
+                          icon: Icons.category_rounded,
+                          color: AppColors.info,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Categories
-              FadeInWidget(
-                delay: const Duration(milliseconds: 100),
-                child: Column(
-                  children: [
-                    SectionHeader(
-                      title: 'حسب الفئة',
-                      icon: Icons.category_outlined,
-                      iconColor: AppColors.purple,
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedCard(
-                      padding: EdgeInsets.zero,
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: provider.categories.length,
-                        separatorBuilder: (_, __) =>
-                            Divider(height: 1, color: Colors.grey.shade100),
-                        itemBuilder: (_, i) {
-                          final c = provider.categories[i];
-                          final count = products
-                              .where((p) => p.category == c.name)
-                              .length;
-                          return _CategoryItem(name: c.name, count: count);
-                        },
+                // Categories
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 100),
+                  child: Column(
+                    children: [
+                      SectionHeader(
+                        title: 'حسب الفئة',
+                        icon: Icons.category_outlined,
+                        iconColor: AppColors.purple,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      ElevatedCard(
+                        padding: EdgeInsets.zero,
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: provider.categories.length,
+                          separatorBuilder: (_, __) =>
+                              Divider(height: 1, color: Colors.grey.shade100),
+                          itemBuilder: (_, i) {
+                            final c = provider.categories[i];
+                            final count = products
+                                .where((p) => p.category == c.name)
+                                .length;
+                            return _CategoryItem(name: c.name, count: count);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Top stock
-              FadeInWidget(
-                delay: const Duration(milliseconds: 200),
-                child: Column(
-                  children: [
-                    SectionHeader(
-                      title: 'أعلى مخزون',
-                      icon: Icons.trending_up_rounded,
-                      iconColor: AppColors.success,
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedCard(
-                      padding: EdgeInsets.zero,
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: sorted.take(10).length,
-                        separatorBuilder: (_, __) =>
-                            Divider(height: 1, color: Colors.grey.shade100),
-                        itemBuilder: (_, i) =>
-                            _RankedProductItem(product: sorted[i], rank: i + 1),
+                // Top stock
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 200),
+                  child: Column(
+                    children: [
+                      SectionHeader(
+                        title: 'أعلى مخزون',
+                        icon: Icons.trending_up_rounded,
+                        iconColor: AppColors.success,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      ElevatedCard(
+                        padding: EdgeInsets.zero,
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: sorted.take(10).length,
+                          separatorBuilder: (_, __) =>
+                              Divider(height: 1, color: Colors.grey.shade100),
+                          itemBuilder: (_, i) => _RankedProductItem(
+                            product: sorted[i],
+                            rank: i + 1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -504,7 +552,9 @@ class _ProductsReportTab extends StatelessWidget {
 // ================= Inventory Report Tab =================
 
 class _InventoryReportTab extends StatelessWidget {
-  const _InventoryReportTab();
+  final Future<void> Function() onRefresh;
+
+  const _InventoryReportTab({required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -517,99 +567,107 @@ class _InventoryReportTab extends StatelessWidget {
           (sum, p) => sum + p.totalQuantity,
         );
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // Stats
-              FadeInWidget(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _AnimatedStatCardSmall(
-                        title: 'إجمالي القطع',
-                        value: total,
-                        icon: Icons.inventory_rounded,
-                        color: AppColors.info,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _AnimatedStatCardSmall(
-                        title: 'منخفض',
-                        value: low.length,
-                        icon: Icons.warning_rounded,
-                        color: AppColors.warning,
-                        showAlert: low.isNotEmpty,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              FadeInWidget(
-                delay: const Duration(milliseconds: 50),
-                child: _AnimatedStatCardSmall(
-                  title: 'نفذ المخزون',
-                  value: out.length,
-                  icon: Icons.error_rounded,
-                  color: AppColors.error,
-                  showAlert: out.isNotEmpty,
-                ),
-              ),
-
-              // Out of stock
-              if (out.isNotEmpty) ...[
-                const SizedBox(height: 24),
+        return RefreshIndicator(
+          onRefresh: onRefresh,
+          color: AppColors.primary,
+          backgroundColor: Colors.white,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Stats
                 FadeInWidget(
-                  delay: const Duration(milliseconds: 100),
-                  child: Column(
+                  child: Row(
                     children: [
-                      SectionHeader(
-                        title: 'نفذ المخزون',
-                        icon: Icons.error_outline,
-                        iconColor: AppColors.error,
-                        iconBackgroundColor: AppColors.errorLight,
-                        trailing: CountBadge(
-                          count: out.length,
-                          color: AppColors.error,
+                      Expanded(
+                        child: _AnimatedStatCardSmall(
+                          title: 'إجمالي القطع',
+                          value: total,
+                          icon: Icons.inventory_rounded,
+                          color: AppColors.info,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      ...out.map(
-                        (p) => _StockAlertItem(product: p, isOutOfStock: true),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // Low stock
-              if (low.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 150),
-                  child: Column(
-                    children: [
-                      SectionHeader(
-                        title: 'مخزون منخفض',
-                        icon: Icons.warning_amber_rounded,
-                        iconColor: AppColors.warning,
-                        iconBackgroundColor: AppColors.warningLight,
-                        trailing: CountBadge(
-                          count: low.length,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _AnimatedStatCardSmall(
+                          title: 'منخفض',
+                          value: low.length,
+                          icon: Icons.warning_rounded,
                           color: AppColors.warning,
+                          showAlert: low.isNotEmpty,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      ...low.map(
-                        (p) => _StockAlertItem(product: p, isOutOfStock: false),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+                FadeInWidget(
+                  delay: const Duration(milliseconds: 50),
+                  child: _AnimatedStatCardSmall(
+                    title: 'نفذ المخزون',
+                    value: out.length,
+                    icon: Icons.error_rounded,
+                    color: AppColors.error,
+                    showAlert: out.isNotEmpty,
+                  ),
+                ),
+
+                // Out of stock
+                if (out.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 100),
+                    child: Column(
+                      children: [
+                        SectionHeader(
+                          title: 'نفذ المخزون',
+                          icon: Icons.error_outline,
+                          iconColor: AppColors.error,
+                          iconBackgroundColor: AppColors.errorLight,
+                          trailing: CountBadge(
+                            count: out.length,
+                            color: AppColors.error,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ...out.map(
+                          (p) =>
+                              _StockAlertItem(product: p, isOutOfStock: true),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Low stock
+                if (low.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  FadeInWidget(
+                    delay: const Duration(milliseconds: 150),
+                    child: Column(
+                      children: [
+                        SectionHeader(
+                          title: 'مخزون منخفض',
+                          icon: Icons.warning_amber_rounded,
+                          iconColor: AppColors.warning,
+                          iconBackgroundColor: AppColors.warningLight,
+                          trailing: CountBadge(
+                            count: low.length,
+                            color: AppColors.warning,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ...low.map(
+                          (p) =>
+                              _StockAlertItem(product: p, isOutOfStock: false),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },

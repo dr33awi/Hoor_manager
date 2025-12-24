@@ -96,30 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       centerTitle: true,
-      actions: [
-        if (authProvider.isAdmin)
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: AppBarIconButton(
-              icon: Icons.people_outline,
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const UserManagementScreen()),
-              ),
-              tooltip: 'إدارة المستخدمين',
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: AppBarIconButton(
-            icon: Icons.refresh_rounded,
-            onPressed: _loadData,
-            tooltip: 'تحديث',
-          ),
-        ),
-        _buildProfileMenu(authProvider),
-        const SizedBox(width: 8),
-      ],
+      actions: [_buildProfileMenu(authProvider), const SizedBox(width: 8)],
     );
   }
 

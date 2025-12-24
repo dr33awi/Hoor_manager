@@ -20,18 +20,32 @@ class ProductsScreen extends StatefulWidget {
 class _ProductsScreenState extends State<ProductsScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
-  late AnimationController _animationController;
+  TabController? _tabController;
+  String? _selectedCategory;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
-      _animationController.forward();
+    });
+  }
+
+  void _initTabController(int length) {
+    _tabController?.dispose();
+    _tabController = TabController(length: length, vsync: this);
+    _tabController!.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (_tabController!.indexIsChanging) return;
+    final provider = context.read<ProductProvider>();
+    setState(() {
+      if (_tabController!.index == 0) {
+        _selectedCategory = null;
+      } else {
+        _selectedCategory = provider.categories[_tabController!.index - 1].name;
+      }
     });
   }
 
@@ -43,8 +57,17 @@ class _ProductsScreenState extends State<ProductsScreen>
   @override
   void dispose() {
     _searchController.dispose();
-    _animationController.dispose();
+    _tabController?.dispose();
     super.dispose();
+  }
+
+  List<ProductModel> _getFilteredProducts(ProductProvider provider) {
+    List<ProductModel> products = provider.products;
+
+    if (_selectedCategory != null) {
+      return products.where((p) => p.category == _selectedCategory).toList();
+    }
+    return products;
   }
 
   @override
@@ -61,10 +84,12 @@ class _ProductsScreenState extends State<ProductsScreen>
               return _buildShimmerGrid();
             }
 
+            final filteredProducts = _getFilteredProducts(provider);
+
             return CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _buildSearchAndFilters(provider)),
-                if (provider.products.isEmpty)
+                SliverToBoxAdapter(child: _buildHeader(provider)),
+                if (filteredProducts.isEmpty)
                   SliverFillRemaining(child: _buildEmptyState(provider))
                 else
                   SliverPadding(
@@ -80,11 +105,9 @@ class _ProductsScreenState extends State<ProductsScreen>
                       delegate: SliverChildBuilderDelegate(
                         (context, index) => FadeInWidget(
                           delay: Duration(milliseconds: 50 * (index % 6)),
-                          child: _ProductCard(
-                            product: provider.products[index],
-                          ),
+                          child: _ProductCard(product: filteredProducts[index]),
                         ),
-                        childCount: provider.products.length,
+                        childCount: filteredProducts.length,
                       ),
                     ),
                   ),
@@ -98,6 +121,144 @@ class _ProductsScreenState extends State<ProductsScreen>
           context,
           MaterialPageRoute(builder: (_) => const AddEditProductScreen()),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(ProductProvider provider) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [_buildSearchBar(provider), _buildTabs(provider)],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(ProductProvider provider) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _SearchBar(
+            controller: _searchController,
+            onChanged: (value) => provider.setSearchQuery(value),
+            onClear: () {
+              _searchController.clear();
+              provider.setSearchQuery('');
+            },
+          ),
+          if (_getFilteredProducts(provider).isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${_getFilteredProducts(provider).length} منتج',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                if (provider.searchQuery.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () {
+                      _searchController.clear();
+                      provider.setSearchQuery('');
+                    },
+                    icon: const Icon(Icons.clear_all, size: 18),
+                    label: const Text('مسح البحث'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey.shade600,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabs(ProductProvider provider) {
+    final categories = provider.categories;
+    final tabCount = categories.length + 1; // +1 للكل
+
+    // Initialize or update tab controller if needed
+    if (_tabController == null || _tabController!.length != tabCount) {
+      _initTabController(tabCount);
+    }
+
+    return TabBar(
+      controller: _tabController,
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      labelColor: AppColors.primary,
+      unselectedLabelColor: Colors.grey.shade500,
+      indicatorColor: AppColors.primary,
+      indicatorWeight: 3,
+      indicatorSize: TabBarIndicatorSize.label,
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+      dividerColor: Colors.grey.shade200,
+      tabs: [
+        _buildTab('الكل', null, provider.allProducts.length),
+        ...categories.map((category) {
+          final count = provider.allProducts
+              .where((p) => p.category == category.name)
+              .length;
+          return _buildTab(category.name, AppColors.primary, count);
+        }),
+      ],
+    );
+  }
+
+  Widget _buildTab(String label, Color? dotColor, int count) {
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (dotColor != null) ...[
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Text(label),
+          if (count > 0) ...[
+            const SizedBox(width: 4),
+            Text(
+              '($count)',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -116,94 +277,27 @@ class _ProductsScreenState extends State<ProductsScreen>
     );
   }
 
-  Widget _buildSearchAndFilters(ProductProvider provider) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Search bar with animation
-          _SearchBar(
-            controller: _searchController,
-            onChanged: (value) => provider.setSearchQuery(value),
-            onClear: () {
-              _searchController.clear();
-              provider.setSearchQuery('');
-            },
-          ),
-          const SizedBox(height: 14),
-
-          // Categories with horizontal scroll
-          SizedBox(
-            height: 40,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _CategoryChip(
-                  label: 'الكل',
-                  count: provider.allProducts.length,
-                  isSelected: provider.selectedCategory == null,
-                  onTap: () => provider.setSelectedCategory(null),
-                ),
-                ...provider.categories.map(
-                  (category) => _CategoryChip(
-                    label: category.name,
-                    isSelected: provider.selectedCategory == category.name,
-                    onTap: () => provider.setSelectedCategory(category.name),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Results count
-          if (provider.products.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${provider.products.length} منتج',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                if (provider.searchQuery.isNotEmpty ||
-                    provider.selectedCategory != null)
-                  TextButton.icon(
-                    onPressed: () {
-                      _searchController.clear();
-                      provider.clearFilters();
-                    },
-                    icon: const Icon(Icons.clear_all, size: 18),
-                    label: const Text('مسح الفلاتر'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey.shade600,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmptyState(ProductProvider provider) {
     final hasFilters =
-        provider.searchQuery.isNotEmpty || provider.selectedCategory != null;
+        provider.searchQuery.isNotEmpty || _selectedCategory != null;
+
+    String title;
+    String subtitle;
+    IconData icon;
+
+    if (_selectedCategory != null) {
+      title = 'لا توجد منتجات في "$_selectedCategory"';
+      subtitle = 'جرب فئة أخرى';
+      icon = Icons.category_outlined;
+    } else if (provider.searchQuery.isNotEmpty) {
+      title = 'لا توجد نتائج';
+      subtitle = 'جرب البحث بكلمة مختلفة';
+      icon = Icons.search_off_rounded;
+    } else {
+      title = 'لا توجد منتجات';
+      subtitle = 'ابدأ بإضافة منتج جديد';
+      icon = Icons.inventory_2_outlined;
+    }
 
     return Center(
       child: FadeInWidget(
@@ -221,17 +315,11 @@ class _ProductsScreenState extends State<ProductsScreen>
                 ),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(
-                hasFilters
-                    ? Icons.search_off_rounded
-                    : Icons.inventory_2_outlined,
-                size: 48,
-                color: Colors.grey.shade400,
-              ),
+              child: Icon(icon, size: 48, color: Colors.grey.shade400),
             ),
             const SizedBox(height: 24),
             Text(
-              hasFilters ? 'لا توجد نتائج' : 'لا توجد منتجات',
+              title,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -240,7 +328,7 @@ class _ProductsScreenState extends State<ProductsScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              hasFilters ? 'جرب تغيير معايير البحث' : 'ابدأ بإضافة منتج جديد',
+              subtitle,
               style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 24),
@@ -248,7 +336,9 @@ class _ProductsScreenState extends State<ProductsScreen>
               OutlinedButton.icon(
                 onPressed: () {
                   _searchController.clear();
-                  provider.clearFilters();
+                  provider.setSearchQuery('');
+                  _tabController?.animateTo(0);
+                  setState(() => _selectedCategory = null);
                 },
                 icon: const Icon(Icons.clear_all),
                 label: const Text('مسح الفلاتر'),
@@ -307,15 +397,9 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: TextField(
         controller: controller,
@@ -347,97 +431,6 @@ class _SearchBar extends StatelessWidget {
           ),
         ),
         onChanged: onChanged,
-      ),
-    );
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
-  final String label;
-  final int? count;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _CategoryChip({
-    required this.label,
-    this.count,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: isSelected
-                ? LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primary.withValues(alpha: 0.8),
-                    ],
-                  )
-                : null,
-            color: isSelected ? null : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : Colors.grey.shade700,
-                ),
-              ),
-              if (count != null) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Colors.white.withValues(alpha: 0.2)
-                        : AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '$count',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }
