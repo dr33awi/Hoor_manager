@@ -1,4 +1,4 @@
-﻿// lib/features/products/screens/add_edit_product_screen.dart
+// lib/features/products/screens/add_edit_product_screen.dart
 // شاشة إضافة/تعديل منتج - مع دعم الطباعة التلقائية ✅
 
 import 'package:flutter/material.dart';
@@ -6,10 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/product_provider.dart';
 import '../models/product_model.dart';
-import '../../../core/services/utilities/barcode_service.dart';
+import '../../../core/services/business/barcode_service.dart';
 import '../widgets/barcode_scanner_widget.dart';
 import '../widgets/barcode_label_dialog.dart';
-import '../widgets/auto_print_barcode_dialog.dart'; // ✅ إضافة حوار الطباعة التلقائي
+import '../widgets/auto_print_barcode_dialog.dart';
 import '../../../core/theme/app_theme.dart';
 
 class AddEditProductScreen extends StatefulWidget {
@@ -20,8 +20,7 @@ class AddEditProductScreen extends StatefulWidget {
   State<AddEditProductScreen> createState() => _AddEditProductScreenState();
 }
 
-class _AddEditProductScreenState extends State<AddEditProductScreen>
-    with SingleTickerProviderStateMixin {
+class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -41,10 +40,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
   bool _hasScannedBarcode = false;
   bool _wasGeneratedBarcode = false;
 
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-
   bool get isEditing => widget.product != null;
 
   @override
@@ -54,20 +49,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
     _sizes = [];
     _inventory = {};
     _variantBarcodes = {};
-
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-        );
-
-    _animationController.forward();
 
     if (isEditing) {
       _loadProductData();
@@ -100,7 +81,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
     _inventory = Map.from(p.inventory);
     _variantBarcodes = Map.from(p.variantBarcodes);
     _hasScannedBarcode = p.barcode.isNotEmpty;
-    _wasGeneratedBarcode = false; // منتج قديم
+    _wasGeneratedBarcode = false;
   }
 
   @override
@@ -111,7 +92,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
     _priceController.dispose();
     _costPriceController.dispose();
     _barcodeController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -200,34 +180,28 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
             ),
         ],
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildBarcodeSection(),
-                  const SizedBox(height: 20),
-                  _buildBasicInfo(),
-                  const SizedBox(height: 20),
-                  _buildColorsSection(),
-                  const SizedBox(height: 20),
-                  _buildSizesSection(),
-                  if (_colors.isNotEmpty && _sizes.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    _buildInventory(),
-                  ],
-                  const SizedBox(height: 28),
-                  _buildSaveButton(),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildBarcodeSection(),
+              const SizedBox(height: 20),
+              _buildBasicInfo(),
+              const SizedBox(height: 20),
+              _buildColorsSection(),
+              const SizedBox(height: 20),
+              _buildSizesSection(),
+              if (_colors.isNotEmpty && _sizes.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                _buildInventory(),
+              ],
+              const SizedBox(height: 28),
+              _buildSaveButton(),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
       ),
@@ -235,55 +209,46 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
   }
 
   Widget _buildSaveButton() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.95, end: 1.0),
-      duration: const Duration(milliseconds: 300),
-      builder: (context, scale, child) =>
-          Transform.scale(scale: scale, child: child),
-      child: SizedBox(
-        width: double.infinity,
-        height: 54,
-        child: ElevatedButton(
-          onPressed: _isLoading ? null : _saveProduct,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isEditing ? Icons.update : Icons.add_circle_outline,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        isEditing ? 'تحديث المنتج' : 'إضافة المنتج',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _saveProduct,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    isEditing ? Icons.update : Icons.add_circle_outline,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isEditing ? 'تحديث المنتج' : 'إضافة المنتج',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -361,44 +326,38 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
           const SizedBox(height: 14),
 
           if (_barcodeController.text.isNotEmpty)
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 300),
-              builder: (context, value, child) =>
-                  Opacity(opacity: value, child: child),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.grey.shade50, Colors.white],
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.grey.shade50, Colors.white],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 60,
+                    child: CustomPaint(
+                      size: const Size(double.infinity, 60),
+                      painter: SimpleBarcodePreviewPainter(
+                        _barcodeController.text,
+                      ),
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 60,
-                      child: CustomPaint(
-                        size: const Size(double.infinity, 60),
-                        painter: SimpleBarcodePreviewPainter(
-                          _barcodeController.text,
-                        ),
-                      ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _barcodeController.text,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _barcodeController.text,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                        letterSpacing: 2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
 
@@ -655,34 +614,29 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
             ],
           ),
           const SizedBox(height: 14),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _colors.isEmpty
-                ? Container(
-                    key: const ValueKey('empty'),
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.palette_outlined,
-                          size: 40,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'لم يتم إضافة ألوان',
-                          style: TextStyle(color: Colors.grey.shade400),
-                        ),
-                      ],
-                    ),
-                  )
-                : Wrap(
-                    key: const ValueKey('colors'),
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _colors.map((c) => _buildColorChip(c)).toList(),
+          _colors.isEmpty
+              ? Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.palette_outlined,
+                        size: 40,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'لم يتم إضافة ألوان',
+                        style: TextStyle(color: Colors.grey.shade400),
+                      ),
+                    ],
                   ),
-          ),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _colors.map((c) => _buildColorChip(c)).toList(),
+                ),
         ],
       ),
     );
@@ -861,34 +815,29 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
             ],
           ),
           const SizedBox(height: 14),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _sizes.isEmpty
-                ? Container(
-                    key: const ValueKey('empty'),
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.straighten_outlined,
-                          size: 40,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'لم يتم إضافة مقاسات',
-                          style: TextStyle(color: Colors.grey.shade400),
-                        ),
-                      ],
-                    ),
-                  )
-                : Wrap(
-                    key: const ValueKey('sizes'),
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _sizes.map((s) => _buildSizeChip(s)).toList(),
+          _sizes.isEmpty
+              ? Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.straighten_outlined,
+                        size: 40,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'لم يتم إضافة مقاسات',
+                        style: TextStyle(color: Colors.grey.shade400),
+                      ),
+                    ],
                   ),
-          ),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _sizes.map((s) => _buildSizeChip(s)).toList(),
+                ),
         ],
       ),
     );
@@ -1135,7 +1084,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
           setState(() {
             _barcodeController.text = barcode;
             _hasScannedBarcode = true;
-            _wasGeneratedBarcode = false; // ✅ تم مسحه، ليس مولداً
+            _wasGeneratedBarcode = false;
           });
           _showSnackBar('تم مسح الباركود بنجاح');
         },
@@ -1147,7 +1096,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
     setState(() {
       _barcodeController.text = _barcodeService.generateProductBarcode();
       _hasScannedBarcode = false;
-      _wasGeneratedBarcode = true; // ✅ تم توليده
+      _wasGeneratedBarcode = true;
     });
     _showSnackBar('تم توليد باركود جديد');
   }
@@ -1399,7 +1348,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
 
     setState(() => _isLoading = true);
 
-    // توليد باركود للمتغيرات إذا لم يكن موجوداً
     for (final color in _colors) {
       for (final size in _sizes) {
         final key = '$color-$size';
@@ -1438,29 +1386,24 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      // ✅✅✅ الطباعة التلقائية - باركود المنتج الرئيسي فقط
       if (!isEditing && _wasGeneratedBarcode) {
-        // منتج جديد وتم توليد باركود له تلقائياً
         _showSnackBar('تم إضافة المنتج بنجاح');
 
-        // الانتظار قليلاً
         await Future.delayed(const Duration(milliseconds: 500));
 
         if (!mounted) return;
 
-        // ✅ عرض حوار الطباعة - الباركود الرئيسي فقط
         await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => AutoPrintBarcodeDialog(
-            barcode: _barcodeController.text, // ✅ الباركود الرئيسي للمنتج
+            barcode: _barcodeController.text,
             productName: _nameController.text.trim(),
             price: double.parse(_priceController.text),
-            storeName: 'متجري', // ✅ غيّر هذا لاسم متجرك
+            storeName: 'متجري',
           ),
         );
       } else {
-        // منتج قديم أو له باركود ممسوح
         _showSnackBar(isEditing ? 'تم التحديث بنجاح' : 'تمت الإضافة بنجاح');
       }
 
@@ -1472,7 +1415,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen>
   }
 }
 
-/// رسام معاينة الباركود البسيط
 class SimpleBarcodePreviewPainter extends CustomPainter {
   final String data;
 

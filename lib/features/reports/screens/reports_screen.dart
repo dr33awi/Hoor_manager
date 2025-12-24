@@ -40,7 +40,6 @@ class _ReportsScreenState extends State<ReportsScreen>
     final productProvider = context.read<ProductProvider>();
     final saleProvider = context.read<SaleProvider>();
     await Future.wait([productProvider.loadAll(), saleProvider.loadSales()]);
-    // تأخير بسيط لإظهار مؤشر التحديث
     await Future.delayed(const Duration(milliseconds: 300));
     debugPrint('✅ ReportsScreen: Data refreshed!');
   }
@@ -303,122 +302,115 @@ class _SalesReportTab extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Summary card
-                FadeInWidget(
-                  child: GradientCard.success(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.trending_up_rounded,
-                                color: Colors.white,
-                                size: 24,
-                              ),
+                // Summary card - مع أنيميشن إجمالي المبيعات فقط
+                GradientCard.success(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'إجمالي المبيعات',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
+                            child: const Icon(
+                              Icons.trending_up_rounded,
+                              color: Colors.white,
+                              size: 24,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        AnimatedNumber(
-                          value: total,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
                           ),
-                          formatter: (v) => '${formatter.format(v)} ر.س',
+                          const SizedBox(width: 12),
+                          const Text(
+                            'إجمالي المبيعات',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // الأنيميشن محفوظة هنا فقط
+                      AnimatedNumber(
+                        value: total,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
-                    ),
+                        formatter: (v) => '${formatter.format(v)} ر.س',
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
 
-                // Stats row
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 100),
-                  child: Row(
-                    children: [
-                      _MiniStatCard(
-                        title: 'الفواتير',
-                        value: '${sales.length}',
-                        icon: Icons.receipt_outlined,
-                        color: AppColors.info,
-                      ),
-                      const SizedBox(width: 8),
-                      _MiniStatCard(
-                        title: 'مكتملة',
-                        value: '$completed',
-                        icon: Icons.check_circle_outline,
-                        color: AppColors.success,
-                      ),
-                      const SizedBox(width: 8),
-                      _MiniStatCard(
-                        title: 'معلقة',
-                        value: '$pending',
-                        icon: Icons.schedule,
-                        color: AppColors.warning,
-                      ),
-                      const SizedBox(width: 8),
-                      _MiniStatCard(
-                        title: 'ملغية',
-                        value: '$cancelled',
-                        icon: Icons.cancel_outlined,
-                        color: AppColors.error,
-                      ),
-                    ],
-                  ),
+                // Stats row - بدون أنيميشن
+                Row(
+                  children: [
+                    _MiniStatCard(
+                      title: 'الفواتير',
+                      value: '${sales.length}',
+                      icon: Icons.receipt_outlined,
+                      color: AppColors.info,
+                    ),
+                    const SizedBox(width: 8),
+                    _MiniStatCard(
+                      title: 'مكتملة',
+                      value: '$completed',
+                      icon: Icons.check_circle_outline,
+                      color: AppColors.success,
+                    ),
+                    const SizedBox(width: 8),
+                    _MiniStatCard(
+                      title: 'معلقة',
+                      value: '$pending',
+                      icon: Icons.schedule,
+                      color: AppColors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    _MiniStatCard(
+                      title: 'ملغية',
+                      value: '$cancelled',
+                      icon: Icons.cancel_outlined,
+                      color: AppColors.error,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 
-                // Sales list
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 200),
-                  child: Column(
-                    children: [
-                      SectionHeader(
-                        title: 'تفاصيل المبيعات',
-                        icon: Icons.list_alt_rounded,
-                        iconColor: AppColors.primary,
-                      ),
-                      const SizedBox(height: 12),
-                      sales.isEmpty
-                          ? const EmptyState(
-                              icon: Icons.receipt_long_outlined,
-                              title: 'لا توجد مبيعات',
-                            )
-                          : ElevatedCard(
-                              padding: EdgeInsets.zero,
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: sales.length,
-                                separatorBuilder: (_, __) => Divider(
-                                  height: 1,
-                                  color: Colors.grey.shade100,
-                                ),
-                                itemBuilder: (_, i) =>
-                                    _SaleListItem(sale: sales[i]),
+                // Sales list - بدون أنيميشن
+                Column(
+                  children: [
+                    SectionHeader(
+                      title: 'تفاصيل المبيعات',
+                      icon: Icons.list_alt_rounded,
+                      iconColor: AppColors.primary,
+                    ),
+                    const SizedBox(height: 12),
+                    sales.isEmpty
+                        ? const EmptyState(
+                            icon: Icons.receipt_long_outlined,
+                            title: 'لا توجد مبيعات',
+                          )
+                        : ElevatedCard(
+                            padding: EdgeInsets.zero,
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: sales.length,
+                              separatorBuilder: (_, __) => Divider(
+                                height: 1,
+                                color: Colors.grey.shade100,
                               ),
+                              itemBuilder: (_, i) =>
+                                  _SaleListItem(sale: sales[i]),
                             ),
-                    ],
-                  ),
+                          ),
+                  ],
                 ),
               ],
             ),
@@ -453,92 +445,82 @@ class _ProductsReportTab extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Stats
-                FadeInWidget(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _AnimatedStatCardSmall(
-                          title: 'المنتجات',
-                          value: products.length,
-                          icon: Icons.inventory_2_rounded,
-                          color: AppColors.purple,
-                        ),
+                // Stats - بدون أنيميشن
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCardSmall(
+                        title: 'المنتجات',
+                        value: products.length,
+                        icon: Icons.inventory_2_rounded,
+                        color: AppColors.purple,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _AnimatedStatCardSmall(
-                          title: 'الفئات',
-                          value: provider.categories.length,
-                          icon: Icons.category_rounded,
-                          color: AppColors.info,
-                        ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCardSmall(
+                        title: 'الفئات',
+                        value: provider.categories.length,
+                        icon: Icons.category_rounded,
+                        color: AppColors.info,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 
-                // Categories
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 100),
-                  child: Column(
-                    children: [
-                      SectionHeader(
-                        title: 'حسب الفئة',
-                        icon: Icons.category_outlined,
-                        iconColor: AppColors.purple,
+                // Categories - بدون أنيميشن
+                Column(
+                  children: [
+                    SectionHeader(
+                      title: 'حسب الفئة',
+                      icon: Icons.category_outlined,
+                      iconColor: AppColors.purple,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedCard(
+                      padding: EdgeInsets.zero,
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: provider.categories.length,
+                        separatorBuilder: (_, __) =>
+                            Divider(height: 1, color: Colors.grey.shade100),
+                        itemBuilder: (_, i) {
+                          final c = provider.categories[i];
+                          final count = products
+                              .where((p) => p.category == c.name)
+                              .length;
+                          return _CategoryItem(name: c.name, count: count);
+                        },
                       ),
-                      const SizedBox(height: 12),
-                      ElevatedCard(
-                        padding: EdgeInsets.zero,
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: provider.categories.length,
-                          separatorBuilder: (_, __) =>
-                              Divider(height: 1, color: Colors.grey.shade100),
-                          itemBuilder: (_, i) {
-                            final c = provider.categories[i];
-                            final count = products
-                                .where((p) => p.category == c.name)
-                                .length;
-                            return _CategoryItem(name: c.name, count: count);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 
-                // Top stock
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 200),
-                  child: Column(
-                    children: [
-                      SectionHeader(
-                        title: 'أعلى مخزون',
-                        icon: Icons.trending_up_rounded,
-                        iconColor: AppColors.success,
+                // Top stock - بدون أنيميشن
+                Column(
+                  children: [
+                    SectionHeader(
+                      title: 'أعلى مخزون',
+                      icon: Icons.trending_up_rounded,
+                      iconColor: AppColors.success,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedCard(
+                      padding: EdgeInsets.zero,
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: sorted.take(10).length,
+                        separatorBuilder: (_, __) =>
+                            Divider(height: 1, color: Colors.grey.shade100),
+                        itemBuilder: (_, i) =>
+                            _RankedProductItem(product: sorted[i], rank: i + 1),
                       ),
-                      const SizedBox(height: 12),
-                      ElevatedCard(
-                        padding: EdgeInsets.zero,
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: sorted.take(10).length,
-                          separatorBuilder: (_, __) =>
-                              Divider(height: 1, color: Colors.grey.shade100),
-                          itemBuilder: (_, i) => _RankedProductItem(
-                            product: sorted[i],
-                            rank: i + 1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -576,94 +558,81 @@ class _InventoryReportTab extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Stats
-                FadeInWidget(
-                  child: Row(
+                // Stats - بدون أنيميشن
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCardSmall(
+                        title: 'إجمالي القطع',
+                        value: total,
+                        icon: Icons.inventory_rounded,
+                        color: AppColors.info,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCardSmall(
+                        title: 'منخفض',
+                        value: low.length,
+                        icon: Icons.warning_rounded,
+                        color: AppColors.warning,
+                        showAlert: low.isNotEmpty,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _StatCardSmall(
+                  title: 'نفذ المخزون',
+                  value: out.length,
+                  icon: Icons.error_rounded,
+                  color: AppColors.error,
+                  showAlert: out.isNotEmpty,
+                ),
+
+                // Out of stock - بدون أنيميشن
+                if (out.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Column(
                     children: [
-                      Expanded(
-                        child: _AnimatedStatCardSmall(
-                          title: 'إجمالي القطع',
-                          value: total,
-                          icon: Icons.inventory_rounded,
-                          color: AppColors.info,
+                      SectionHeader(
+                        title: 'نفذ المخزون',
+                        icon: Icons.error_outline,
+                        iconColor: AppColors.error,
+                        iconBackgroundColor: AppColors.errorLight,
+                        trailing: CountBadge(
+                          count: out.length,
+                          color: AppColors.error,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _AnimatedStatCardSmall(
-                          title: 'منخفض',
-                          value: low.length,
-                          icon: Icons.warning_rounded,
-                          color: AppColors.warning,
-                          showAlert: low.isNotEmpty,
-                        ),
+                      const SizedBox(height: 12),
+                      ...out.map(
+                        (p) => _StockAlertItem(product: p, isOutOfStock: true),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                FadeInWidget(
-                  delay: const Duration(milliseconds: 50),
-                  child: _AnimatedStatCardSmall(
-                    title: 'نفذ المخزون',
-                    value: out.length,
-                    icon: Icons.error_rounded,
-                    color: AppColors.error,
-                    showAlert: out.isNotEmpty,
-                  ),
-                ),
-
-                // Out of stock
-                if (out.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  FadeInWidget(
-                    delay: const Duration(milliseconds: 100),
-                    child: Column(
-                      children: [
-                        SectionHeader(
-                          title: 'نفذ المخزون',
-                          icon: Icons.error_outline,
-                          iconColor: AppColors.error,
-                          iconBackgroundColor: AppColors.errorLight,
-                          trailing: CountBadge(
-                            count: out.length,
-                            color: AppColors.error,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ...out.map(
-                          (p) =>
-                              _StockAlertItem(product: p, isOutOfStock: true),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
 
-                // Low stock
+                // Low stock - بدون أنيميشن
                 if (low.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                  FadeInWidget(
-                    delay: const Duration(milliseconds: 150),
-                    child: Column(
-                      children: [
-                        SectionHeader(
-                          title: 'مخزون منخفض',
-                          icon: Icons.warning_amber_rounded,
-                          iconColor: AppColors.warning,
-                          iconBackgroundColor: AppColors.warningLight,
-                          trailing: CountBadge(
-                            count: low.length,
-                            color: AppColors.warning,
-                          ),
+                  Column(
+                    children: [
+                      SectionHeader(
+                        title: 'مخزون منخفض',
+                        icon: Icons.warning_amber_rounded,
+                        iconColor: AppColors.warning,
+                        iconBackgroundColor: AppColors.warningLight,
+                        trailing: CountBadge(
+                          count: low.length,
+                          color: AppColors.warning,
                         ),
-                        const SizedBox(height: 12),
-                        ...low.map(
-                          (p) =>
-                              _StockAlertItem(product: p, isOutOfStock: false),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...low.map(
+                        (p) => _StockAlertItem(product: p, isOutOfStock: false),
+                      ),
+                    ],
                   ),
                 ],
               ],
@@ -725,14 +694,15 @@ class _MiniStatCard extends StatelessWidget {
   }
 }
 
-class _AnimatedStatCardSmall extends StatelessWidget {
+// نسخة بدون أنيميشن
+class _StatCardSmall extends StatelessWidget {
   final String title;
   final int value;
   final IconData icon;
   final Color color;
   final bool showAlert;
 
-  const _AnimatedStatCardSmall({
+  const _StatCardSmall({
     required this.title,
     required this.value,
     required this.icon,
@@ -784,8 +754,8 @@ class _AnimatedStatCardSmall extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                AnimatedNumber(
-                  value: value.toDouble(),
+                Text(
+                  '$value',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

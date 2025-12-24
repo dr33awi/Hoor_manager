@@ -1,4 +1,4 @@
-﻿// lib/features/sales/screens/sales_screen.dart
+// lib/features/sales/screens/sales_screen.dart
 // شاشة قائمة الفواتير - تصميم محسّن
 
 import 'package:flutter/material.dart';
@@ -18,8 +18,7 @@ class SalesScreen extends StatefulWidget {
   State<SalesScreen> createState() => _SalesScreenState();
 }
 
-class _SalesScreenState extends State<SalesScreen>
-    with SingleTickerProviderStateMixin {
+class _SalesScreenState extends State<SalesScreen> with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
   late TabController _tabController;
   String? _selectedStatus;
@@ -36,18 +35,10 @@ class _SalesScreenState extends State<SalesScreen>
 
     setState(() {
       switch (_tabController.index) {
-        case 0:
-          _selectedStatus = null;
-          break;
-        case 1:
-          _selectedStatus = AppConstants.saleStatusCompleted;
-          break;
-        case 2:
-          _selectedStatus = AppConstants.saleStatusPending;
-          break;
-        case 3:
-          _selectedStatus = AppConstants.saleStatusCancelled;
-          break;
+        case 0: _selectedStatus = null; break;
+        case 1: _selectedStatus = AppConstants.saleStatusCompleted; break;
+        case 2: _selectedStatus = AppConstants.saleStatusPending; break;
+        case 3: _selectedStatus = AppConstants.saleStatusCancelled; break;
       }
     });
     context.read<SaleProvider>().setFilterStatus(_selectedStatus);
@@ -81,10 +72,9 @@ class _SalesScreenState extends State<SalesScreen>
                 onRefresh: () => provider.loadSales(),
                 color: AppColors.primary,
                 backgroundColor: Colors.white,
-                child: AnimatedListBuilder(
+                child: ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: sales.length,
-                  staggerDuration: const Duration(milliseconds: 50),
                   itemBuilder: (_, index) => _SaleCard(
                     sale: sales[index],
                     onTap: () => _goToDetails(sales[index]),
@@ -103,11 +93,7 @@ class _SalesScreenState extends State<SalesScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -133,23 +119,13 @@ class _SalesScreenState extends State<SalesScreen>
             decoration: InputDecoration(
               hintText: 'بحث برقم الفاتورة...',
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                color: Colors.grey.shade400,
-              ),
+              prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.grey.shade600,
-                          size: 14,
-                        ),
+                        decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+                        child: Icon(Icons.close, color: Colors.grey.shade600, size: 14),
                       ),
                       onPressed: () {
                         _searchController.clear();
@@ -159,10 +135,7 @@ class _SalesScreenState extends State<SalesScreen>
                     )
                   : null,
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
             onChanged: (v) {
               provider.setSearchQuery(v);
@@ -202,14 +175,7 @@ class _SalesScreenState extends State<SalesScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           if (dotColor != null) ...[
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: dotColor,
-                shape: BoxShape.circle,
-              ),
-            ),
+            Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
             const SizedBox(width: 6),
           ],
           Text(label),
@@ -231,81 +197,61 @@ class _SalesScreenState extends State<SalesScreen>
 
   Widget _buildEmpty(bool hasSearch) {
     return Center(
-      child: FadeInWidget(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.grey.shade100, Colors.grey.shade50],
-                ),
-                borderRadius: BorderRadius.circular(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.grey.shade100, Colors.grey.shade50],
               ),
-              child: Icon(
-                hasSearch
-                    ? Icons.search_off_rounded
-                    : Icons.receipt_long_outlined,
-                size: 48,
-                color: Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Icon(
+              hasSearch ? Icons.search_off_rounded : Icons.receipt_long_outlined,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            hasSearch ? 'لا توجد نتائج' : 'لا توجد فواتير',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primary),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasSearch ? 'جرب البحث برقم فاتورة مختلف' : 'ستظهر الفواتير هنا بعد إنشائها',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+          ),
+          if (hasSearch) ...[
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: () {
+                _searchController.clear();
+                context.read<SaleProvider>().setSearchQuery('');
+                setState(() {});
+              },
+              icon: const Icon(Icons.clear_all),
+              label: const Text('مسح البحث'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              hasSearch ? 'لا توجد نتائج' : 'لا توجد فواتير',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              hasSearch
-                  ? 'جرب البحث برقم فاتورة مختلف'
-                  : 'ستظهر الفواتير هنا بعد إنشائها',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-            ),
-            if (hasSearch) ...[
-              const SizedBox(height: 20),
-              OutlinedButton.icon(
-                onPressed: () {
-                  _searchController.clear();
-                  context.read<SaleProvider>().setSearchQuery('');
-                  setState(() {});
-                },
-                icon: const Icon(Icons.clear_all),
-                label: const Text('مسح البحث'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
 
   void _goToDetails(SaleModel sale) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => SaleDetailsScreen(sale: sale)),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => SaleDetailsScreen(sale: sale)));
   }
 }
-
-// ================= Widgets الداخلية =================
 
 class _SaleCard extends StatelessWidget {
   final SaleModel sale;
@@ -315,27 +261,19 @@ class _SaleCard extends StatelessWidget {
 
   Color get _statusColor {
     switch (sale.status) {
-      case 'مكتمل':
-        return AppColors.success;
-      case 'ملغي':
-        return AppColors.error;
-      case 'معلق':
-        return AppColors.warning;
-      default:
-        return Colors.grey;
+      case 'مكتمل': return AppColors.success;
+      case 'ملغي': return AppColors.error;
+      case 'معلق': return AppColors.warning;
+      default: return Colors.grey;
     }
   }
 
   IconData get _statusIcon {
     switch (sale.status) {
-      case 'مكتمل':
-        return Icons.check_circle_outline;
-      case 'ملغي':
-        return Icons.cancel_outlined;
-      case 'معلق':
-        return Icons.schedule;
-      default:
-        return Icons.receipt_outlined;
+      case 'مكتمل': return Icons.check_circle_outline;
+      case 'ملغي': return Icons.cancel_outlined;
+      case 'معلق': return Icons.schedule;
+      default: return Icons.receipt_outlined;
     }
   }
 
@@ -352,21 +290,15 @@ class _SaleCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2)),
           ],
         ),
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // Icon
                   Container(
                     width: 48,
                     height: 48,
@@ -374,53 +306,30 @@ class _SaleCard extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          _statusColor.withValues(alpha: 0.15),
-                          _statusColor.withValues(alpha: 0.05),
-                        ],
+                        colors: [_statusColor.withValues(alpha: 0.15), _statusColor.withValues(alpha: 0.05)],
                       ),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(_statusIcon, color: _statusColor, size: 24),
                   ),
                   const SizedBox(width: 14),
-                  // Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Text(
-                              sale.invoiceNumber,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
+                            Text(sale.invoiceNumber, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                             const Spacer(),
-                            _StatusBadge(
-                              status: sale.status,
-                              color: _statusColor,
-                            ),
+                            _StatusBadge(status: sale.status, color: _statusColor),
                           ],
                         ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 14,
-                              color: Colors.grey.shade400,
-                            ),
+                            Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
                             const SizedBox(width: 4),
-                            Text(
-                              dateFormatter.format(sale.saleDate),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
+                            Text(dateFormatter.format(sale.saleDate), style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                           ],
                         ),
                       ],
@@ -429,20 +338,11 @@ class _SaleCard extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Divider
-            Container(
-              height: 1,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              color: Colors.grey.shade100,
-            ),
-
-            // Footer
+            Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 16), color: Colors.grey.shade100),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // Seller info
                   Expanded(
                     child: Row(
                       children: [
@@ -453,67 +353,30 @@ class _SaleCard extends StatelessWidget {
                             color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
-                            Icons.person_outline,
-                            size: 18,
-                            color: AppColors.primary,
-                          ),
+                          child: const Icon(Icons.person_outline, size: 18, color: AppColors.primary),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'البائع',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                              Text(
-                                sale.userName,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                              Text('البائع', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                              Text(sale.userName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  // Total
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        '${formatter.format(sale.total)} ر.س',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
+                      Text('${formatter.format(sale.total)} ر.س', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary)),
                       Row(
                         children: [
-                          Icon(
-                            Icons.shopping_cart_outlined,
-                            size: 12,
-                            color: Colors.grey.shade400,
-                          ),
+                          Icon(Icons.shopping_cart_outlined, size: 12, color: Colors.grey.shade400),
                           const SizedBox(width: 4),
-                          Text(
-                            '${sale.itemsCount} عنصر',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
+                          Text('${sale.itemsCount} عنصر', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                         ],
                       ),
                     ],
@@ -539,22 +402,10 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: 0.15),
-            color.withValues(alpha: 0.05),
-          ],
-        ),
+        gradient: LinearGradient(colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.05)]),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      child: Text(status, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 }

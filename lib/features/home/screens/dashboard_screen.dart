@@ -1,5 +1,5 @@
 ﻿// lib/features/home/screens/dashboard_screen.dart
-// شاشة لوحة التحكم - تصميم محسّن مع animations
+// شاشة لوحة التحكم - تصميم محسّن بدون animations
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,27 +16,13 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-
+class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
-      _animationController.forward();
     });
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -104,119 +90,112 @@ class _DashboardScreenState extends State<DashboardScreen>
       iconColor = AppColors.primary;
     }
 
-    return FadeInWidget(
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, size: 18, color: iconColor),
-                    const SizedBox(width: 6),
-                    Text(
-                      greeting,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'نظرة عامة على المبيعات',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: iconColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    greeting,
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                   ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'نظرة عامة على المبيعات',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          _TodayDateBadge(),
-        ],
-      ),
+        ),
+        _TodayDateBadge(),
+      ],
     );
   }
 
   Widget _buildTodaySummaryCard(SaleProvider saleProvider) {
     final formatter = NumberFormat('#,##0.00', 'ar');
 
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 100),
-      child: GradientCard.primary(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.trending_up_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+    return GradientCard.primary(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'إجمالي مبيعات اليوم',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
+                child: const Icon(
+                  Icons.trending_up_rounded,
+                  color: Colors.white,
+                  size: 24,
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.receipt_outlined,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${saleProvider.todayOrdersCount} فاتورة',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            AnimatedNumber(
-              value: saleProvider.todayTotal,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
               ),
-              formatter: (v) => '${formatter.format(v)} ر.س',
-              duration: const Duration(milliseconds: 800),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'إجمالي مبيعات اليوم',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.receipt_outlined,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${saleProvider.todayOrdersCount} فاتورة',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // الأنيميشن محفوظة هنا فقط
+          AnimatedNumber(
+            value: saleProvider.todayTotal,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
             ),
-          ],
-        ),
+            formatter: (v) => '${formatter.format(v)} ر.س',
+            duration: const Duration(milliseconds: 800),
+          ),
+        ],
       ),
     );
   }
@@ -225,36 +204,29 @@ class _DashboardScreenState extends State<DashboardScreen>
     SaleProvider saleProvider,
     ProductProvider productProvider,
   ) {
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 200),
-      child: Row(
-        children: [
-          Expanded(
-            child: _AnimatedStatCard(
-              title: 'المنتجات النشطة',
-              value: productProvider.allProducts
-                  .where((p) => p.isActive)
-                  .length,
-              icon: Icons.inventory_2_rounded,
-              color: AppColors.purple,
-              delay: 0,
-            ),
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            title: 'المنتجات النشطة',
+            value: productProvider.allProducts.where((p) => p.isActive).length,
+            icon: Icons.inventory_2_rounded,
+            color: AppColors.purple,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _AnimatedStatCard(
-              title: 'منخفض المخزون',
-              value: productProvider.lowStockProducts.length,
-              icon: Icons.warning_rounded,
-              color: productProvider.lowStockProducts.isEmpty
-                  ? Colors.grey.shade400
-                  : AppColors.warning,
-              delay: 100,
-              showAlert: productProvider.lowStockProducts.isNotEmpty,
-            ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            title: 'منخفض المخزون',
+            value: productProvider.lowStockProducts.length,
+            icon: Icons.warning_rounded,
+            color: productProvider.lowStockProducts.isEmpty
+                ? Colors.grey.shade400
+                : AppColors.warning,
+            showAlert: productProvider.lowStockProducts.isNotEmpty,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -262,78 +234,70 @@ class _DashboardScreenState extends State<DashboardScreen>
     final lowStock = provider.lowStockProducts;
     if (lowStock.isEmpty) return const SizedBox.shrink();
 
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 300),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(
-            title: 'منتجات منخفضة المخزون',
-            icon: Icons.warning_rounded,
-            iconColor: AppColors.warning,
-            iconBackgroundColor: AppColors.warningLight,
-            trailing: CountBadge(
-              count: lowStock.length,
-              color: AppColors.warning,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'منتجات منخفضة المخزون',
+          icon: Icons.warning_rounded,
+          iconColor: AppColors.warning,
+          iconBackgroundColor: AppColors.warningLight,
+          trailing: CountBadge(
+            count: lowStock.length,
+            color: AppColors.warning,
           ),
-          const SizedBox(height: 14),
-          ElevatedCard(
-            padding: EdgeInsets.zero,
-            child: AnimatedListBuilder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: lowStock.take(5).length,
-              staggerDuration: const Duration(milliseconds: 50),
-              separatorBuilder: (_, __) =>
-                  Divider(height: 1, color: Colors.grey.shade100),
-              itemBuilder: (context, index) {
-                final product = lowStock[index];
-                return _LowStockItem(product: product);
-              },
-            ),
+        ),
+        const SizedBox(height: 14),
+        ElevatedCard(
+          padding: EdgeInsets.zero,
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: lowStock.take(5).length,
+            separatorBuilder: (_, __) =>
+                Divider(height: 1, color: Colors.grey.shade100),
+            itemBuilder: (context, index) {
+              final product = lowStock[index];
+              return _LowStockItem(product: product);
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildRecentSalesSection(SaleProvider provider) {
     final recentSales = provider.allSales.take(5).toList();
 
-    return FadeInWidget(
-      delay: const Duration(milliseconds: 400),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(
-            title: 'آخر الفواتير',
-            icon: Icons.history_rounded,
-            iconColor: AppColors.purple,
-            iconBackgroundColor: AppColors.purpleLight,
-          ),
-          const SizedBox(height: 14),
-          ElevatedCard(
-            padding: EdgeInsets.zero,
-            child: recentSales.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: EmptyState.sales(),
-                  )
-                : AnimatedListBuilder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recentSales.length,
-                    staggerDuration: const Duration(milliseconds: 50),
-                    separatorBuilder: (_, __) =>
-                        Divider(height: 1, color: Colors.grey.shade100),
-                    itemBuilder: (context, index) {
-                      return _RecentSaleItem(sale: recentSales[index]);
-                    },
-                  ),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'آخر الفواتير',
+          icon: Icons.history_rounded,
+          iconColor: AppColors.purple,
+          iconBackgroundColor: AppColors.purpleLight,
+        ),
+        const SizedBox(height: 14),
+        ElevatedCard(
+          padding: EdgeInsets.zero,
+          child: recentSales.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: EmptyState.sales(),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: recentSales.length,
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 1, color: Colors.grey.shade100),
+                  itemBuilder: (context, index) {
+                    return _RecentSaleItem(sale: recentSales[index]);
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
@@ -376,20 +340,19 @@ class _TodayDateBadge extends StatelessWidget {
   }
 }
 
-class _AnimatedStatCard extends StatelessWidget {
+// نسخة بدون أنيميشن
+class _StatCard extends StatelessWidget {
   final String title;
   final int value;
   final IconData icon;
   final Color color;
-  final int delay;
   final bool showAlert;
 
-  const _AnimatedStatCard({
+  const _StatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
-    this.delay = 0,
     this.showAlert = false,
   });
 
@@ -439,8 +402,8 @@ class _AnimatedStatCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                AnimatedNumber(
-                  value: value.toDouble(),
+                Text(
+                  '$value',
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 20,

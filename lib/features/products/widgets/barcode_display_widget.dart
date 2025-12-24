@@ -1,11 +1,10 @@
-﻿// lib/core/widgets/barcode_display_widget.dart
-// ✅ ويدجت عرض الباركود الحقيقي
+// lib/core/widgets/barcode_display_widget.dart
+// ويدجت عرض الباركود الحقيقي
 
 import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// ويدجت عرض الباركود بأنواع مختلفة
 class BarcodeDisplayWidget extends StatelessWidget {
   final String data;
   final BarcodeType type;
@@ -92,7 +91,6 @@ class BarcodeDisplayWidget extends StatelessWidget {
   }
 }
 
-/// أنواع الباركود المدعومة
 enum BarcodeType {
   Code128,
   Code39,
@@ -107,7 +105,6 @@ enum BarcodeType {
   Codabar,
 }
 
-/// معاينة الباركود بحجم كبير
 class BarcodePreviewDialog extends StatelessWidget {
   final String barcode;
   final String productName;
@@ -131,7 +128,6 @@ class BarcodePreviewDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // العنوان
             Row(
               children: [
                 Container(
@@ -158,7 +154,6 @@ class BarcodePreviewDialog extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // معلومات المنتج
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -212,7 +207,6 @@ class BarcodePreviewDialog extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // الباركود
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -244,14 +238,11 @@ class BarcodePreviewDialog extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // أزرار الإجراءات
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      // نسخ الباركود
-                      // Clipboard.setData(ClipboardData(text: barcode));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('تم نسخ الباركود')),
                       );
@@ -271,9 +262,7 @@ class BarcodePreviewDialog extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // طباعة الباركود
                       Navigator.pop(context);
-                      // افتح نافذة الطباعة
                     },
                     icon: const Icon(Icons.print, size: 18),
                     label: const Text('طباعة'),
@@ -295,7 +284,6 @@ class BarcodePreviewDialog extends StatelessWidget {
   }
 }
 
-/// ويدجت ملصق الباركود الصغير (للمنتجات)
 class CompactBarcodeLabel extends StatelessWidget {
   final String barcode;
   final String productName;
@@ -324,7 +312,6 @@ class CompactBarcodeLabel extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // الباركود
             BarcodeDisplayWidget(
               data: barcode,
               width: 160,
@@ -334,7 +321,6 @@ class CompactBarcodeLabel extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // اسم المنتج
             Text(
               productName,
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -345,7 +331,6 @@ class CompactBarcodeLabel extends StatelessWidget {
 
             const SizedBox(height: 4),
 
-            // السعر
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(

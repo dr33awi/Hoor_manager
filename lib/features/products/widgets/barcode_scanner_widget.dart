@@ -1,12 +1,11 @@
-﻿// lib/features/products/widgets/barcode_scanner_widget.dart
-// ✅ ويدجت مسح الباركود الحقيقي - محدّث
+// lib/features/products/widgets/barcode_scanner_widget.dart
+// ويدجت مسح الباركود الحقيقي
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// ويدجت مسح الباركود باستخدام mobile_scanner
 class BarcodeScannerWidget extends StatefulWidget {
   final Function(String barcode) onBarcodeScanned;
   final bool enableManualEntry;
@@ -21,23 +20,20 @@ class BarcodeScannerWidget extends StatefulWidget {
   State<BarcodeScannerWidget> createState() => _BarcodeScannerWidgetState();
 }
 
-class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
-    with SingleTickerProviderStateMixin {
+class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget> {
   final MobileScannerController _scannerController = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     formats: [
       BarcodeFormat.code128,
       BarcodeFormat.ean13,
       BarcodeFormat.ean8,
-      BarcodeFormat.upcA, // ✅ تصحيح: upcA بدلاً من upca
-      BarcodeFormat.upcE, // ✅ تصحيح: upcE بدلاً من upce
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
       BarcodeFormat.qrCode,
     ],
   );
 
   final _manualController = TextEditingController();
-  late AnimationController _animationController;
-  late Animation<double> _animation;
 
   bool _isScanning = true;
   bool _hasPermission = false;
@@ -48,20 +44,12 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   void initState() {
     super.initState();
     _checkPermission();
-
-    _animationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
   }
 
   @override
   void dispose() {
     _scannerController.dispose();
     _manualController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -121,13 +109,8 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
         _lastScannedCode = barcode;
       });
 
-      // Haptic feedback
-      _playSuccessSound();
-
-      // استدعاء الـ callback
       widget.onBarcodeScanned(barcode);
 
-      // Reset بعد ثانية
       Future.delayed(const Duration(milliseconds: 1000), () {
         if (mounted) {
           setState(() {
@@ -137,11 +120,6 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
         }
       });
     }
-  }
-
-  void _playSuccessSound() {
-    // يمكنك إضافة صوت أو اهتزاز هنا
-    // HapticFeedback.mediumImpact();
   }
 
   @override
@@ -154,7 +132,6 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
       ),
       child: Column(
         children: [
-          // المقبض
           Container(
             margin: const EdgeInsets.only(top: 12),
             width: 40,
@@ -164,8 +141,6 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
-          // العنوان
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -190,13 +165,9 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
               ],
             ),
           ),
-
-          // منطقة المسح
           Expanded(
             child: _isScanning ? _buildScannerView() : _buildManualEntry(),
           ),
-
-          // التبديل بين المسح والإدخال اليدوي
           if (widget.enableManualEntry)
             Container(
               padding: const EdgeInsets.all(20),
@@ -289,19 +260,11 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.camera_alt_outlined,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.camera_alt_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               'صلاحية الكاميرا مطلوبة',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 8),
             Text(
@@ -315,10 +278,7 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
               label: const Text('فتح الإعدادات'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -342,13 +302,10 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            // الكاميرا
             MobileScanner(
               controller: _scannerController,
               onDetect: _onBarcodeDetected,
             ),
-
-            // Overlay مع إطار المسح
             CustomPaint(
               painter: ScannerOverlayPainter(
                 scanWindow: Rect.fromCenter(
@@ -359,12 +316,9 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                   width: 280,
                   height: 180,
                 ),
-                animation: _animation,
               ),
               child: Container(),
             ),
-
-            // رسالة التوجيه
             Positioned(
               bottom: 40,
               left: 20,
@@ -379,22 +333,14 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      _isProcessing
-                          ? Icons.check_circle
-                          : Icons.center_focus_weak,
-                      color: _isProcessing
-                          ? AppColors.success
-                          : Colors.white,
+                      _isProcessing ? Icons.check_circle : Icons.center_focus_weak,
+                      color: _isProcessing ? AppColors.success : Colors.white,
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      _isProcessing
-                          ? 'تم المسح بنجاح!'
-                          : 'وجّه الكاميرا نحو الباركود',
+                      _isProcessing ? 'تم المسح بنجاح!' : 'وجّه الكاميرا نحو الباركود',
                       style: TextStyle(
-                        color: _isProcessing
-                            ? AppColors.success
-                            : Colors.white,
+                        color: _isProcessing ? AppColors.success : Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -423,11 +369,7 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
             ),
             child: Column(
               children: [
-                Icon(
-                  Icons.keyboard_alt_outlined,
-                  size: 48,
-                  color: Colors.grey.shade400,
-                ),
+                Icon(Icons.keyboard_alt_outlined, size: 48, color: Colors.grey.shade400),
                 const SizedBox(height: 16),
                 const Text(
                   'أدخل رقم الباركود يدوياً',
@@ -438,11 +380,7 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                   controller: _manualController,
                   textAlign: TextAlign.center,
                   autofocus: true,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontFamily: 'monospace',
-                    letterSpacing: 2,
-                  ),
+                  style: const TextStyle(fontSize: 18, fontFamily: 'monospace', letterSpacing: 2),
                   decoration: InputDecoration(
                     hintText: 'أدخل الباركود',
                     hintStyle: TextStyle(color: Colors.grey.shade400),
@@ -458,10 +396,7 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: AppColors.primary,
-                        width: 2,
-                      ),
+                      borderSide: BorderSide(color: AppColors.primary, width: 2),
                     ),
                   ),
                   onSubmitted: (value) {
@@ -482,16 +417,11 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text(
                       'تأكيد',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -504,23 +434,15 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   }
 }
 
-/// رسام الـ Overlay للمسح
 class ScannerOverlayPainter extends CustomPainter {
   final Rect scanWindow;
-  final Animation<double> animation;
 
-  ScannerOverlayPainter({required this.scanWindow, required this.animation})
-    : super(repaint: animation);
+  ScannerOverlayPainter({required this.scanWindow});
 
   @override
   void paint(Canvas canvas, Size size) {
-    // خلفية شبه شفافة
-    final backgroundPath = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-    final windowPath = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(scanWindow, const Radius.circular(12)),
-      );
+    final backgroundPath = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final windowPath = Path()..addRRect(RRect.fromRectAndRadius(scanWindow, const Radius.circular(12)));
 
     final backgroundPaint = Paint()..color = Colors.black.withValues(alpha: 0.5);
 
@@ -529,7 +451,6 @@ class ScannerOverlayPainter extends CustomPainter {
       backgroundPaint,
     );
 
-    // إطار النافذة
     final borderPaint = Paint()
       ..color = Colors.white
       ..strokeWidth = 3
@@ -540,7 +461,6 @@ class ScannerOverlayPainter extends CustomPainter {
       borderPaint,
     );
 
-    // الزوايا الملونة
     final cornerPaint = Paint()
       ..color = AppColors.success
       ..strokeWidth = 4
@@ -549,76 +469,19 @@ class ScannerOverlayPainter extends CustomPainter {
 
     const cornerLength = 30.0;
 
-    // الزاوية العلوية اليسرى
-    canvas.drawLine(
-      scanWindow.topLeft,
-      scanWindow.topLeft + const Offset(cornerLength, 0),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      scanWindow.topLeft,
-      scanWindow.topLeft + const Offset(0, cornerLength),
-      cornerPaint,
-    );
+    canvas.drawLine(scanWindow.topLeft, scanWindow.topLeft + const Offset(cornerLength, 0), cornerPaint);
+    canvas.drawLine(scanWindow.topLeft, scanWindow.topLeft + const Offset(0, cornerLength), cornerPaint);
 
-    // الزاوية العلوية اليمنى
-    canvas.drawLine(
-      scanWindow.topRight,
-      scanWindow.topRight + const Offset(-cornerLength, 0),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      scanWindow.topRight,
-      scanWindow.topRight + const Offset(0, cornerLength),
-      cornerPaint,
-    );
+    canvas.drawLine(scanWindow.topRight, scanWindow.topRight + const Offset(-cornerLength, 0), cornerPaint);
+    canvas.drawLine(scanWindow.topRight, scanWindow.topRight + const Offset(0, cornerLength), cornerPaint);
 
-    // الزاوية السفلية اليسرى
-    canvas.drawLine(
-      scanWindow.bottomLeft,
-      scanWindow.bottomLeft + const Offset(cornerLength, 0),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      scanWindow.bottomLeft,
-      scanWindow.bottomLeft + const Offset(0, -cornerLength),
-      cornerPaint,
-    );
+    canvas.drawLine(scanWindow.bottomLeft, scanWindow.bottomLeft + const Offset(cornerLength, 0), cornerPaint);
+    canvas.drawLine(scanWindow.bottomLeft, scanWindow.bottomLeft + const Offset(0, -cornerLength), cornerPaint);
 
-    // الزاوية السفلية اليمنى
-    canvas.drawLine(
-      scanWindow.bottomRight,
-      scanWindow.bottomRight + const Offset(-cornerLength, 0),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      scanWindow.bottomRight,
-      scanWindow.bottomRight + const Offset(0, -cornerLength),
-      cornerPaint,
-    );
-
-    // خط المسح المتحرك
-    final scanLinePaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          Colors.transparent,
-          AppColors.success.withValues(alpha: 0.8),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromLTWH(scanWindow.left, 0, scanWindow.width, 2));
-
-    final scanLineY = scanWindow.top + (scanWindow.height * animation.value);
-
-    canvas.drawRect(
-      Rect.fromLTWH(scanWindow.left, scanLineY, scanWindow.width, 2),
-      scanLinePaint,
-    );
+    canvas.drawLine(scanWindow.bottomRight, scanWindow.bottomRight + const Offset(-cornerLength, 0), cornerPaint);
+    canvas.drawLine(scanWindow.bottomRight, scanWindow.bottomRight + const Offset(0, -cornerLength), cornerPaint);
   }
 
   @override
-  bool shouldRepaint(covariant ScannerOverlayPainter oldDelegate) {
-    return oldDelegate.animation != animation;
-  }
+  bool shouldRepaint(covariant ScannerOverlayPainter oldDelegate) => false;
 }
-
-

@@ -17,9 +17,9 @@ import 'business/product_service.dart';
 import 'business/sale_service.dart';
 
 // الأدوات المساعدة
-import 'utilities/barcode_service.dart';
-import 'utilities/barcode_print_service.dart';
-import 'utilities/print_service.dart';
+import 'business/barcode_service.dart';
+import 'business/barcode_print_service.dart';
+import 'business/print_service.dart';
 
 /// 🎯 محدد الخدمات المركزي
 /// يدير جميع الخدمات من مكان واحد ويمنع التكرار

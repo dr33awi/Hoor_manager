@@ -1,5 +1,5 @@
-﻿// lib/features/products/widgets/barcode_label_dialog.dart
-// ✅ حوار طباعة ملصق الباركود - محدّث
+// lib/features/products/widgets/barcode_label_dialog.dart
+// حوار طباعة ملصق الباركود
 
 import 'package:flutter/material.dart';
 import 'package:hoor_manager/features/products/widgets/barcode_display_widget.dart';
@@ -39,7 +39,6 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // العنوان
               Row(
                 children: [
                   Container(
@@ -78,12 +77,10 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
 
               const SizedBox(height: 20),
 
-              // معاينة الملصق
               RepaintBoundary(key: _repaintKey, child: _buildLabelPreview()),
 
               const SizedBox(height: 20),
 
-              // نوع الباركود
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -138,7 +135,6 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
 
               const SizedBox(height: 16),
 
-              // عدد النسخ
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -184,7 +180,6 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
 
               const SizedBox(height: 8),
 
-              // أزرار سريعة لعدد النسخ
               Wrap(
                 spacing: 8,
                 children: [5, 10, 20, 50]
@@ -218,7 +213,6 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
 
               const SizedBox(height: 24),
 
-              // زر الطباعة
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -248,7 +242,6 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
 
               const SizedBox(height: 12),
 
-              // ملاحظة
               Text(
                 'سيتم الطباعة على طابعة الملصقات المتصلة',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
@@ -294,7 +287,6 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // اسم المنتج
           Text(
             widget.productName,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
@@ -304,14 +296,12 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
           ),
           const SizedBox(height: 4),
 
-          // اللون والمقاس
           Text(
             widget.variant,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 12),
 
-          // الباركود
           BarcodeDisplayWidget(
             data: widget.barcode,
             type: _selectedType,
@@ -322,7 +312,6 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
 
           const SizedBox(height: 12),
 
-          // السعر
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
@@ -365,10 +354,6 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
     setState(() => _isPrinting = true);
 
     try {
-      // هنا يمكنك إضافة كود الطباعة الفعلي
-      // مثال: استخدام مكتبة printing
-
-      // محاكاة الطباعة
       await Future.delayed(const Duration(seconds: 2));
 
       if (mounted) {
@@ -399,6 +384,3 @@ class _BarcodeLabelDialogState extends State<BarcodeLabelDialog> {
     }
   }
 }
-
-
-

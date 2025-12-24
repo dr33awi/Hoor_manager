@@ -1,4 +1,4 @@
-﻿// lib/features/products/screens/products_screen.dart
+// lib/features/products/screens/products_screen.dart
 // شاشة المنتجات - تصميم محسّن
 
 import 'package:flutter/material.dart';
@@ -103,10 +103,7 @@ class _ProductsScreenState extends State<ProductsScreen>
                             mainAxisSpacing: 12,
                           ),
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) => FadeInWidget(
-                          delay: Duration(milliseconds: 50 * (index % 6)),
-                          child: _ProductCard(product: filteredProducts[index]),
-                        ),
+                        (context, index) => _ProductCard(product: filteredProducts[index]),
                         childCount: filteredProducts.length,
                       ),
                     ),
@@ -116,11 +113,13 @@ class _ProductsScreenState extends State<ProductsScreen>
           },
         ),
       ),
-      floatingActionButton: _AnimatedFab(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AddEditProductScreen()),
         ),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
       ),
     );
   }
@@ -202,9 +201,8 @@ class _ProductsScreenState extends State<ProductsScreen>
 
   Widget _buildTabs(ProductProvider provider) {
     final categories = provider.categories;
-    final tabCount = categories.length + 1; // +1 للكل
+    final tabCount = categories.length + 1;
 
-    // Initialize or update tab controller if needed
     if (_tabController == null || _tabController!.length != tabCount) {
       _initTabController(tabCount);
     }
@@ -300,87 +298,83 @@ class _ProductsScreenState extends State<ProductsScreen>
     }
 
     return Center(
-      child: FadeInWidget(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.grey.shade100, Colors.grey.shade50],
-                ),
-                borderRadius: BorderRadius.circular(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.grey.shade100, Colors.grey.shade50],
               ),
-              child: Icon(icon, size: 48, color: Colors.grey.shade400),
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
-              ),
+            child: Icon(icon, size: 48, color: Colors.grey.shade400),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
             ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-            ),
-            const SizedBox(height: 24),
-            if (hasFilters)
-              OutlinedButton.icon(
-                onPressed: () {
-                  _searchController.clear();
-                  provider.setSearchQuery('');
-                  _tabController?.animateTo(0);
-                  setState(() => _selectedCategory = null);
-                },
-                icon: const Icon(Icons.clear_all),
-                label: const Text('مسح الفلاتر'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 24),
+          if (hasFilters)
+            OutlinedButton.icon(
+              onPressed: () {
+                _searchController.clear();
+                provider.setSearchQuery('');
+                _tabController?.animateTo(0);
+                setState(() => _selectedCategory = null);
+              },
+              icon: const Icon(Icons.clear_all),
+              label: const Text('مسح الفلاتر'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
                 ),
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AddEditProductScreen(),
-                  ),
-                ),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('إضافة منتج'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-          ],
-        ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AddEditProductScreen(),
+                ),
+              ),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('إضافة منتج'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
-
-// ================= Widgets الداخلية =================
 
 class _SearchBar extends StatelessWidget {
   final TextEditingController controller;
@@ -465,7 +459,6 @@ class _ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image area
             Expanded(
               flex: 3,
               child: Container(
@@ -489,14 +482,12 @@ class _ProductCard extends StatelessWidget {
                         color: Colors.grey.shade300,
                       ),
                     ),
-                    // Status badge
                     if (product.isOutOfStock || product.isLowStock)
                       Positioned(
                         top: 8,
                         right: 8,
                         child: _StatusBadge(isOutOfStock: product.isOutOfStock),
                       ),
-                    // Stock count
                     Positioned(
                       bottom: 8,
                       left: 8,
@@ -534,8 +525,6 @@ class _ProductCard extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Info area
             Expanded(
               flex: 2,
               child: Padding(
@@ -645,75 +634,6 @@ class _StatusBadge extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AnimatedFab extends StatefulWidget {
-  final VoidCallback onPressed;
-
-  const _AnimatedFab({required this.onPressed});
-
-  @override
-  State<_AnimatedFab> createState() => _AnimatedFabState();
-}
-
-class _AnimatedFabState extends State<_AnimatedFab>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-    );
-    _scale = Tween<double>(
-      begin: 1,
-      end: 0.9,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onPressed();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: _scale,
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.primary, Color(0xFF0D2640)],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-        ),
       ),
     );
   }

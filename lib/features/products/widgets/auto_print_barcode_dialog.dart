@@ -1,12 +1,11 @@
-﻿// lib/features/products/widgets/auto_print_barcode_dialog.dart
-// ✅ حوار طباعة مبسط جداً - باركود فقط
+// lib/features/products/widgets/auto_print_barcode_dialog.dart
+// حوار طباعة مبسط - باركود فقط
 
 import 'package:flutter/material.dart';
-import '../../../core/services/utilities/barcode_print_service.dart';
+import '../../../core/services/business/barcode_print_service.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 
-/// حوار طباعة بسيط - باركود فقط
 class AutoPrintBarcodeDialog extends StatefulWidget {
   final String barcode;
   final String productName;
@@ -41,7 +40,6 @@ class _AutoPrintBarcodeDialogState extends State<AutoPrintBarcodeDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // العنوان
             Row(
               children: [
                 Container(
@@ -87,7 +85,6 @@ class _AutoPrintBarcodeDialogState extends State<AutoPrintBarcodeDialog> {
 
             const SizedBox(height: 24),
 
-            // معاينة الباركود - فقط الباركود بدون أي شيء آخر
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -111,7 +108,6 @@ class _AutoPrintBarcodeDialogState extends State<AutoPrintBarcodeDialog> {
 
             const SizedBox(height: 24),
 
-            // اختيار عدد النسخ
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -138,7 +134,6 @@ class _AutoPrintBarcodeDialogState extends State<AutoPrintBarcodeDialog> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      // أزرار سريعة
                       ...List.generate(5, (index) {
                         final value = index + 1;
                         return Padding(
@@ -147,7 +142,6 @@ class _AutoPrintBarcodeDialogState extends State<AutoPrintBarcodeDialog> {
                         );
                       }),
                       const Spacer(),
-                      // أزرار + و -
                       IconButton(
                         onPressed: () {
                           if (_copies > 1) {
@@ -192,10 +186,8 @@ class _AutoPrintBarcodeDialogState extends State<AutoPrintBarcodeDialog> {
 
             const SizedBox(height: 24),
 
-            // الأزرار
             Row(
               children: [
-                // زر التخطي
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _isPrinting
@@ -221,7 +213,6 @@ class _AutoPrintBarcodeDialogState extends State<AutoPrintBarcodeDialog> {
 
                 const SizedBox(width: 12),
 
-                // زر الطباعة
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(

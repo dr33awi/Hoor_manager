@@ -1,4 +1,4 @@
-﻿// lib/features/products/screens/inventory_management_screen.dart
+// lib/features/products/screens/inventory_management_screen.dart
 // شاشة إدارة المخزون المتقدمة
 
 import 'package:flutter/material.dart';
@@ -20,8 +20,6 @@ class InventoryManagementScreen extends StatefulWidget {
 class _InventoryManagementScreenState extends State<InventoryManagementScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -29,21 +27,12 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
-    _animationController.forward();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -103,121 +92,111 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Column(
-          children: [
-            // البحث
-            Container(
-              padding: const EdgeInsets.all(16),
+      body: Column(
+        children: [
+          // البحث
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.grey.shade100),
+              ),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'بحث بالاسم أو الباركود...',
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 14,
                   ),
-                ],
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade100),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'بحث بالاسم أو الباركود...',
-                    hintStyle: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 14,
-                    ),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(
-                              Icons.close,
-                              color: Colors.grey.shade400,
-                              size: 20,
-                            ),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.close,
+                            color: Colors.grey.shade400,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
                   ),
-                  onChanged: (v) => setState(() => _searchQuery = v),
                 ),
+                onChanged: (v) => setState(() => _searchQuery = v),
               ),
             ),
-
-            // التبويبات
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                indicatorPadding: const EdgeInsets.all(4),
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey.shade600,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-                tabs: const [
-                  Tab(text: 'الكل'),
-                  Tab(text: 'منخفض'),
-                  Tab(text: 'نفذ'),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // المحتوى
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildProductsList(filter: 'all'),
-                  _buildProductsList(filter: 'low'),
-                  _buildProductsList(filter: 'out'),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.elasticOut,
-        builder: (context, value, child) =>
-            Transform.scale(scale: value, child: child),
-        child: FloatingActionButton.extended(
-          onPressed: _showBulkActions,
-          backgroundColor: AppColors.primary,
-          elevation: 4,
-          icon: const Icon(Icons.inventory),
-          label: const Text(
-            'إجراءات جماعية',
-            style: TextStyle(fontWeight: FontWeight.w600),
           ),
+
+          // التبويبات
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              indicatorPadding: const EdgeInsets.all(4),
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.grey.shade600,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              tabs: const [
+                Tab(text: 'الكل'),
+                Tab(text: 'منخفض'),
+                Tab(text: 'نفذ'),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // المحتوى
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildProductsList(filter: 'all'),
+                _buildProductsList(filter: 'low'),
+                _buildProductsList(filter: 'out'),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showBulkActions,
+        backgroundColor: AppColors.primary,
+        elevation: 4,
+        icon: const Icon(Icons.inventory),
+        label: const Text(
+          'إجراءات جماعية',
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -228,7 +207,6 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
       builder: (context, provider, _) {
         var products = provider.allProducts.where((p) => p.isActive).toList();
 
-        // فلترة حسب التبويب
         switch (filter) {
           case 'low':
             products = products
@@ -240,7 +218,6 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
             break;
         }
 
-        // فلترة حسب البحث
         if (_searchQuery.isNotEmpty) {
           products = products
               .where(
@@ -424,7 +401,6 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
             },
           ),
           children: [
-            // جدول المخزون التفصيلي
             _buildInventoryTable(product),
           ],
         ),
@@ -813,7 +789,6 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen>
   }
 
   void _printColorBarcodes(ProductModel product, String color) {
-    // طباعة باركود لون معين
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('طباعة باركود $color'),

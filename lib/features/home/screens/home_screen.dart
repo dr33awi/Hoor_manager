@@ -1,5 +1,5 @@
 ﻿// lib/features/home/screens/home_screen.dart
-// الشاشة الرئيسية - تصميم محسّن
+// الشاشة الرئيسية - تصميم محسّن بدون animations
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -22,10 +22,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  late AnimationController _fabAnimationController;
-  late Animation<double> _fabScaleAnimation;
 
   final List<Widget> _screens = [
     const DashboardScreen(),
@@ -38,20 +36,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _fabAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _fabScaleAnimation = Tween<double>(begin: 1, end: 0.9).animate(
-      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
-  }
-
-  @override
-  void dispose() {
-    _fabAnimationController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -68,12 +53,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
       appBar: _buildAppBar(authProvider),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        child: _screens[_currentIndex],
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
@@ -83,16 +63,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       backgroundColor: Colors.white,
       elevation: 0,
       surfaceTintColor: Colors.transparent,
-      title: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: Text(
-          _getTitle(),
-          key: ValueKey(_currentIndex),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primary,
-          ),
+      title: Text(
+        _getTitle(),
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.primary,
         ),
       ),
       centerTitle: true,
@@ -105,41 +81,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       offset: const Offset(0, 50),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 8,
-      icon: Hero(
-        tag: 'profile_avatar',
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.primary,
-                AppColors.primary.withValues(alpha: 0.8),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
+      icon: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primary,
+              AppColors.primary.withValues(alpha: 0.8),
             ],
           ),
-          child: authProvider.userPhoto != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    authProvider.userPhoto!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.person, size: 18, color: Colors.white),
-                  ),
-                )
-              : const Icon(Icons.person, size: 18, color: Colors.white),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
+        child: authProvider.userPhoto != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  authProvider.userPhoto!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.person, size: 18, color: Colors.white),
+                ),
+              )
+            : const Icon(Icons.person, size: 18, color: Colors.white),
       ),
       itemBuilder: (context) => [
         PopupMenuItem(
@@ -295,44 +268,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildMainButton() {
     final isSelected = _currentIndex == 2;
     return GestureDetector(
-      onTapDown: (_) => _fabAnimationController.forward(),
-      onTapUp: (_) {
-        _fabAnimationController.reverse();
-        setState(() => _currentIndex = 2);
-      },
-      onTapCancel: () => _fabAnimationController.reverse(),
-      child: ScaleTransition(
-        scale: _fabScaleAnimation,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isSelected
-                  ? [AppColors.success, const Color(0xFF059669)]
-                  : [
-                      AppColors.primary,
-                      AppColors.primary.withValues(alpha: 0.8),
-                    ],
+      onTap: () => setState(() => _currentIndex = 2),
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isSelected
+                ? [AppColors.success, const Color(0xFF059669)]
+                : [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: (isSelected ? AppColors.success : AppColors.primary)
+                  .withValues(alpha: 0.4),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: (isSelected ? AppColors.success : AppColors.primary)
-                    .withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Icon(
-            isSelected ? Icons.receipt_rounded : Icons.add_rounded,
-            color: Colors.white,
-            size: 28,
-          ),
+          ],
+        ),
+        child: Icon(
+          isSelected ? Icons.receipt_rounded : Icons.add_rounded,
+          color: Colors.white,
+          size: 28,
         ),
       ),
     );
@@ -489,8 +450,7 @@ class _NavItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
@@ -501,24 +461,19 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                isSelected ? activeIcon : icon,
-                key: ValueKey(isSelected),
-                color: isSelected ? AppColors.primary : Colors.grey.shade400,
-                size: 24,
-              ),
+            Icon(
+              isSelected ? activeIcon : icon,
+              color: isSelected ? AppColors.primary : Colors.grey.shade400,
+              size: 24,
             ),
             const SizedBox(height: 4),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
+            Text(
+              label,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected ? AppColors.primary : Colors.grey.shade400,
               ),
-              child: Text(label),
             ),
           ],
         ),
