@@ -21,7 +21,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
@@ -30,7 +29,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -45,7 +43,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           email: _emailController.text,
           password: _passwordController.text,
           fullName: _nameController.text,
-          phone: _phoneController.text.isNotEmpty ? _phoneController.text : null,
         );
 
     if (mounted) {
@@ -147,15 +144,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 const SizedBox(height: AppSizes.md),
 
-                // حقل الهاتف (اختياري)
-                PhoneTextField(
-                  controller: _phoneController,
-                  validator: Validators.phoneOptional,
-                  textInputAction: TextInputAction.next,
-                ),
-
-                const SizedBox(height: AppSizes.md),
-
                 // حقل كلمة المرور
                 PasswordTextField(
                   controller: _passwordController,
@@ -169,7 +157,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 PasswordTextField(
                   controller: _confirmPasswordController,
                   label: AppStrings.confirmPassword,
-                  validator: Validators.confirmPassword(_passwordController.text),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'يرجى تأكيد كلمة المرور';
+                    }
+                    if (value != _passwordController.text) {
+                      return 'كلمات المرور غير متطابقة';
+                    }
+                    return null;
+                  },
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _handleRegister(),
                 ),
@@ -195,9 +191,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       Expanded(
                         child: Text(
                           'بعد التسجيل، سيكون حسابك في انتظار موافقة المدير',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.info,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.info,
+                                  ),
                         ),
                       ),
                     ],
