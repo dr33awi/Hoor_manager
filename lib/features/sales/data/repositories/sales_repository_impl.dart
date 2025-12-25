@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:logger/logger.dart';
 
 import '../../../../core/services/offline_service.dart';
 import '../../../../core/utils/result.dart';
@@ -12,6 +13,7 @@ class SalesRepositoryImpl implements SalesRepository {
   final FirebaseFirestore _firestore;
   final ProductRepository _productRepository;
   final OfflineService _offlineService;
+  final Logger _logger = Logger();
 
   SalesRepositoryImpl({
     FirebaseFirestore? firestore,
@@ -21,7 +23,13 @@ class SalesRepositoryImpl implements SalesRepository {
         _productRepository = productRepository,
         _offlineService = offlineService ?? OfflineService() {
     // تسجيل callback المزامنة
+    _registerSyncCallbacks();
+  }
+
+  /// تسجيل callbacks المزامنة
+  void _registerSyncCallbacks() {
     _offlineService.onSyncInvoice = _syncInvoiceToFirestore;
+    _logger.i('Sales sync callbacks registered');
   }
 
   /// مزامنة فاتورة إلى Firestore
@@ -29,13 +37,26 @@ class SalesRepositoryImpl implements SalesRepository {
     try {
       final invoiceData = Map<String, dynamic>.from(data);
       final localId = invoiceData['id'] as String;
-      invoiceData.remove('id');
 
-      // تحديث التاريخ
-      invoiceData['saleDate'] = Timestamp.fromDate(
-        DateTime.parse(invoiceData['saleDate']),
-      );
+      // إزالة الحقول المحلية
+      invoiceData.remove('id');
+      invoiceData.remove('isOffline');
+
+      // تحويل التاريخ
+      if (invoiceData['saleDate'] is String) {
+        invoiceData['saleDate'] = Timestamp.fromDate(
+          DateTime.parse(invoiceData['saleDate']),
+        );
+      }
+
+      if (invoiceData['saleDateDay'] is String) {
+        invoiceData['saleDateDay'] = Timestamp.fromDate(
+          DateTime.parse(invoiceData['saleDateDay']),
+        );
+      }
+
       invoiceData['syncedAt'] = FieldValue.serverTimestamp();
+      invoiceData['syncedFrom'] = localId;
 
       // إنشاء الفاتورة في Firestore
       await _salesCollection.add(invoiceData);
@@ -43,8 +64,10 @@ class SalesRepositoryImpl implements SalesRepository {
       // حذف الفاتورة من التخزين المحلي
       await _offlineService.removeOfflineInvoice(localId);
 
+      _logger.i('Invoice synced successfully: $localId');
       return true;
     } catch (e) {
+      _logger.e('Failed to sync invoice: $e');
       return false;
     }
   }
@@ -60,12 +83,13 @@ class SalesRepositoryImpl implements SalesRepository {
 
   @override
   Future<Result<InvoiceEntity>> createInvoice(InvoiceEntity invoice) async {
-    try {
-      // التحقق من حالة الاتصال
-      if (!_offlineService.isOnline) {
-        return _createOfflineInvoice(invoice);
-      }
+    // التحقق من حالة الاتصال
+    if (!_offlineService.isOnline) {
+      _logger.i('Offline mode - creating local invoice');
+      return _createOfflineInvoice(invoice);
+    }
 
+    try {
       return await _firestore.runTransaction((transaction) async {
         // ========== مرحلة القراءة (يجب أن تكون أولاً) ==========
 
@@ -136,15 +160,21 @@ class SalesRepositoryImpl implements SalesRepository {
         transaction.set(
             counterRef, {'count': currentCount + 1}, SetOptions(merge: true));
 
+        _logger.i('Invoice created successfully: ${docRef.id}');
         return Success(model.copyWith(id: docRef.id));
       });
     } catch (e) {
+      final errorStr = e.toString().toLowerCase();
       // في حالة فشل الاتصال، جرب الحفظ أوفلاين
-      if (e.toString().contains('network') ||
-          e.toString().contains('unavailable') ||
-          e.toString().contains('UNAVAILABLE')) {
+      if (errorStr.contains('network') ||
+          errorStr.contains('unavailable') ||
+          errorStr.contains('failed to get document') ||
+          errorStr.contains('deadline exceeded') ||
+          errorStr.contains('connection')) {
+        _logger.w('Network error, falling back to offline mode: $e');
         return _createOfflineInvoice(invoice);
       }
+      _logger.e('Error creating invoice: $e');
       return Failure('فشل إنشاء الفاتورة: $e');
     }
   }
@@ -162,29 +192,26 @@ class SalesRepositoryImpl implements SalesRepository {
         final productIndex =
             cachedProducts.indexWhere((p) => p['id'] == item.productId);
 
-        if (productIndex == -1) {
-          // المنتج غير موجود في الكاش، تابع (ربما يكون منتج محلي)
-          continue;
-        }
+        if (productIndex != -1) {
+          final productData =
+              Map<String, dynamic>.from(cachedProducts[productIndex]);
+          final variants =
+              List<Map<String, dynamic>>.from(productData['variants'] ?? []);
+          final variantIndex =
+              variants.indexWhere((v) => v['id'] == item.variantId);
 
-        final productData =
-            Map<String, dynamic>.from(cachedProducts[productIndex]);
-        final variants =
-            List<Map<String, dynamic>>.from(productData['variants'] ?? []);
-        final variantIndex =
-            variants.indexWhere((v) => v['id'] == item.variantId);
+          if (variantIndex != -1) {
+            final currentQty = variants[variantIndex]['quantity'] as int? ?? 0;
+            if (currentQty < item.quantity) {
+              return Failure(
+                  'الكمية المطلوبة (${item.quantity}) غير متوفرة للمنتج ${item.productName}. المتوفر: $currentQty');
+            }
 
-        if (variantIndex != -1) {
-          final currentQty = variants[variantIndex]['quantity'] as int? ?? 0;
-          if (currentQty < item.quantity) {
-            return Failure(
-                'الكمية المطلوبة (${item.quantity}) غير متوفرة للمنتج ${item.productName}. المتوفر: $currentQty');
+            // خصم الكمية محلياً
+            variants[variantIndex]['quantity'] = currentQty - item.quantity;
+            productData['variants'] = variants;
+            await _offlineService.cacheProduct(productData);
           }
-
-          // خصم الكمية محلياً
-          variants[variantIndex]['quantity'] = currentQty - item.quantity;
-          productData['variants'] = variants;
-          await _offlineService.cacheProduct(productData);
         }
       }
 
@@ -193,7 +220,7 @@ class SalesRepositoryImpl implements SalesRepository {
         id: localId,
       );
 
-      // حفظ الفاتورة محلياً - استخدام toOfflineMap بدلاً من toMap
+      // حفظ الفاتورة محلياً
       final invoiceMap = InvoiceModel.fromEntity(offlineInvoice).toOfflineMap();
       invoiceMap['id'] = localId;
       invoiceMap['isOffline'] = true;
@@ -210,14 +237,25 @@ class SalesRepositoryImpl implements SalesRepository {
         ),
       );
 
+      _logger.i('Offline invoice created: $localId');
       return Success(offlineInvoice);
     } catch (e) {
+      _logger.e('Error creating offline invoice: $e');
       return Failure('فشل إنشاء الفاتورة أوفلاين: $e');
     }
   }
 
   @override
   Future<Result<InvoiceEntity>> getInvoiceById(String id) async {
+    // التحقق إذا كانت فاتورة أوفلاين
+    if (id.startsWith('offline_')) {
+      final offlineData = _offlineService.getOfflineInvoiceById(id);
+      if (offlineData != null) {
+        return Success(InvoiceModel.fromOfflineMap(offlineData, id));
+      }
+      return const Failure('الفاتورة غير موجودة');
+    }
+
     try {
       final doc = await _salesCollection.doc(id).get();
       if (!doc.exists) {
@@ -225,6 +263,7 @@ class SalesRepositoryImpl implements SalesRepository {
       }
       return Success(InvoiceModel.fromDocument(doc));
     } catch (e) {
+      _logger.e('Error getting invoice: $e');
       return Failure('فشل جلب الفاتورة: $e');
     }
   }
@@ -232,17 +271,31 @@ class SalesRepositoryImpl implements SalesRepository {
   @override
   Future<Result<InvoiceEntity>> getInvoiceByNumber(String invoiceNumber) async {
     try {
-      final snapshot = await _salesCollection
-          .where('invoiceNumber', isEqualTo: invoiceNumber)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isEmpty) {
-        return const Failure('الفاتورة غير موجودة');
+      // البحث في الفواتير الأوفلاين أولاً
+      final offlineInvoices = _offlineService.getOfflineInvoices();
+      for (final inv in offlineInvoices) {
+        if (inv['invoiceNumber'] == invoiceNumber) {
+          return Success(InvoiceModel.fromOfflineMap(inv, inv['id'] ?? ''));
+        }
       }
 
-      return Success(InvoiceModel.fromDocument(snapshot.docs.first));
+      // البحث في Firestore
+      if (_offlineService.isOnline) {
+        final snapshot = await _salesCollection
+            .where('invoiceNumber', isEqualTo: invoiceNumber)
+            .limit(1)
+            .get();
+
+        if (snapshot.docs.isEmpty) {
+          return const Failure('الفاتورة غير موجودة');
+        }
+
+        return Success(InvoiceModel.fromDocument(snapshot.docs.first));
+      }
+
+      return const Failure('الفاتورة غير موجودة');
     } catch (e) {
+      _logger.e('Error searching invoice: $e');
       return Failure('فشل البحث عن الفاتورة: $e');
     }
   }
@@ -258,7 +311,7 @@ class SalesRepositoryImpl implements SalesRepository {
     try {
       List<InvoiceEntity> allInvoices = [];
 
-      // التحقق من حالة الاتصال
+      // جلب من Firestore إذا متصل
       if (_offlineService.isOnline) {
         Query<Map<String, dynamic>> query = _salesCollection;
 
@@ -295,7 +348,11 @@ class SalesRepositoryImpl implements SalesRepository {
       final offlineInvoices = _offlineService.getOfflineInvoices();
       for (final invoiceData in offlineInvoices) {
         try {
-          final saleDate = DateTime.tryParse(invoiceData['saleDate'] ?? '');
+          DateTime? saleDate;
+          final saleDateValue = invoiceData['saleDate'];
+          if (saleDateValue is String) {
+            saleDate = DateTime.tryParse(saleDateValue);
+          }
 
           // تطبيق الفلاتر
           if (startDate != null &&
@@ -306,19 +363,13 @@ class SalesRepositoryImpl implements SalesRepository {
           if (status != null && invoiceData['status'] != status.value) continue;
           if (soldBy != null && invoiceData['soldBy'] != soldBy) continue;
 
-          // إنشاء نسخة من البيانات مع تاريخ صحيح
-          final processedData = Map<String, dynamic>.from(invoiceData);
-          if (saleDate != null) {
-            processedData['saleDate'] = Timestamp.fromDate(saleDate);
-          }
-
-          final offlineInvoice = InvoiceModel.fromMap(
-            processedData,
+          final offlineInvoice = InvoiceModel.fromOfflineMap(
+            invoiceData,
             invoiceData['id'] ?? '',
           );
           allInvoices.add(offlineInvoice);
         } catch (e) {
-          // تجاهل الفواتير التالفة
+          _logger.w('Skipping corrupted offline invoice: $e');
           continue;
         }
       }
@@ -333,6 +384,7 @@ class SalesRepositoryImpl implements SalesRepository {
 
       return Success(allInvoices);
     } catch (e) {
+      _logger.e('Error getting invoices: $e');
       // في حالة الخطأ، استخدم الفواتير المحلية فقط
       return _getOfflineInvoicesOnly(
         startDate: startDate,
@@ -358,7 +410,11 @@ class SalesRepositoryImpl implements SalesRepository {
 
       for (final invoiceData in offlineInvoices) {
         try {
-          final saleDate = DateTime.tryParse(invoiceData['saleDate'] ?? '');
+          DateTime? saleDate;
+          final saleDateValue = invoiceData['saleDate'];
+          if (saleDateValue is String) {
+            saleDate = DateTime.tryParse(saleDateValue);
+          }
 
           // تطبيق الفلاتر
           if (startDate != null &&
@@ -369,13 +425,8 @@ class SalesRepositoryImpl implements SalesRepository {
           if (status != null && invoiceData['status'] != status.value) continue;
           if (soldBy != null && invoiceData['soldBy'] != soldBy) continue;
 
-          final processedData = Map<String, dynamic>.from(invoiceData);
-          if (saleDate != null) {
-            processedData['saleDate'] = Timestamp.fromDate(saleDate);
-          }
-
-          final offlineInvoice = InvoiceModel.fromMap(
-            processedData,
+          final offlineInvoice = InvoiceModel.fromOfflineMap(
+            invoiceData,
             invoiceData['id'] ?? '',
           );
           invoices.add(offlineInvoice);
@@ -392,6 +443,7 @@ class SalesRepositoryImpl implements SalesRepository {
 
       return Success(invoices);
     } catch (e) {
+      _logger.e('Error getting offline invoices: $e');
       return Failure('فشل جلب الفواتير: $e');
     }
   }
@@ -414,35 +466,7 @@ class SalesRepositoryImpl implements SalesRepository {
     try {
       // التحقق إذا كانت فاتورة أوفلاين
       if (invoiceId.startsWith('offline_')) {
-        // حذف الفاتورة المحلية
-        await _offlineService.removeOfflineInvoice(invoiceId);
-        await _offlineService.removePendingOperation(invoiceId);
-
-        // استرجاع المخزون المحلي
-        final offlineInvoices = _offlineService.getOfflineInvoices();
-        final invoiceData = offlineInvoices.firstWhere(
-          (inv) => inv['id'] == invoiceId,
-          orElse: () => <String, dynamic>{},
-        );
-
-        if (invoiceData.isNotEmpty) {
-          final items = invoiceData['items'] as List<dynamic>? ?? [];
-          for (final item in items) {
-            final productId = item['productId'] as String?;
-            final variantId = item['variantId'] as String?;
-            final quantity = item['quantity'] as int? ?? 0;
-
-            if (productId != null && variantId != null) {
-              await _productRepository.addStock(
-                productId: productId,
-                variantId: variantId,
-                quantity: quantity,
-              );
-            }
-          }
-        }
-
-        return const Success(null);
+        return _cancelOfflineInvoice(invoiceId, cancelledBy, reason);
       }
 
       // فاتورة عادية - تحتاج اتصال
@@ -450,7 +474,7 @@ class SalesRepositoryImpl implements SalesRepository {
         return const Failure('لا يمكن إلغاء فاتورة متزامنة بدون اتصال');
       }
 
-      return _firestore.runTransaction((transaction) async {
+      return await _firestore.runTransaction((transaction) async {
         final docRef = _salesCollection.doc(invoiceId);
         final snapshot = await transaction.get(docRef);
 
@@ -481,9 +505,58 @@ class SalesRepositoryImpl implements SalesRepository {
           'cancellationReason': reason,
         });
 
+        _logger.i('Invoice cancelled: $invoiceId');
         return const Success(null);
       });
     } catch (e) {
+      _logger.e('Error cancelling invoice: $e');
+      return Failure('فشل إلغاء الفاتورة: $e');
+    }
+  }
+
+  /// إلغاء فاتورة أوفلاين
+  Future<Result<void>> _cancelOfflineInvoice(
+      String invoiceId, String cancelledBy, String? reason) async {
+    try {
+      // جلب بيانات الفاتورة
+      final invoiceData = _offlineService.getOfflineInvoiceById(invoiceId);
+
+      if (invoiceData != null) {
+        // استرجاع المخزون المحلي
+        final items = invoiceData['items'] as List<dynamic>? ?? [];
+        for (final item in items) {
+          final productId = item['productId'] as String?;
+          final variantId = item['variantId'] as String?;
+          final quantity = item['quantity'] as int? ?? 0;
+
+          if (productId != null && variantId != null) {
+            // استرجاع الكمية للمنتج المحلي
+            final productData = _offlineService.getCachedProductById(productId);
+            if (productData != null) {
+              final variants = List<Map<String, dynamic>>.from(
+                  productData['variants'] ?? []);
+              final variantIndex =
+                  variants.indexWhere((v) => v['id'] == variantId);
+              if (variantIndex != -1) {
+                variants[variantIndex]['quantity'] =
+                    (variants[variantIndex]['quantity'] as int? ?? 0) +
+                        quantity;
+                productData['variants'] = variants;
+                await _offlineService.cacheProduct(productData);
+              }
+            }
+          }
+        }
+      }
+
+      // حذف الفاتورة والعملية المعلقة
+      await _offlineService.removeOfflineInvoice(invoiceId);
+      await _offlineService.removePendingOperation(invoiceId);
+
+      _logger.i('Offline invoice cancelled: $invoiceId');
+      return const Success(null);
+    } catch (e) {
+      _logger.e('Error cancelling offline invoice: $e');
       return Failure('فشل إلغاء الفاتورة: $e');
     }
   }
@@ -500,7 +573,7 @@ class SalesRepositoryImpl implements SalesRepository {
         // توليد رقم فاتورة محلي
         final offlineInvoices = _offlineService.getOfflineInvoices();
         final todayOfflineCount = offlineInvoices.where((inv) {
-          final saleDate = DateTime.tryParse(inv['saleDate'] ?? '');
+          final saleDate = DateTime.tryParse(inv['saleDate']?.toString() ?? '');
           return saleDate != null &&
               saleDate.year == now.year &&
               saleDate.month == now.month &&
@@ -518,13 +591,24 @@ class SalesRepositoryImpl implements SalesRepository {
           .where('saleDateDay', isEqualTo: Timestamp.fromDate(startOfDay))
           .get();
 
-      final todayCount = snapshot.docs.length + 1;
+      // إضافة الفواتير الأوفلاين لليوم
+      final offlineInvoices = _offlineService.getOfflineInvoices();
+      final todayOfflineCount = offlineInvoices.where((inv) {
+        final saleDate = DateTime.tryParse(inv['saleDate']?.toString() ?? '');
+        return saleDate != null &&
+            saleDate.year == now.year &&
+            saleDate.month == now.month &&
+            saleDate.day == now.day;
+      }).length;
+
+      final todayCount = snapshot.docs.length + todayOfflineCount + 1;
       final invoiceNumber =
           'INV-$datePrefix-${todayCount.toString().padLeft(4, '0')}';
 
       return Success(invoiceNumber);
     } catch (e) {
       // في حالة الخطأ، نولد رقم عشوائي
+      _logger.w('Error generating invoice number, using timestamp: $e');
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       return Success('INV-$timestamp');
     }
@@ -550,9 +634,41 @@ class SalesRepositoryImpl implements SalesRepository {
     query = query.orderBy('saleDate', descending: true);
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => InvoiceModel.fromDocument(doc))
-          .toList();
+      // تخزين الفواتير في الكاش للاستخدام في الأوفلاين
+      final invoicesData = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+      _offlineService.cacheServerInvoices(invoicesData);
+
+      final firebaseInvoices =
+          snapshot.docs.map((doc) => InvoiceModel.fromDocument(doc)).toList();
+
+      // إضافة الفواتير الأوفلاين
+      final offlineInvoices = _offlineService.getOfflineInvoices();
+      for (final inv in offlineInvoices) {
+        try {
+          final id = inv['id']?.toString() ?? '';
+          // تجاهل الفواتير المخزنة من السيرفر (فقط offline_*)
+          if (!id.startsWith('offline_')) continue;
+
+          final saleDate = DateTime.tryParse(inv['saleDate']?.toString() ?? '');
+          if (startDate != null &&
+              saleDate != null &&
+              saleDate.isBefore(startDate)) continue;
+          if (endDate != null && saleDate != null && saleDate.isAfter(endDate))
+            continue;
+
+          firebaseInvoices
+              .add(InvoiceModel.fromOfflineMap(inv, inv['id'] ?? ''));
+        } catch (e) {
+          continue;
+        }
+      }
+
+      firebaseInvoices.sort((a, b) => b.saleDate.compareTo(a.saleDate));
+      return firebaseInvoices;
     });
   }
 
@@ -566,14 +682,54 @@ class SalesRepositoryImpl implements SalesRepository {
         .orderBy('saleDate', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => InvoiceModel.fromDocument(doc))
-          .toList();
+      // تخزين الفواتير في الكاش
+      final invoicesData = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+      _offlineService.cacheServerInvoices(invoicesData);
+
+      final firebaseInvoices =
+          snapshot.docs.map((doc) => InvoiceModel.fromDocument(doc)).toList();
+
+      // إضافة الفواتير الأوفلاين لليوم (فقط offline_*)
+      final offlineInvoices = _offlineService.getOfflineInvoices();
+      for (final inv in offlineInvoices) {
+        try {
+          final id = inv['id']?.toString() ?? '';
+          if (!id.startsWith('offline_')) continue;
+
+          final saleDate = DateTime.tryParse(inv['saleDate']?.toString() ?? '');
+          if (saleDate != null &&
+              saleDate.year == now.year &&
+              saleDate.month == now.month &&
+              saleDate.day == now.day) {
+            firebaseInvoices
+                .add(InvoiceModel.fromOfflineMap(inv, inv['id'] ?? ''));
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      firebaseInvoices.sort((a, b) => b.saleDate.compareTo(a.saleDate));
+      return firebaseInvoices;
     });
   }
 
   @override
   Stream<InvoiceEntity?> watchInvoice(String invoiceId) {
+    // إذا كانت فاتورة أوفلاين، نعيد stream ثابت
+    if (invoiceId.startsWith('offline_')) {
+      final offlineData = _offlineService.getOfflineInvoiceById(invoiceId);
+      if (offlineData != null) {
+        return Stream.value(
+            InvoiceModel.fromOfflineMap(offlineData, invoiceId));
+      }
+      return Stream.value(null);
+    }
+
     return _salesCollection.doc(invoiceId).snapshots().map((snapshot) {
       if (!snapshot.exists) return null;
       return InvoiceModel.fromDocument(snapshot);
@@ -584,16 +740,36 @@ class SalesRepositoryImpl implements SalesRepository {
   Future<Result<DailySalesStats>> getDailySalesStats(DateTime date) async {
     try {
       final startOfDay = DateTime(date.year, date.month, date.day);
+      List<InvoiceEntity> allInvoices = [];
 
-      final snapshot = await _salesCollection
-          .where('saleDateDay', isEqualTo: Timestamp.fromDate(startOfDay))
-          .get();
+      if (_offlineService.isOnline) {
+        final snapshot = await _salesCollection
+            .where('saleDateDay', isEqualTo: Timestamp.fromDate(startOfDay))
+            .get();
 
-      final invoices =
-          snapshot.docs.map((doc) => InvoiceModel.fromDocument(doc)).toList();
+        allInvoices =
+            snapshot.docs.map((doc) => InvoiceModel.fromDocument(doc)).toList();
+      }
 
-      return Success(DailySalesStats.fromInvoices(date, invoices));
+      // إضافة الفواتير الأوفلاين
+      final offlineInvoices = _offlineService.getOfflineInvoices();
+      for (final inv in offlineInvoices) {
+        try {
+          final saleDate = DateTime.tryParse(inv['saleDate']?.toString() ?? '');
+          if (saleDate != null &&
+              saleDate.year == date.year &&
+              saleDate.month == date.month &&
+              saleDate.day == date.day) {
+            allInvoices.add(InvoiceModel.fromOfflineMap(inv, inv['id'] ?? ''));
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      return Success(DailySalesStats.fromInvoices(date, allInvoices));
     } catch (e) {
+      _logger.e('Error getting daily stats: $e');
       return Failure('فشل جلب إحصائيات اليوم: $e');
     }
   }
@@ -603,19 +779,40 @@ class SalesRepositoryImpl implements SalesRepository {
       int year, int month) async {
     try {
       final monthStr = '$year-${month.toString().padLeft(2, '0')}';
+      List<InvoiceEntity> allInvoices = [];
 
-      final snapshot =
-          await _salesCollection.where('saleMonth', isEqualTo: monthStr).get();
+      if (_offlineService.isOnline) {
+        final snapshot = await _salesCollection
+            .where('saleMonth', isEqualTo: monthStr)
+            .get();
 
-      final invoices =
-          snapshot.docs.map((doc) => InvoiceModel.fromDocument(doc)).toList();
+        allInvoices =
+            snapshot.docs.map((doc) => InvoiceModel.fromDocument(doc)).toList();
+      }
 
-      final completedInvoices = invoices.where((i) => i.isCompleted).toList();
-      final cancelledInvoices = invoices.where((i) => i.isCancelled).toList();
+      // إضافة الفواتير الأوفلاين
+      final offlineInvoices = _offlineService.getOfflineInvoices();
+      for (final inv in offlineInvoices) {
+        try {
+          final saleDate = DateTime.tryParse(inv['saleDate']?.toString() ?? '');
+          if (saleDate != null &&
+              saleDate.year == year &&
+              saleDate.month == month) {
+            allInvoices.add(InvoiceModel.fromOfflineMap(inv, inv['id'] ?? ''));
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      final completedInvoices =
+          allInvoices.where((i) => i.isCompleted).toList();
+      final cancelledInvoices =
+          allInvoices.where((i) => i.isCancelled).toList();
 
       // تجميع الإحصائيات اليومية
       final Map<int, List<InvoiceEntity>> dailyInvoices = {};
-      for (final invoice in invoices) {
+      for (final invoice in allInvoices) {
         final day = invoice.saleDate.day;
         dailyInvoices[day] = [...(dailyInvoices[day] ?? []), invoice];
       }
@@ -639,6 +836,7 @@ class SalesRepositoryImpl implements SalesRepository {
         dailyStats: dailyStats,
       ));
     } catch (e) {
+      _logger.e('Error getting monthly stats: $e');
       return Failure('فشل جلب إحصائيات الشهر: $e');
     }
   }

@@ -53,8 +53,11 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
 
   Future<void> _loadProduct() async {
     try {
+      debugPrint('🔄 Loading product with ID: ${widget.productId}');
       final product = await ref.read(productProvider(widget.productId!).future);
+      debugPrint('📦 Product loaded: ${product?.name ?? "NULL"}');
       if (product != null && mounted) {
+        debugPrint('✅ Setting product data...');
         setState(() {
           _nameController.text = product.name;
           _descriptionController.text = product.description ?? '';
@@ -66,10 +69,14 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
           _isActive = product.isActive;
           _isDataLoaded = true;
         });
+        debugPrint(
+            '✅ Data set: name=${_nameController.text}, price=${_priceController.text}');
       } else {
+        debugPrint('⚠️ Product is null or not mounted');
         setState(() => _isDataLoaded = true);
       }
     } catch (e) {
+      debugPrint('❌ Error loading product: $e');
       if (mounted) {
         setState(() => _isDataLoaded = true);
       }

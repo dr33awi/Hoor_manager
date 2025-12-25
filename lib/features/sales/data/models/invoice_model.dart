@@ -28,37 +28,63 @@ class InvoiceModel extends InvoiceEntity {
     super.cancellationReason,
   });
 
-  /// إنشاء من Map
+  /// إنشاء من Map (Firestore)
   factory InvoiceModel.fromMap(Map<String, dynamic> map, String id) {
     final itemsList = (map['items'] as List<dynamic>?)
             ?.map((item) => CartItemModel.fromMap(item as Map<String, dynamic>))
             .toList() ??
         [];
 
+    // التعامل مع أنواع التاريخ المختلفة
+    DateTime parseDateTime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+      return DateTime.now();
+    }
+
+    DateTime? parseNullableDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.tryParse(value);
+      return null;
+    }
+
     return InvoiceModel(
       id: id,
-      invoiceNumber: map['invoiceNumber'] ?? '',
+      invoiceNumber: map['invoiceNumber']?.toString() ?? '',
       items: itemsList,
-      subtotal: (map['subtotal'] ?? 0).toDouble(),
+      subtotal: _toDouble(map['subtotal']),
       discount: map['discount'] != null
           ? Discount.fromMap(map['discount'] as Map<String, dynamic>)
           : Discount.none,
-      discountAmount: (map['discountAmount'] ?? 0).toDouble(),
-      total: (map['total'] ?? 0).toDouble(),
-      totalCost: (map['totalCost'] ?? 0).toDouble(),
-      profit: (map['profit'] ?? 0).toDouble(),
-      paymentMethod: PaymentMethod.fromString(map['paymentMethod']),
-      amountPaid: (map['amountPaid'] ?? 0).toDouble(),
-      change: (map['change'] ?? 0).toDouble(),
-      status: InvoiceStatus.fromString(map['status']),
-      notes: map['notes'],
-      saleDate: (map['saleDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      soldBy: map['soldBy'] ?? '',
-      soldByName: map['soldByName'],
-      cancelledAt: (map['cancelledAt'] as Timestamp?)?.toDate(),
-      cancelledBy: map['cancelledBy'],
-      cancellationReason: map['cancellationReason'],
+      discountAmount: _toDouble(map['discountAmount']),
+      total: _toDouble(map['total']),
+      totalCost: _toDouble(map['totalCost']),
+      profit: _toDouble(map['profit']),
+      paymentMethod: PaymentMethod.fromString(map['paymentMethod']?.toString()),
+      amountPaid: _toDouble(map['amountPaid']),
+      change: _toDouble(map['change']),
+      status: InvoiceStatus.fromString(map['status']?.toString()),
+      notes: map['notes']?.toString(),
+      saleDate: parseDateTime(map['saleDate']),
+      soldBy: map['soldBy']?.toString() ?? '',
+      soldByName: map['soldByName']?.toString(),
+      cancelledAt: parseNullableDateTime(map['cancelledAt']),
+      cancelledBy: map['cancelledBy']?.toString(),
+      cancellationReason: map['cancellationReason']?.toString(),
     );
+  }
+
+  /// تحويل آمن للـ double
+  static double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 
   /// إنشاء من DocumentSnapshot
@@ -92,7 +118,7 @@ class InvoiceModel extends InvoiceEntity {
     );
   }
 
-  /// تحويل إلى Map
+  /// تحويل إلى Map (للـ Firestore)
   Map<String, dynamic> toMap() {
     return {
       'invoiceNumber': invoiceNumber,
@@ -135,36 +161,45 @@ class InvoiceModel extends InvoiceEntity {
             .toList() ??
         [];
 
-    DateTime? parseDate(dynamic value) {
-      if (value == null) return null;
-      if (value is String) return DateTime.parse(value);
+    DateTime parseDateTime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is Timestamp) return value.toDate();
       if (value is DateTime) return value;
+      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+      return DateTime.now();
+    }
+
+    DateTime? parseNullableDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.tryParse(value);
       return null;
     }
 
     return InvoiceModel(
       id: id,
-      invoiceNumber: map['invoiceNumber'] ?? '',
+      invoiceNumber: map['invoiceNumber']?.toString() ?? '',
       items: itemsList,
-      subtotal: (map['subtotal'] ?? 0).toDouble(),
+      subtotal: _toDouble(map['subtotal']),
       discount: map['discount'] != null
           ? Discount.fromMap(map['discount'] as Map<String, dynamic>)
           : Discount.none,
-      discountAmount: (map['discountAmount'] ?? 0).toDouble(),
-      total: (map['total'] ?? 0).toDouble(),
-      totalCost: (map['totalCost'] ?? 0).toDouble(),
-      profit: (map['profit'] ?? 0).toDouble(),
-      paymentMethod: PaymentMethod.fromString(map['paymentMethod']),
-      amountPaid: (map['amountPaid'] ?? 0).toDouble(),
-      change: (map['change'] ?? 0).toDouble(),
-      status: InvoiceStatus.fromString(map['status']),
-      notes: map['notes'],
-      saleDate: parseDate(map['saleDate']) ?? DateTime.now(),
-      soldBy: map['soldBy'] ?? '',
-      soldByName: map['soldByName'],
-      cancelledAt: parseDate(map['cancelledAt']),
-      cancelledBy: map['cancelledBy'],
-      cancellationReason: map['cancellationReason'],
+      discountAmount: _toDouble(map['discountAmount']),
+      total: _toDouble(map['total']),
+      totalCost: _toDouble(map['totalCost']),
+      profit: _toDouble(map['profit']),
+      paymentMethod: PaymentMethod.fromString(map['paymentMethod']?.toString()),
+      amountPaid: _toDouble(map['amountPaid']),
+      change: _toDouble(map['change']),
+      status: InvoiceStatus.fromString(map['status']?.toString()),
+      notes: map['notes']?.toString(),
+      saleDate: parseDateTime(map['saleDate']),
+      soldBy: map['soldBy']?.toString() ?? '',
+      soldByName: map['soldByName']?.toString(),
+      cancelledAt: parseNullableDateTime(map['cancelledAt']),
+      cancelledBy: map['cancelledBy']?.toString(),
+      cancellationReason: map['cancellationReason']?.toString(),
     );
   }
 

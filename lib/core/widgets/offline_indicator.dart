@@ -2,8 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../features/products/presentation/providers/product_providers.dart';
 import '../services/offline_service.dart';
+
+// ==================== مزودات الأوفلاين المحلية ====================
+
+/// مزود خدمة الأوفلاين
+final _offlineServiceProvider = Provider<OfflineService>((ref) {
+  return OfflineService();
+});
+
+/// مزود عدد العمليات المعلقة
+final _pendingCountProvider = Provider<int>((ref) {
+  final offlineService = ref.watch(_offlineServiceProvider);
+  return offlineService.pendingOperationsCount;
+});
+
+// ==================== الويدجتات ====================
 
 /// مؤشر حالة الأوفلاين في شريط التطبيق
 class OfflineAppBarIndicator extends ConsumerWidget {
@@ -57,7 +71,7 @@ class PendingOperationsBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendingCount = ref.watch(pendingOperationsCountProvider);
+    final pendingCount = ref.watch(_pendingCountProvider);
 
     if (pendingCount == 0) return const SizedBox.shrink();
 
@@ -459,5 +473,92 @@ class OfflineAwareAddButton extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// زر مزامنة سريع
+class QuickSyncButton extends StatefulWidget {
+  final VoidCallback? onSyncComplete;
+
+  const QuickSyncButton({super.key, this.onSyncComplete});
+
+  @override
+  State<QuickSyncButton> createState() => _QuickSyncButtonState();
+}
+
+class _QuickSyncButtonState extends State<QuickSyncButton> {
+  bool _isSyncing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<bool>(
+      stream: OfflineService().connectivityStream,
+      initialData: OfflineService().isOnline,
+      builder: (context, connectivitySnapshot) {
+        final isOnline = connectivitySnapshot.data ?? false;
+
+        return StreamBuilder<int>(
+          stream: OfflineService().pendingCountStream,
+          initialData: OfflineService().pendingOperationsCount,
+          builder: (context, countSnapshot) {
+            final pendingCount = countSnapshot.data ?? 0;
+
+            // إخفاء الزر إذا لم تكن هناك عمليات معلقة
+            if (pendingCount == 0) return const SizedBox.shrink();
+
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8.w),
+              child: Badge(
+                label: Text('$pendingCount'),
+                isLabelVisible: pendingCount > 0,
+                child: IconButton(
+                  onPressed: isOnline && !_isSyncing ? _sync : null,
+                  icon: _isSyncing
+                      ? SizedBox(
+                          width: 20.w,
+                          height: 20.w,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(
+                          Icons.sync,
+                          color: isOnline ? Colors.white : Colors.white54,
+                        ),
+                  tooltip: isOnline ? 'مزامنة الآن' : 'غير متصل',
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _sync() async {
+    setState(() => _isSyncing = true);
+
+    try {
+      final result = await OfflineService().syncPendingOperations();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: result.success ? Colors.green : Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        if (result.success) {
+          widget.onSyncComplete?.call();
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
+    }
   }
 }

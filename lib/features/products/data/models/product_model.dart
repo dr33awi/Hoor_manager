@@ -44,10 +44,43 @@ class ProductModel extends ProductEntity {
       variants: variantsList,
       isActive: map['isActive'] ?? true,
       lowStockThreshold: map['lowStockThreshold'] ?? 5,
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
+      createdAt: _parseDateTime(map['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseDateTime(map['updatedAt']),
       createdBy: map['createdBy'],
     );
+  }
+
+  /// تحويل قيمة التاريخ من أنواع مختلفة (Timestamp, String, int, Map)
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+
+    // Timestamp من Firestore
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    // String (ISO 8601)
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    // int (milliseconds since epoch)
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+
+    // Map (مثل {_seconds: ..., _nanoseconds: ...} من JSON)
+    if (value is Map) {
+      final seconds = value['_seconds'] ?? value['seconds'];
+      final nanoseconds = value['_nanoseconds'] ?? value['nanoseconds'] ?? 0;
+      if (seconds != null) {
+        return DateTime.fromMillisecondsSinceEpoch(
+          (seconds as int) * 1000 + ((nanoseconds as int) ~/ 1000000),
+        );
+      }
+    }
+
+    return null;
   }
 
   /// إنشاء من DocumentSnapshot

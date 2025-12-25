@@ -10,6 +10,11 @@ import '../../domain/repositories/sales_repository.dart';
 
 // ==================== Repository Providers ====================
 
+/// مزود خدمة الأوفلاين
+final offlineServiceProvider = Provider<OfflineService>((ref) {
+  return OfflineService();
+});
+
 /// مزود مستودع المبيعات مع دعم الأوفلاين
 final salesRepositoryProvider = Provider<SalesRepository>((ref) {
   final offlineService = ref.watch(offlineServiceProvider);
@@ -168,13 +173,13 @@ final cartProvider = NotifierProvider<CartNotifier, CartState>(() {
 
 // ==================== Invoice Providers ====================
 
-/// مزود فواتير اليوم
+/// مزود فواتير اليوم (Stream للتحديث التلقائي)
 final todayInvoicesProvider = StreamProvider<List<InvoiceEntity>>((ref) {
   final repository = ref.watch(salesRepositoryProvider);
   return repository.watchTodayInvoices();
 });
 
-/// مزود الفواتير
+/// مزود الفواتير (Future - للاستخدام مرة واحدة)
 final invoicesProvider = FutureProvider.family<List<InvoiceEntity>,
     ({DateTime? start, DateTime? end})>(
   (ref, params) async {
@@ -224,6 +229,30 @@ final todayStatsProvider = Provider<AsyncValue<DailySalesStats>>((ref) {
   );
 });
 
+/// مزود عدد العمليات المعلقة
+final pendingOperationsCountProvider = Provider<int>((ref) {
+  final offlineService = ref.watch(offlineServiceProvider);
+  return offlineService.pendingOperationsCount;
+});
+
+/// مزود Stream لعدد العمليات المعلقة
+final pendingOperationsStreamProvider = StreamProvider<int>((ref) {
+  final offlineService = ref.watch(offlineServiceProvider);
+  return offlineService.pendingCountStream;
+});
+
+/// مزود حالة الاتصال
+final connectivityProvider = StreamProvider<bool>((ref) {
+  final offlineService = ref.watch(offlineServiceProvider);
+  return offlineService.connectivityStream;
+});
+
+/// مزود حالة المزامنة
+final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
+  final offlineService = ref.watch(offlineServiceProvider);
+  return offlineService.syncStatusStream;
+});
+
 // ==================== Sales Actions ====================
 
 /// إدارة عمليات المبيعات مع دعم الأوفلاين
@@ -234,7 +263,7 @@ class SalesActionsNotifier extends Notifier<AsyncValue<void>> {
   }
 
   /// التحقق من حالة الاتصال
-  bool get isOnline => OfflineService().isOnline;
+  bool get isOnline => ref.read(offlineServiceProvider).isOnline;
 
   /// إنشاء فاتورة (يعمل أوفلاين)
   Future<InvoiceEntity?> createInvoice({
@@ -291,6 +320,8 @@ class SalesActionsNotifier extends Notifier<AsyncValue<void>> {
         state = const AsyncValue.data(null);
         // مسح السلة بعد إنشاء الفاتورة بنجاح
         ref.read(cartProvider.notifier).clear();
+        // تحديث البيانات
+        _refreshData();
         return result.valueOrNull;
       } else {
         state = AsyncValue.error(result.errorOrNull!, StackTrace.current);
@@ -319,13 +350,31 @@ class SalesActionsNotifier extends Notifier<AsyncValue<void>> {
 
     if (result.isSuccess) {
       state = const AsyncValue.data(null);
+      // تحديث البيانات
       ref.invalidate(invoiceProvider(invoiceId));
-      ref.invalidate(todayInvoicesProvider);
+      ref.invalidate(invoiceStreamProvider(invoiceId));
+      _refreshData();
       return true;
     } else {
       state = AsyncValue.error(result.errorOrNull!, StackTrace.current);
       return false;
     }
+  }
+
+  /// تحديث البيانات
+  void _refreshData() {
+    ref.invalidate(todayInvoicesProvider);
+    ref.invalidate(dailyStatsProvider(DateTime.now()));
+  }
+
+  /// مزامنة البيانات يدوياً
+  Future<SyncResult> syncData() async {
+    final offlineService = ref.read(offlineServiceProvider);
+    final result = await offlineService.syncPendingOperations();
+    if (result.success) {
+      _refreshData();
+    }
+    return result;
   }
 }
 
@@ -345,7 +394,7 @@ class DirectSaleNotifier extends Notifier<AsyncValue<void>> {
   }
 
   /// التحقق من حالة الاتصال
-  bool get isOnline => OfflineService().isOnline;
+  bool get isOnline => ref.read(offlineServiceProvider).isOnline;
 
   /// إنشاء فاتورة بيع مباشر (يعمل أوفلاين)
   Future<InvoiceEntity?> createDirectSale({
@@ -404,19 +453,22 @@ class DirectSaleNotifier extends Notifier<AsyncValue<void>> {
       if (result.isSuccess) {
         state = const AsyncValue.data(null);
         // تحديث البيانات
-        ref.invalidate(todayStatsProvider);
-        ref.invalidate(todayInvoicesProvider);
+        _refreshData();
         return result.valueOrNull;
       } else {
-        print('❌ خطأ في إنشاء الفاتورة: ${result.errorOrNull}');
         state = AsyncValue.error(result.errorOrNull!, StackTrace.current);
         return null;
       }
     } catch (e) {
-      print('❌ استثناء في إنشاء الفاتورة: $e');
       state = AsyncValue.error(e.toString(), StackTrace.current);
       return null;
     }
+  }
+
+  /// تحديث البيانات
+  void _refreshData() {
+    ref.invalidate(todayInvoicesProvider);
+    ref.invalidate(dailyStatsProvider(DateTime.now()));
   }
 }
 

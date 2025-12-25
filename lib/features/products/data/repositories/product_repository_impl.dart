@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:logger/logger.dart';
+import 'package:rxdart/rxdart.dart';
 
 import '../../../../core/services/offline_service.dart';
 import '../../../../core/utils/result.dart';
@@ -10,18 +13,24 @@ import '../models/models.dart';
 class ProductRepositoryImpl implements ProductRepository {
   final FirebaseFirestore _firestore;
   final OfflineService _offlineService;
+  final _logger = Logger();
+  static bool _callbacksRegistered = false;
 
   ProductRepositoryImpl({
     FirebaseFirestore? firestore,
     OfflineService? offlineService,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
         _offlineService = offlineService ?? OfflineService() {
-    // تسجيل callbacks للمزامنة
-    _setupSyncCallbacks();
+    // تسجيل callbacks للمزامنة مرة واحدة فقط
+    if (!_callbacksRegistered) {
+      _setupSyncCallbacks();
+      _callbacksRegistered = true;
+    }
   }
 
   /// تسجيل callbacks المزامنة
   void _setupSyncCallbacks() {
+    _logger.i('Registering sync callbacks for ProductRepository');
     _offlineService.onSyncNewProduct = _syncNewProductToFirestore;
     _offlineService.onSyncProductUpdate = _syncProductUpdateToFirestore;
     _offlineService.onSyncStockUpdate = _syncStockUpdateToFirestore;
@@ -31,18 +40,42 @@ class ProductRepositoryImpl implements ProductRepository {
   /// مزامنة منتج جديد إلى Firestore
   Future<bool> _syncNewProductToFirestore(Map<String, dynamic> data) async {
     try {
+      _logger.d('Syncing new product to Firestore: ${data['id']}');
       final productData = Map<String, dynamic>.from(data);
       final localId = productData['id'] as String;
-      productData.remove('id'); // إزالة الـ id المحلي
-      productData['createdAt'] = FieldValue.serverTimestamp();
+
+      // إزالة الـ id المحلي
+      productData.remove('id');
+
+      // تحويل التواريخ من milliseconds إلى Timestamp
+      if (productData['createdAt'] is int) {
+        productData['createdAt'] =
+            Timestamp.fromMillisecondsSinceEpoch(productData['createdAt']);
+      } else {
+        productData['createdAt'] = FieldValue.serverTimestamp();
+      }
+
+      if (productData['updatedAt'] is int) {
+        productData['updatedAt'] =
+            Timestamp.fromMillisecondsSinceEpoch(productData['updatedAt']);
+      } else {
+        productData['updatedAt'] = FieldValue.serverTimestamp();
+      }
+
       productData['syncedAt'] = FieldValue.serverTimestamp();
 
-      await _productsCollection.add(productData);
+      final docRef = await _productsCollection.add(productData);
 
-      // حذف المنتج من التخزين المحلي المعلق
-      await _offlineService.removePendingOperation(localId);
+      // تحديث الكاش بالـ ID الجديد من Firestore
+      final newProductData = Map<String, dynamic>.from(data);
+      newProductData['id'] = docRef.id;
+      await _offlineService.removeCachedProduct(localId);
+      await _offlineService.cacheProduct(newProductData);
+
+      _logger.i('✅ Product synced successfully: $localId -> ${docRef.id}');
       return true;
     } catch (e) {
+      _logger.e('❌ Failed to sync new product: $e');
       return false;
     }
   }
@@ -51,14 +84,51 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<bool> _syncProductUpdateToFirestore(Map<String, dynamic> data) async {
     try {
       final id = data['id'] as String;
+
+      // تجاهل المنتجات المحلية التي لم تُرفع بعد
+      // نرجع true لإزالة العملية المعلقة لأن المنتج سيُرفع كمنتج جديد
+      if (id.startsWith('local_')) {
+        _logger.w(
+            '⚠️ Skipping update for local product (will be synced as new): $id');
+        return true; // إزالة العملية المعلقة
+      }
+
+      // التحقق من وجود المنتج أولاً
+      final docSnapshot = await _productsCollection.doc(id).get();
+      if (!docSnapshot.exists) {
+        _logger
+            .w('⚠️ Product not found in Firestore, removing from cache: $id');
+        // حذف المنتج من الكاش المحلي لأنه غير موجود في السيرفر
+        await _offlineService.removeCachedProduct(id);
+        return true; // إزالة العملية المعلقة
+      }
+
       final updateData = Map<String, dynamic>.from(data);
       updateData.remove('id');
+
+      // تحويل التواريخ من milliseconds إلى Timestamp
+      if (updateData['createdAt'] is int) {
+        updateData['createdAt'] =
+            Timestamp.fromMillisecondsSinceEpoch(updateData['createdAt']);
+      }
+
+      // تعيين وقت التحديث والمزامنة
       updateData['updatedAt'] = FieldValue.serverTimestamp();
       updateData['syncedAt'] = FieldValue.serverTimestamp();
 
       await _productsCollection.doc(id).update(updateData);
+      _logger.i('✅ Product update synced: $id');
       return true;
     } catch (e) {
+      // إذا كان الخطأ بسبب عدم وجود المستند
+      if (e.toString().contains('not-found') ||
+          e.toString().contains('NOT_FOUND')) {
+        final id = data['id'] as String;
+        _logger.w('⚠️ Product not found, removing from cache: $id');
+        await _offlineService.removeCachedProduct(id);
+        return true; // إزالة العملية المعلقة
+      }
+      _logger.e('❌ Failed to sync product update: $e');
       return false;
     }
   }
@@ -70,8 +140,18 @@ class ProductRepositoryImpl implements ProductRepository {
       final variantId = data['variantId'] as String;
       final newQuantity = data['newQuantity'] as int;
 
+      // تجاهل المنتجات المحلية
+      if (productId.startsWith('local_')) {
+        _logger.w('⚠️ Skipping stock update for local product: $productId');
+        return true;
+      }
+
       final doc = await _productsCollection.doc(productId).get();
-      if (!doc.exists) return false;
+      if (!doc.exists) {
+        _logger.w('⚠️ Product not found for stock update: $productId');
+        await _offlineService.removeCachedProduct(productId);
+        return true; // إزالة العملية المعلقة
+      }
 
       final product = ProductModel.fromDocument(doc);
       final updatedVariants = product.variants.map((v) {
@@ -95,8 +175,17 @@ class ProductRepositoryImpl implements ProductRepository {
             .toList(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      _logger.i('✅ Stock update synced for: $productId');
       return true;
     } catch (e) {
+      if (e.toString().contains('not-found') ||
+          e.toString().contains('NOT_FOUND')) {
+        final productId = data['productId'] as String;
+        _logger.w('⚠️ Product not found: $productId');
+        await _offlineService.removeCachedProduct(productId);
+        return true;
+      }
+      _logger.e('❌ Failed to sync stock update: $e');
       return false;
     }
   }
@@ -106,9 +195,24 @@ class ProductRepositoryImpl implements ProductRepository {
       Map<String, dynamic> data) async {
     try {
       final id = data['id'] as String;
+
+      // المنتجات المحلية التي لم تُرفع - لا حاجة لحذفها من السيرفر
+      if (id.startsWith('local_')) {
+        _logger.w('⚠️ Skipping deletion for local product: $id');
+        return true; // إزالة العملية المعلقة
+      }
+
       await _productsCollection.doc(id).delete();
+      _logger.i('✅ Product deletion synced: $id');
       return true;
     } catch (e) {
+      // إذا كان المنتج غير موجود أصلاً، نعتبر الحذف ناجحاً
+      if (e.toString().contains('not-found') ||
+          e.toString().contains('NOT_FOUND')) {
+        _logger.w('⚠️ Product already deleted: ${data['id']}');
+        return true;
+      }
+      _logger.e('❌ Failed to sync product deletion: $e');
       return false;
     }
   }
@@ -184,10 +288,9 @@ class ProductRepositoryImpl implements ProductRepository {
     String? searchQuery,
   }) {
     try {
-      final cachedProducts = _offlineService.getCachedProducts();
-      List<ProductEntity> products = cachedProducts.map((data) {
-        return ProductModel.fromMap(data, data['id'] ?? '');
-      }).toList();
+      // استخدام الدالة الجديدة للحصول على Entities مباشرة
+      List<ProductEntity> products =
+          _offlineService.getCachedProductsAsEntities();
 
       // تطبيق الفلاتر
       if (categoryId != null) {
@@ -246,18 +349,34 @@ class ProductRepositoryImpl implements ProductRepository {
   /// الحصول على منتج من الكاش بالـ ID
   Result<ProductEntity> _getProductByIdFromCache(String id) {
     try {
-      final cachedProducts = _offlineService.getCachedProducts();
-      final productData = cachedProducts.firstWhere(
-        (p) => p['id'] == id,
-        orElse: () => <String, dynamic>{},
-      );
+      _logger.d('🔍 Getting product from cache with ID: $id');
 
-      if (productData.isEmpty) {
-        return const Failure('المنتج غير موجود');
+      // استخدام الدالة الجديدة للحصول على Entity مباشرة
+      final productEntity = _offlineService.getCachedProductAsEntity(id);
+      _logger.d(
+          '📦 Direct cache result: ${productEntity != null ? "found" : "not found"}');
+
+      if (productEntity == null) {
+        // في حالة عدم وجود المنتج بالـ ID المباشر، جرب البحث في القائمة
+        final cachedProducts = _offlineService.getCachedProductsAsEntities();
+        _logger.d('📋 Total cached products: ${cachedProducts.length}');
+
+        final foundProduct =
+            cachedProducts.where((p) => p.id == id).firstOrNull;
+
+        if (foundProduct == null) {
+          _logger.w('❌ Product not found in cache: $id');
+          return const Failure('المنتج غير موجود');
+        }
+
+        _logger.d('✅ Found product in list: ${foundProduct.name}');
+        return Success(foundProduct);
       }
 
-      return Success(ProductModel.fromMap(productData, id));
+      _logger.d('✅ Product found directly: ${productEntity.name}');
+      return Success(productEntity);
     } catch (e) {
+      _logger.e('❌ Error getting product from cache: $e');
       return const Failure('المنتج غير موجود');
     }
   }
@@ -309,19 +428,18 @@ class ProductRepositoryImpl implements ProductRepository {
   /// الحصول على منتج من الكاش بالباركود
   Result<ProductEntity> _getProductByBarcodeFromCache(String barcode) {
     try {
-      final cachedProducts = _offlineService.getCachedProducts();
+      final cachedProducts = _offlineService.getCachedProductsAsEntities();
 
-      for (final data in cachedProducts) {
+      for (final product in cachedProducts) {
         // البحث في الباركود الرئيسي
-        if (data['barcode'] == barcode) {
-          return Success(ProductModel.fromMap(data, data['id'] ?? ''));
+        if (product.barcode == barcode) {
+          return Success(product);
         }
 
         // البحث في باركود المتغيرات
-        final variants = data['variants'] as List<dynamic>? ?? [];
-        for (final variant in variants) {
-          if (variant['barcode'] == barcode) {
-            return Success(ProductModel.fromMap(data, data['id'] ?? ''));
+        for (final variant in product.variants) {
+          if (variant.barcode == barcode) {
+            return Success(product);
           }
         }
       }
@@ -426,12 +544,18 @@ class ProductRepositoryImpl implements ProductRepository {
           ),
         );
 
-        // حذف من الكاش المحلي (للمنتجات المحلية فقط)
-        // المنتجات المتزامنة تبقى في الكاش حتى المزامنة
+        // حذف من الكاش المحلي فوراً لتحديث الواجهة
+        await _offlineService.removeCachedProduct(id);
+
+        _logger.d('🗑️ Product deleted locally (offline): $id');
         return const Success(null);
       }
 
       await _productsCollection.doc(id).delete();
+
+      // حذف من الكاش المحلي أيضاً
+      await _offlineService.removeCachedProduct(id);
+
       return const Success(null);
     } catch (e) {
       return Failure('فشل حذف المنتج: $e');
@@ -654,26 +778,226 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Stream<List<ProductEntity>> watchProducts({String? categoryId}) {
-    Query<Map<String, dynamic>> query = _productsCollection;
+    final controller = StreamController<List<ProductEntity>>.broadcast();
+    StreamSubscription? firestoreSubscription;
+    StreamSubscription? localUpdatesSubscription;
+    StreamSubscription? connectivitySubscription;
 
-    if (categoryId != null) {
-      query = query.where('categoryId', isEqualTo: categoryId);
+    // دالة لجلب وإرسال البيانات
+    void emitProducts() {
+      try {
+        var products = _offlineService.getCachedProductsAsEntities();
+
+        // تطبيق الفلتر
+        if (categoryId != null) {
+          products = products.where((p) => p.categoryId == categoryId).toList();
+        }
+
+        // ترتيب حسب تاريخ الإنشاء
+        products.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        if (!controller.isClosed) {
+          controller.add(products);
+          _logger.d('📦 Emitted ${products.length} products');
+        }
+      } catch (e) {
+        _logger.e('Error emitting products: $e');
+      }
     }
 
-    query = query.orderBy('createdAt', descending: true);
+    // دالة لإعداد Firestore stream
+    void setupFirestoreStream() {
+      firestoreSubscription?.cancel();
 
-    return query.snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => ProductModel.fromDocument(doc))
-          .toList();
+      Query<Map<String, dynamic>> query = _productsCollection;
+
+      if (categoryId != null) {
+        query = query.where('categoryId', isEqualTo: categoryId);
+      }
+
+      query = query.orderBy('createdAt', descending: true);
+
+      firestoreSubscription = query.snapshots().listen((snapshot) {
+        // الحصول على IDs المنتجات الحالية من Firestore
+        final currentIds = snapshot.docs.map((doc) => doc.id).toSet();
+
+        // الحصول على IDs المنتجات في الكاش
+        final cachedIds = _offlineService
+            .getCachedProducts()
+            .map((p) => p['id'] as String)
+            .where((id) => !id.startsWith('local_'))
+            .toSet();
+
+        // حذف المنتجات التي لم تعد موجودة في Firestore
+        final deletedIds = cachedIds.difference(currentIds);
+        for (final deletedId in deletedIds) {
+          _offlineService.removeCachedProduct(deletedId);
+          _logger.d('🗑️ Removed deleted product from cache: $deletedId');
+        }
+
+        // حفظ/تحديث المنتجات الموجودة
+        for (final doc in snapshot.docs) {
+          _offlineService.cacheProduct(doc.data()..['id'] = doc.id);
+        }
+
+        _logger.d(
+            '📦 Synced ${snapshot.docs.length} products, removed ${deletedIds.length} deleted');
+
+        // إرسال البيانات المحدثة
+        emitProducts();
+      }, onError: (e) {
+        _logger.e('Firestore stream error: $e');
+        // في حالة الخطأ، أرسل من الكاش
+        emitProducts();
+      });
+    }
+
+    // الاستماع لتحديثات المنتجات المحلية (للتحديث الفوري عند الإضافة/التعديل)
+    localUpdatesSubscription = _offlineService.productsUpdateStream.listen((_) {
+      _logger.d('📦 Local products update detected');
+      emitProducts();
+    });
+
+    // الاستماع لتغييرات الاتصال
+    connectivitySubscription =
+        _offlineService.connectivityStream.listen((isOnline) {
+      _logger.d('🌐 Connectivity changed: $isOnline');
+      if (isOnline) {
+        setupFirestoreStream();
+      } else {
+        firestoreSubscription?.cancel();
+        emitProducts();
+      }
+    });
+
+    // إعداد أولي
+    if (_offlineService.isOnline) {
+      setupFirestoreStream();
+    } else {
+      emitProducts();
+    }
+
+    // إرسال البيانات الأولية فوراً
+    emitProducts();
+
+    // تنظيف عند إغلاق Stream
+    controller.onCancel = () {
+      firestoreSubscription?.cancel();
+      localUpdatesSubscription?.cancel();
+      connectivitySubscription?.cancel();
+      controller.close();
+    };
+
+    return controller.stream;
+  }
+
+  /// مراقبة المنتجات في وضع الأوفلاين
+  Stream<List<ProductEntity>> _watchProductsOffline({String? categoryId}) {
+    // إرسال البيانات الأولية ثم الاستماع للتحديثات
+    return _offlineService.productsUpdateStream
+        .startWith(null) // إرسال قيمة أولية لتحميل البيانات
+        .map((_) {
+      var products = _offlineService.getCachedProductsAsEntities();
+
+      // تطبيق الفلتر
+      if (categoryId != null) {
+        products = products.where((p) => p.categoryId == categoryId).toList();
+      }
+
+      // ترتيب حسب تاريخ الإنشاء
+      products.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      _logger.d('📦 Offline products: ${products.length}');
+      return products;
     });
   }
 
   @override
   Stream<ProductEntity?> watchProduct(String id) {
-    return _productsCollection.doc(id).snapshots().map((snapshot) {
-      if (!snapshot.exists) return null;
-      return ProductModel.fromDocument(snapshot);
+    final controller = StreamController<ProductEntity?>.broadcast();
+    StreamSubscription? firestoreSubscription;
+    StreamSubscription? localUpdatesSubscription;
+    StreamSubscription? connectivitySubscription;
+
+    // دالة لجلب وإرسال المنتج
+    void emitProduct() {
+      try {
+        final product = _offlineService.getCachedProductAsEntity(id);
+        if (!controller.isClosed) {
+          controller.add(product);
+          _logger.d('📦 Emitted product: ${product?.name ?? "not found"}');
+        }
+      } catch (e) {
+        _logger.e('Error emitting product: $e');
+      }
+    }
+
+    // دالة لإعداد Firestore stream
+    void setupFirestoreStream() {
+      firestoreSubscription?.cancel();
+
+      firestoreSubscription =
+          _productsCollection.doc(id).snapshots().listen((snapshot) {
+        if (!snapshot.exists) {
+          if (!controller.isClosed) {
+            controller.add(null);
+          }
+          return;
+        }
+
+        // حفظ المنتج في الكاش للاستخدام offline
+        _offlineService.cacheProduct(snapshot.data()!..['id'] = snapshot.id);
+
+        emitProduct();
+      }, onError: (e) {
+        _logger.e('Firestore stream error for product $id: $e');
+        emitProduct();
+      });
+    }
+
+    // الاستماع لتحديثات المنتجات المحلية
+    localUpdatesSubscription = _offlineService.productsUpdateStream.listen((_) {
+      _logger.d('📦 Local product update detected for $id');
+      emitProduct();
+    });
+
+    // الاستماع لتغييرات الاتصال
+    connectivitySubscription =
+        _offlineService.connectivityStream.listen((isOnline) {
+      _logger.d('🌐 Connectivity changed for product $id: $isOnline');
+      if (isOnline) {
+        setupFirestoreStream();
+      } else {
+        firestoreSubscription?.cancel();
+        emitProduct();
+      }
+    });
+
+    // إعداد أولي
+    if (_offlineService.isOnline) {
+      setupFirestoreStream();
+    }
+
+    // إرسال البيانات الأولية فوراً
+    emitProduct();
+
+    // تنظيف عند إغلاق Stream
+    controller.onCancel = () {
+      firestoreSubscription?.cancel();
+      localUpdatesSubscription?.cancel();
+      connectivitySubscription?.cancel();
+      controller.close();
+    };
+
+    return controller.stream;
+  }
+
+  /// مراقبة منتج واحد في وضع الأوفلاين
+  Stream<ProductEntity?> _watchProductOffline(String id) {
+    return _offlineService.productsUpdateStream.startWith(null).map((_) {
+      final product = _offlineService.getCachedProductAsEntity(id);
+      _logger.d('📦 Offline product: ${product?.name ?? "not found"}');
+      return product;
     });
   }
 }

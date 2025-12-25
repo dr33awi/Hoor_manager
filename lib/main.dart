@@ -1,5 +1,7 @@
 import 'dart:ui' as ui;
 
+import 'package:device_preview/device_preview.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,8 +27,12 @@ void main() async {
   await _initializeApp();
 
   runApp(
-    const ProviderScope(
-      child: HoorApp(),
+    DevicePreview(
+      // تفعيل في وضع Debug فقط
+      enabled: !kReleaseMode,
+      builder: (context) => const ProviderScope(
+        child: HoorApp(),
+      ),
     ),
   );
 }
@@ -104,11 +110,14 @@ class _HoorAppState extends ConsumerState<HoorApp> {
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
 
+          // دعم DevicePreview
+          useInheritedMediaQuery: true,
+
           // الثيم
           theme: AppTheme.lightTheme,
 
           // دعم اللغة العربية
-          locale: const Locale('ar'),
+          locale: DevicePreview.locale(context) ?? const Locale('ar'),
           supportedLocales: const [
             Locale('ar'),
           ],
@@ -118,13 +127,15 @@ class _HoorAppState extends ConsumerState<HoorApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
 
-          // إعداد الاتجاه RTL مع مؤشر الاتصال
+          // إعداد الاتجاه RTL مع مؤشر الاتصال ودعم DevicePreview
           builder: (context, child) {
+            // دمج DevicePreview.appBuilder مع الـ builder المخصص
+            final devicePreviewChild = DevicePreview.appBuilder(context, child);
             return Directionality(
               textDirection: ui.TextDirection.rtl,
               child: Stack(
                 children: [
-                  child ?? const SizedBox(),
+                  devicePreviewChild ?? const SizedBox(),
                   // مؤشر حالة الاتصال
                   const Positioned(
                     top: 0,

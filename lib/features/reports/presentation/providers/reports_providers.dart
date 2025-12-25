@@ -1,14 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/offline_service.dart';
 import '../../data/repositories/reports_repository_impl.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/reports_repository.dart';
 
 // ==================== Repository Provider ====================
 
-/// مزود مستودع التقارير
+/// مزود مستودع التقارير مع دعم الأوفلاين
 final reportsRepositoryProvider = Provider<ReportsRepository>((ref) {
-  return ReportsRepositoryImpl();
+  return ReportsRepositoryImpl(
+    offlineService: OfflineService(),
+  );
 });
 
 // ==================== Dashboard Providers ====================
