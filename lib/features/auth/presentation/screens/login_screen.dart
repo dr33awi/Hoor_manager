@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/routes/app_router.dart';
@@ -177,31 +178,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: AppColors.primary,
             borderRadius: BorderRadius.circular(AppSizes.radiusLg),
           ),
-          child: const Center(
-            child: Text(
-              'H',
-              style: TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: AppColors.secondary,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: SvgPicture.asset(
+                'assets/images/Hoor_1.svg',
+                colorFilter: const ColorFilter.mode(
+                  AppColors.secondary,
+                  BlendMode.srcIn,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: AppSizes.md),
-        Text(
-          AppStrings.appNameAr,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: AppSizes.xs),
-        Text(
-          AppStrings.appTagline,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
         ),
       ],
     );

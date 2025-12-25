@@ -35,6 +35,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+          tooltip: 'القائمة',
+        ),
         title: const Text(AppStrings.products),
         actions: [
           // زر البحث بالباركود

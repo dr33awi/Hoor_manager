@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/screens/screens.dart';
@@ -13,7 +14,6 @@ class AppRoutes {
   AppRoutes._();
 
   // المسارات الرئيسية
-  static const String splash = '/';
   static const String login = '/login';
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
@@ -39,23 +39,53 @@ class AppRoutes {
 
   static const String settings = '/settings';
   static const String users = '/users';
+
+  /// المسارات التي لا تحتاج مصادقة
+  static const List<String> publicRoutes = [
+    login,
+    register,
+    forgotPassword,
+    pendingApproval,
+  ];
+}
+
+/// Listenable لتغييرات حالة المصادقة
+class AuthChangeNotifier extends ChangeNotifier {
+  AuthChangeNotifier() {
+    FirebaseAuth.instance.authStateChanges().listen((_) {
+      notifyListeners();
+    });
+  }
 }
 
 /// إعداد التوجيه
 class AppRouter {
   AppRouter._();
 
-  static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.splash,
-    debugLogDiagnostics: true,
-    routes: [
-      // Splash Screen
-      GoRoute(
-        path: AppRoutes.splash,
-        name: 'splash',
-        builder: (context, state) => const SplashScreen(),
-      ),
+  static final _authNotifier = AuthChangeNotifier();
 
+  static final GoRouter router = GoRouter(
+    initialLocation: AppRoutes.home,
+    debugLogDiagnostics: true,
+    refreshListenable: _authNotifier,
+    redirect: (context, state) {
+      final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+      final isPublicRoute =
+          AppRoutes.publicRoutes.contains(state.matchedLocation);
+
+      // إذا لم يكن مسجل دخول وليس في صفحة عامة → انتقل لتسجيل الدخول
+      if (!isLoggedIn && !isPublicRoute) {
+        return AppRoutes.login;
+      }
+
+      // إذا كان مسجل دخول وفي صفحة تسجيل الدخول → انتقل للرئيسية
+      if (isLoggedIn && state.matchedLocation == AppRoutes.login) {
+        return AppRoutes.home;
+      }
+
+      return null; // لا تغيير
+    },
+    routes: [
       // Auth Routes
       GoRoute(
         path: AppRoutes.login,

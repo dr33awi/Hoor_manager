@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hoor_manager/core/services/barcode_service.dart';
 
@@ -23,21 +24,14 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'متجر حور',
-              style: TextStyle(fontSize: 18),
-            ),
-            Text(
-              'مرحباً ${user?.fullName ?? ''}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+          tooltip: 'القائمة',
+        ),
+        title: const Text(
+          'الرئيسية',
+          style: TextStyle(fontSize: 18),
         ),
         actions: [
           // إشعارات المخزون
@@ -46,11 +40,20 @@ class DashboardScreen extends ConsumerWidget {
                   final alertCount =
                       summary.lowStockCount + summary.outOfStockCount;
                   if (alertCount == 0) return const SizedBox.shrink();
-                  return Badge(
-                    label: Text('$alertCount'),
-                    child: IconButton(
-                      icon: const Icon(Icons.notifications_outlined),
-                      onPressed: () => _showStockAlerts(context, ref, summary),
+                  return Padding(
+                    padding: const EdgeInsets.only(left: AppSizes.sm),
+                    child: Badge(
+                      label: Text(
+                        '$alertCount',
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      alignment: Alignment.topRight,
+                      offset: const Offset(-4, 4),
+                      child: IconButton(
+                        icon: const Icon(Icons.notifications_outlined),
+                        onPressed: () =>
+                            _showStockAlerts(context, ref, summary),
+                      ),
                     ),
                   );
                 },
@@ -82,7 +85,7 @@ class DashboardScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // بطاقة الترحيب والتاريخ
-          _buildWelcomeCard(context),
+          _buildWelcomeCard(context, ref),
 
           const SizedBox(height: AppSizes.md),
 
@@ -197,7 +200,8 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildWelcomeCard(BuildContext context) {
+  Widget _buildWelcomeCard(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
     return Container(
       padding: const EdgeInsets.all(AppSizes.md),
       decoration: BoxDecoration(
@@ -220,7 +224,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSizes.xs),
                 Text(
-                  _getGreeting(),
+                  '${_getGreeting()} ${user?.fullName ?? ''}',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: AppColors.textLight,
                         fontWeight: FontWeight.bold,
@@ -230,15 +234,19 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(AppSizes.md),
+            padding: const EdgeInsets.all(AppSizes.sm),
             decoration: BoxDecoration(
               color: AppColors.secondary.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.storefront,
-              color: AppColors.secondary,
-              size: 32,
+            child: SvgPicture.asset(
+              'assets/images/Hoor_1.svg',
+              width: 40,
+              height: 40,
+              colorFilter: const ColorFilter.mode(
+                AppColors.secondary,
+                BlendMode.srcIn,
+              ),
             ),
           ),
         ],

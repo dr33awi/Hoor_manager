@@ -55,6 +55,15 @@ dependencies:
   intl: ^0.20.2
   logger: ^2.0.2+1
   collection: ^1.18.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/images/Hoor-icons.png"
+  adaptive_icon_background: "#12334e"
+  adaptive_icon_foreground: "assets/images/Hoor-icons.png"
 
 dev_dependencies:
   flutter_test:
@@ -77,9 +86,3 @@ flutter:
     - assets/icons/
     - assets/fonts/
 
-  # fonts:
-  #   - family: Cairo
-  #     fonts:
-  #       - asset: assets/fonts/Cairo-Regular.ttf
-  #       - asset: assets/fonts/Cairo-Bold.ttf
-  #         weight: 700

@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/constants.dart';
+import '../../../../core/widgets/app_drawer.dart';
 import '../../../products/presentation/screens/products_screen.dart';
 import '../../../sales/presentation/screens/sales_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import 'dashboard_screen.dart';
 
-/// الشاشة الرئيسية مع التنقل السفلي
+/// الشاشة الرئيسية مع التنقل السفلي والشريط الجانبي
 class MainScreen extends ConsumerStatefulWidget {
   final int initialIndex;
 
@@ -20,6 +21,7 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   late int _currentIndex;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final List<Widget> _screens = const [
     DashboardScreen(),
@@ -63,12 +65,25 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     _currentIndex = widget.initialIndex;
   }
 
+  /// فتح الشريط الجانبي
+  void openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
+      ),
+      // الشريط الجانبي للوصول السريع
+      drawer: AppDrawer(
+        currentIndex: _currentIndex,
+        onIndexChanged: (index) {
+          setState(() => _currentIndex = index);
+        },
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
