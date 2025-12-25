@@ -1,17 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../products/data/repositories/product_repository_impl.dart';
+import '../../../../core/services/offline_service.dart';
 import '../../../products/domain/entities/entities.dart';
+import '../../../products/presentation/providers/product_providers.dart';
+import '../../data/models/invoice_model.dart';
 import '../../data/repositories/sales_repository_impl.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/sales_repository.dart';
 
 // ==================== Repository Providers ====================
 
-/// مزود مستودع المبيعات
+/// مزود مستودع المبيعات مع دعم الأوفلاين
 final salesRepositoryProvider = Provider<SalesRepository>((ref) {
+  final offlineService = ref.watch(offlineServiceProvider);
+  final productRepository = ref.watch(productRepositoryProvider);
   return SalesRepositoryImpl(
-    productRepository: ProductRepositoryImpl(),
+    productRepository: productRepository,
+    offlineService: offlineService,
   );
 });
 
@@ -221,14 +226,17 @@ final todayStatsProvider = Provider<AsyncValue<DailySalesStats>>((ref) {
 
 // ==================== Sales Actions ====================
 
-/// إدارة عمليات المبيعات
+/// إدارة عمليات المبيعات مع دعم الأوفلاين
 class SalesActionsNotifier extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() {
     return const AsyncValue.data(null);
   }
 
-  /// إنشاء فاتورة
+  /// التحقق من حالة الاتصال
+  bool get isOnline => OfflineService().isOnline;
+
+  /// إنشاء فاتورة (يعمل أوفلاين)
   Future<InvoiceEntity?> createInvoice({
     required String soldBy,
     String? soldByName,
@@ -329,14 +337,17 @@ final salesActionsProvider =
 
 // ==================== Direct Sale Provider ====================
 
-/// إدارة البيع المباشر (بدون سلة)
+/// إدارة البيع المباشر مع دعم الأوفلاين (بدون سلة)
 class DirectSaleNotifier extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() {
     return const AsyncValue.data(null);
   }
 
-  /// إنشاء فاتورة بيع مباشر
+  /// التحقق من حالة الاتصال
+  bool get isOnline => OfflineService().isOnline;
+
+  /// إنشاء فاتورة بيع مباشر (يعمل أوفلاين)
   Future<InvoiceEntity?> createDirectSale({
     required CartItem item,
     required Discount discount,
@@ -413,4 +424,42 @@ class DirectSaleNotifier extends Notifier<AsyncValue<void>> {
 final directSaleProvider =
     NotifierProvider<DirectSaleNotifier, AsyncValue<void>>(() {
   return DirectSaleNotifier();
+});
+
+// ==================== Offline Invoice Providers ====================
+
+/// مزود فاتورة أوفلاين بواسطة ID
+final offlineInvoiceProvider = Provider.family<InvoiceEntity?, String>(
+  (ref, invoiceId) {
+    final offlineService = ref.watch(offlineServiceProvider);
+    final invoiceMap = offlineService.getOfflineInvoiceById(invoiceId);
+    if (invoiceMap == null) return null;
+    return InvoiceModel.fromOfflineMap(invoiceMap, invoiceId);
+  },
+);
+
+/// مزود ذكي للفاتورة - يدعم الأوفلاين والأونلاين
+/// يستخدم هذا بدلاً من invoiceStreamProvider للشاشات التي تحتاج دعم أوفلاين
+final smartInvoiceProvider = FutureProvider.family<InvoiceEntity?, String>(
+  (ref, invoiceId) async {
+    // إذا كان ID يبدأ بـ offline_ فهي فاتورة محلية
+    if (invoiceId.startsWith('offline_')) {
+      return ref.watch(offlineInvoiceProvider(invoiceId));
+    }
+
+    // خلاف ذلك، جلب من Firebase
+    final repository = ref.watch(salesRepositoryProvider);
+    final result = await repository.getInvoiceById(invoiceId);
+    return result.valueOrNull;
+  },
+);
+
+/// مزود كل الفواتير الأوفلاين
+final allOfflineInvoicesProvider = Provider<List<InvoiceEntity>>((ref) {
+  final offlineService = ref.watch(offlineServiceProvider);
+  final invoiceMaps = offlineService.getOfflineInvoices();
+  return invoiceMaps.map((map) {
+    final id = map['id'] as String? ?? '';
+    return InvoiceModel.fromOfflineMap(map, id);
+  }).toList();
 });

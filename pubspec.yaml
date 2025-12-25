@@ -51,6 +51,21 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
+  # Offline & Connectivity
+  connectivity_plus: ^6.1.4
+  
+  # Charts
+  fl_chart: ^0.70.2
+  
+  # Excel Export
+  excel: ^4.0.6
+  path_provider: ^2.1.5
+  share_plus: ^10.1.4
+  open_file: ^3.5.10
+  
+  # Biometric Authentication
+  local_auth: ^2.3.0
+  
   # Utilities
   intl: ^0.20.2
   logger: ^2.0.2+1

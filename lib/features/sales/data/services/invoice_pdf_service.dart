@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -8,13 +9,41 @@ import '../../domain/entities/entities.dart';
 
 /// خدمة توليد PDF للفواتير
 class InvoicePdfService {
+  // كاش للخطوط المحملة
+  static pw.Font? _arabicFont;
+  static pw.Font? _arabicFontBold;
+
+  /// تحميل الخطوط العربية (مع دعم الأوفلاين)
+  static Future<(pw.Font, pw.Font)> _loadArabicFonts() async {
+    if (_arabicFont != null && _arabicFontBold != null) {
+      return (_arabicFont!, _arabicFontBold!);
+    }
+
+    try {
+      // محاولة تحميل من Google Fonts أولاً (أونلاين)
+      _arabicFont = await PdfGoogleFonts.cairoRegular();
+      _arabicFontBold = await PdfGoogleFonts.cairoBold();
+    } catch (e) {
+      // في حالة عدم الاتصال، استخدام خط Amiri المدمج
+      try {
+        _arabicFont = await PdfGoogleFonts.amiriRegular();
+        _arabicFontBold = await PdfGoogleFonts.amiriBold();
+      } catch (e2) {
+        // استخدام خط افتراضي كملاذ أخير
+        _arabicFont = pw.Font.helvetica();
+        _arabicFontBold = pw.Font.helveticaBold();
+      }
+    }
+
+    return (_arabicFont!, _arabicFontBold!);
+  }
+
   /// توليد PDF للفاتورة
   static Future<Uint8List> generateInvoicePdf(InvoiceEntity invoice) async {
     final pdf = pw.Document();
 
-    // تحميل خط عربي
-    final arabicFont = await PdfGoogleFonts.cairoRegular();
-    final arabicFontBold = await PdfGoogleFonts.cairoBold();
+    // تحميل خط عربي مع دعم الأوفلاين
+    final (arabicFont, arabicFontBold) = await _loadArabicFonts();
 
     pdf.addPage(
       pw.Page(

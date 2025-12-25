@@ -5,7 +5,6 @@ import '../../../../core/constants/constants.dart';
 import '../../../../core/extensions/extensions.dart';
 import '../../domain/entities/entities.dart';
 import '../providers/reports_providers.dart';
-import '../widgets/widgets.dart';
 
 /// شاشة تقرير الأرباح
 class ProfitsReportScreen extends ConsumerWidget {
@@ -216,12 +215,6 @@ class ProfitsReportScreen extends ConsumerWidget {
               ),
             ],
           ),
-
-          const SizedBox(height: AppSizes.lg),
-
-          // الرسم البياني
-          if (report.dailyData.isNotEmpty)
-            ProfitChart(data: report.dailyData, title: 'الأرباح اليومية'),
         ],
       ),
     );

@@ -146,12 +146,6 @@ class ReportsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
-          const SizedBox(height: AppSizes.md),
-
-          // الرسم البياني للأسبوع
-          if (summary.weeklyTrend.isNotEmpty)
-            SalesChart(data: summary.weeklyTrend, title: 'مبيعات الأسبوع'),
         ],
       ),
       loading: () => const SizedBox(

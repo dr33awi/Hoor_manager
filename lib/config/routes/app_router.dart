@@ -9,6 +9,22 @@ import '../../features/reports/presentation/screens/screens.dart';
 import '../../features/home/presentation/screens/screens.dart';
 import '../../features/settings/presentation/screens/screens.dart';
 
+/// صفحة بدون أنيميشن
+class NoTransitionPage<T> extends CustomTransitionPage<T> {
+  NoTransitionPage({
+    required super.child,
+    super.name,
+    super.arguments,
+    super.restorationId,
+    super.key,
+  }) : super(
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              child,
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        );
+}
+
 /// مسارات التطبيق
 class AppRoutes {
   AppRoutes._();
@@ -90,56 +106,83 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.register,
         name: 'register',
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const RegisterScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.forgotPassword,
         name: 'forgotPassword',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ForgotPasswordScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.pendingApproval,
         name: 'pendingApproval',
-        builder: (context, state) => const PendingApprovalScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const PendingApprovalScreen(),
+        ),
       ),
 
       // Main App Routes (will be wrapped with ShellRoute later)
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
-        builder: (context, state) => const MainScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const MainScreen(),
+        ),
       ),
 
       // Products Routes
       GoRoute(
         path: AppRoutes.products,
         name: 'products',
-        builder: (context, state) => const ProductsScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ProductsScreen(),
+        ),
         routes: [
           GoRoute(
             path: 'add',
             name: 'addProduct',
-            builder: (context, state) => const AddEditProductScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const AddEditProductScreen(),
+            ),
           ),
           GoRoute(
             path: 'edit/:id',
             name: 'editProduct',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final id = state.pathParameters['id']!;
-              return AddEditProductScreen(productId: id);
+              return NoTransitionPage(
+                key: state.pageKey,
+                child: AddEditProductScreen(productId: id),
+              );
             },
           ),
           GoRoute(
             path: ':id',
             name: 'productDetails',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final id = state.pathParameters['id']!;
-              return ProductDetailsScreen(productId: id);
+              return NoTransitionPage(
+                key: state.pageKey,
+                child: ProductDetailsScreen(productId: id),
+              );
             },
           ),
         ],
@@ -149,24 +192,36 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.sales,
         name: 'sales',
-        builder: (context, state) => const SalesScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const SalesScreen(),
+        ),
         routes: [
           GoRoute(
             path: 'new',
             name: 'newSale',
-            builder: (context, state) => const DirectSaleScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const DirectSaleScreen(),
+            ),
           ),
           GoRoute(
             path: 'direct',
             name: 'directSale',
-            builder: (context, state) => const DirectSaleScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const DirectSaleScreen(),
+            ),
           ),
           GoRoute(
             path: ':id',
             name: 'invoiceDetails',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final id = state.pathParameters['id']!;
-              return InvoiceDetailsScreen(invoiceId: id);
+              return NoTransitionPage(
+                key: state.pageKey,
+                child: InvoiceDetailsScreen(invoiceId: id),
+              );
             },
           ),
         ],
@@ -176,27 +231,42 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.reports,
         name: 'reports',
-        builder: (context, state) => const ReportsScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ReportsScreen(),
+        ),
         routes: [
           GoRoute(
             path: 'sales',
             name: 'salesReport',
-            builder: (context, state) => const SalesReportScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SalesReportScreen(),
+            ),
           ),
           GoRoute(
             path: 'profits',
             name: 'profitsReport',
-            builder: (context, state) => const ProfitsReportScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const ProfitsReportScreen(),
+            ),
           ),
           GoRoute(
             path: 'inventory',
             name: 'inventoryReport',
-            builder: (context, state) => const InventoryReportScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const InventoryReportScreen(),
+            ),
           ),
           GoRoute(
             path: 'top-products',
             name: 'topProducts',
-            builder: (context, state) => const TopProductsScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const TopProductsScreen(),
+            ),
           ),
         ],
       ),
@@ -205,14 +275,20 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.settings,
         name: 'settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+        ),
       ),
 
       // Users Management Route
       GoRoute(
         path: AppRoutes.users,
         name: 'users',
-        builder: (context, state) => const UsersManagementScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const UsersManagementScreen(),
+        ),
       ),
     ],
 

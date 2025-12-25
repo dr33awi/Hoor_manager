@@ -14,9 +14,25 @@ class InvoiceDetailsScreen extends ConsumerWidget {
 
   const InvoiceDetailsScreen({super.key, required this.invoiceId});
 
+  /// التحقق إذا كانت الفاتورة أوفلاين
+  bool get isOfflineInvoice => invoiceId.startsWith('offline_');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // استخدام StreamProvider للتحديث التلقائي
+    // استخدام Provider مختلف بناءً على نوع الفاتورة
+    if (isOfflineInvoice) {
+      // فاتورة أوفلاين - جلب من التخزين المحلي
+      final invoice = ref.watch(offlineInvoiceProvider(invoiceId));
+      if (invoice == null) {
+        return Scaffold(
+          appBar: AppBar(),
+          body: const Center(child: Text('الفاتورة غير موجودة')),
+        );
+      }
+      return _buildContent(context, ref, invoice, isOffline: true);
+    }
+
+    // فاتورة عادية - استخدام StreamProvider للتحديث التلقائي
     final invoiceAsync = ref.watch(invoiceStreamProvider(invoiceId));
 
     return invoiceAsync.when(
@@ -27,7 +43,7 @@ class InvoiceDetailsScreen extends ConsumerWidget {
             body: const Center(child: Text('الفاتورة غير موجودة')),
           );
         }
-        return _buildContent(context, ref, invoice);
+        return _buildContent(context, ref, invoice, isOffline: false);
       },
       loading: () => Scaffold(
         appBar: AppBar(),
@@ -41,10 +57,34 @@ class InvoiceDetailsScreen extends ConsumerWidget {
   }
 
   Widget _buildContent(
-      BuildContext context, WidgetRef ref, InvoiceEntity invoice) {
+      BuildContext context, WidgetRef ref, InvoiceEntity invoice,
+      {bool isOffline = false}) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('#${invoice.invoiceNumber}'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('#${invoice.invoiceNumber}'),
+            if (isOffline) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'محلية',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.print),
@@ -56,7 +96,8 @@ class InvoiceDetailsScreen extends ConsumerWidget {
             onPressed: () => _shareInvoice(context, invoice),
             tooltip: 'مشاركة',
           ),
-          if (invoice.isCompleted)
+          // لا نظهر خيار الإلغاء للفواتير الأوفلاين
+          if (invoice.isCompleted && !isOffline)
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'cancel') {
@@ -84,6 +125,12 @@ class InvoiceDetailsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // بانر الفاتورة الأوفلاين
+            if (isOffline) ...[
+              _buildOfflineBanner(context),
+              const SizedBox(height: AppSizes.md),
+            ],
+
             // حالة الفاتورة
             _buildStatusBanner(context, invoice),
             const SizedBox(height: AppSizes.md),
@@ -106,6 +153,33 @@ class InvoiceDetailsScreen extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// بانر الفاتورة المحلية
+  Widget _buildOfflineBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.sm),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.cloud_off, color: AppColors.warning, size: 20),
+          SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Text(
+              'فاتورة محلية - سيتم رفعها تلقائياً عند الاتصال بالإنترنت',
+              style: TextStyle(
+                color: AppColors.warning,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

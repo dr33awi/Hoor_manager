@@ -5,7 +5,6 @@ import '../../../../core/constants/constants.dart';
 import '../../../../core/extensions/extensions.dart';
 import '../../domain/entities/entities.dart';
 import '../providers/reports_providers.dart';
-import '../widgets/widgets.dart';
 
 /// شاشة المنتجات الأكثر مبيعاً
 class TopProductsScreen extends ConsumerStatefulWidget {

@@ -203,16 +203,6 @@ class SalesReportScreen extends ConsumerWidget {
               ),
             ),
           ),
-
-          const SizedBox(height: AppSizes.lg),
-
-          // الرسم البياني
-          if (report.dailyData.isNotEmpty)
-            SalesChart(
-              data: report.dailyData,
-              title: 'المبيعات اليومية',
-              showProfit: true,
-            ),
         ],
       ),
     );

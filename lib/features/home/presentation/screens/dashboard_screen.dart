@@ -164,15 +164,6 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: AppSizes.lg),
           ],
 
-          // الرسم البياني
-          if (summary.weeklyTrend.isNotEmpty) ...[
-            SalesChart(
-              data: summary.weeklyTrend,
-              title: 'مبيعات الأسبوع',
-            ),
-            const SizedBox(height: AppSizes.lg),
-          ],
-
           // المنتجات الأكثر مبيعاً
           if (summary.topProducts.isNotEmpty) ...[
             Row(

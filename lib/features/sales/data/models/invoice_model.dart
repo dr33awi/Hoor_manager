@@ -128,6 +128,77 @@ class InvoiceModel extends InvoiceEntity {
     };
   }
 
+  /// إنشاء من Map محلي (بدون Timestamp - للتخزين المحلي)
+  factory InvoiceModel.fromOfflineMap(Map<String, dynamic> map, String id) {
+    final itemsList = (map['items'] as List<dynamic>?)
+            ?.map((item) => CartItemModel.fromMap(item as Map<String, dynamic>))
+            .toList() ??
+        [];
+
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is String) return DateTime.parse(value);
+      if (value is DateTime) return value;
+      return null;
+    }
+
+    return InvoiceModel(
+      id: id,
+      invoiceNumber: map['invoiceNumber'] ?? '',
+      items: itemsList,
+      subtotal: (map['subtotal'] ?? 0).toDouble(),
+      discount: map['discount'] != null
+          ? Discount.fromMap(map['discount'] as Map<String, dynamic>)
+          : Discount.none,
+      discountAmount: (map['discountAmount'] ?? 0).toDouble(),
+      total: (map['total'] ?? 0).toDouble(),
+      totalCost: (map['totalCost'] ?? 0).toDouble(),
+      profit: (map['profit'] ?? 0).toDouble(),
+      paymentMethod: PaymentMethod.fromString(map['paymentMethod']),
+      amountPaid: (map['amountPaid'] ?? 0).toDouble(),
+      change: (map['change'] ?? 0).toDouble(),
+      status: InvoiceStatus.fromString(map['status']),
+      notes: map['notes'],
+      saleDate: parseDate(map['saleDate']) ?? DateTime.now(),
+      soldBy: map['soldBy'] ?? '',
+      soldByName: map['soldByName'],
+      cancelledAt: parseDate(map['cancelledAt']),
+      cancelledBy: map['cancelledBy'],
+      cancellationReason: map['cancellationReason'],
+    );
+  }
+
+  /// تحويل إلى Map للتخزين المحلي (بدون Timestamp)
+  Map<String, dynamic> toOfflineMap() {
+    return {
+      'invoiceNumber': invoiceNumber,
+      'items':
+          items.map((item) => CartItemModel.fromEntity(item).toMap()).toList(),
+      'subtotal': subtotal,
+      'discount': discount.toMap(),
+      'discountAmount': discountAmount,
+      'total': total,
+      'totalCost': totalCost,
+      'profit': profit,
+      'paymentMethod': paymentMethod.value,
+      'amountPaid': amountPaid,
+      'change': change,
+      'status': status.value,
+      'notes': notes,
+      'saleDate': saleDate.toIso8601String(),
+      'soldBy': soldBy,
+      'soldByName': soldByName,
+      'cancelledAt': cancelledAt?.toIso8601String(),
+      'cancelledBy': cancelledBy,
+      'cancellationReason': cancellationReason,
+      'saleDateDay': DateTime(saleDate.year, saleDate.month, saleDate.day)
+          .toIso8601String(),
+      'saleMonth':
+          '${saleDate.year}-${saleDate.month.toString().padLeft(2, '0')}',
+      'itemCount': itemCount,
+    };
+  }
+
   @override
   InvoiceModel copyWith({
     String? id,

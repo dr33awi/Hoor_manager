@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/constants.dart';
+import '../../../../core/services/backup_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../products/domain/entities/entities.dart';
 import '../../../products/presentation/providers/product_providers.dart';
@@ -114,6 +115,25 @@ class SettingsScreen extends ConsumerWidget {
 
           const Divider(),
 
+          // قسم النسخ الاحتياطي
+          _SettingsHeader(title: 'النسخ الاحتياطي'),
+
+          _SettingsTile(
+            icon: Icons.backup,
+            title: 'إنشاء نسخة احتياطية',
+            subtitle: 'حفظ نسخة من البيانات',
+            onTap: () => _createBackup(context),
+          ),
+
+          _SettingsTile(
+            icon: Icons.restore,
+            title: 'استعادة البيانات',
+            subtitle: 'استعادة من نسخة احتياطية',
+            onTap: () => _restoreBackup(context),
+          ),
+
+          const Divider(),
+
           // حول التطبيق
           _SettingsHeader(title: 'حول'),
 
@@ -146,6 +166,94 @@ class SettingsScreen extends ConsumerWidget {
       isScrollControlled: true,
       builder: (context) => const CategoriesManagementSheet(),
     );
+  }
+
+  /// إنشاء نسخة احتياطية
+  Future<void> _createBackup(BuildContext context) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final result = await BackupService().createBackup();
+
+      if (context.mounted) Navigator.pop(context);
+
+      if (result.success && result.filePath != null && context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('تم إنشاء النسخة الاحتياطية'),
+            content: const Text('هل تريد مشاركة الملف؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('لاحقاً'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  BackupService().shareBackup(result.filePath!);
+                },
+                icon: const Icon(Icons.share),
+                label: const Text('مشاركة'),
+              ),
+            ],
+          ),
+        );
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(result.error ?? 'فشل في إنشاء النسخة الاحتياطية')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: $e')),
+        );
+      }
+    }
+  }
+
+  /// استعادة النسخة الاحتياطية
+  Future<void> _restoreBackup(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('استعادة النسخة الاحتياطية'),
+        content: const Text(
+          'سيتم استبدال جميع البيانات الحالية بالبيانات من النسخة الاحتياطية.\n\n'
+          'هل أنت متأكد؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
+            child: const Text('استعادة'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // يجب على المستخدم اختيار ملف النسخة الاحتياطية أولاً
+    // هذه الميزة تحتاج إلى file_picker package
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ميزة استعادة النسخة الاحتياطية قيد التطوير'),
+        ),
+      );
+    }
   }
 
   void _showAboutDialog(BuildContext context) {

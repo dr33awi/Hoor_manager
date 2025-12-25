@@ -14,6 +14,9 @@ import 'config/routes/app_router.dart';
 import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/storage_service.dart';
+import 'core/services/offline_service.dart';
+import 'features/products/presentation/providers/product_providers.dart';
+import 'features/sales/presentation/providers/sales_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +46,9 @@ Future<void> _initializeApp() async {
   // تهيئة خدمة التخزين المحلي
   await StorageService().init();
 
+  // تهيئة خدمة العمل بدون إنترنت
+  await OfflineService().initialize();
+
   // إعداد اتجاه الشاشة (Portrait فقط)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -61,8 +67,29 @@ Future<void> _initializeApp() async {
 }
 
 /// التطبيق الرئيسي
-class HoorApp extends StatelessWidget {
+class HoorApp extends ConsumerStatefulWidget {
   const HoorApp({super.key});
+
+  @override
+  ConsumerState<HoorApp> createState() => _HoorAppState();
+}
+
+class _HoorAppState extends ConsumerState<HoorApp> {
+  @override
+  void initState() {
+    super.initState();
+    // تهيئة الـ repositories لتسجيل callbacks المزامنة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeRepositories();
+    });
+  }
+
+  /// تهيئة الـ repositories لتسجيل callbacks المزامنة
+  void _initializeRepositories() {
+    // قراءة الـ repositories لتفعيل callbacks
+    ref.read(productRepositoryProvider);
+    ref.read(salesRepositoryProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,11 +118,24 @@ class HoorApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
 
-          // إعداد الاتجاه RTL
+          // إعداد الاتجاه RTL مع مؤشر الاتصال
           builder: (context, child) {
             return Directionality(
               textDirection: ui.TextDirection.rtl,
-              child: child ?? const SizedBox(),
+              child: Stack(
+                children: [
+                  child ?? const SizedBox(),
+                  // مؤشر حالة الاتصال
+                  const Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SafeArea(
+                      child: ConnectivityBanner(),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
 

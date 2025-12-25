@@ -1,6 +1,10 @@
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 
+import '../../core/services/offline_service.dart';
+import '../../core/services/backup_service.dart';
+import '../../features/products/data/services/stock_management_service.dart';
+
 /// Service Locator الرئيسي للتطبيق
 final GetIt sl = GetIt.instance;
 
@@ -20,11 +24,15 @@ Future<void> setupServiceLocator() async {
     ),
   );
 
-  // سيتم إضافة المزيد من الخدمات هنا لاحقاً:
-  // - Firebase Services
-  // - Repositories
-  // - Use Cases
-  // - etc.
+  // خدمة العمل بدون إنترنت
+  sl.registerLazySingleton<OfflineService>(() => OfflineService());
+
+  // خدمة النسخ الاحتياطي
+  sl.registerLazySingleton<BackupService>(() => BackupService());
+
+  // خدمة إدارة المخزون
+  sl.registerLazySingleton<StockManagementService>(
+      () => StockManagementService());
 
   sl<Logger>().i('✅ Service Locator initialized successfully');
 }

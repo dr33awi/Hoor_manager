@@ -29,28 +29,16 @@ class DirectSaleScreen extends ConsumerStatefulWidget {
   ConsumerState<DirectSaleScreen> createState() => _DirectSaleScreenState();
 }
 
-class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen>
-    with SingleTickerProviderStateMixin {
+class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String? _selectedCategoryId;
   ProductSortType _sortType = ProductSortType.name;
   bool _isGridView = true;
-  late AnimationController _animationController;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-  }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -671,7 +659,7 @@ class _StatItem extends StatelessWidget {
 }
 
 /// بطاقة منتج للبيع المباشر
-class _ProductCard extends StatefulWidget {
+class _ProductCard extends StatelessWidget {
   final ProductEntity product;
   final VoidCallback? onTap;
 
@@ -681,221 +669,182 @@ class _ProductCard extends StatefulWidget {
   });
 
   @override
-  State<_ProductCard> createState() => _ProductCardState();
-}
-
-class _ProductCardState extends State<_ProductCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 150),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) => Transform.scale(
-        scale: _scaleAnimation.value,
-        child: child,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.onTap,
-            onTapDown: (_) => _controller.forward(),
-            onTapUp: (_) => _controller.reverse(),
-            onTapCancel: () => _controller.reverse(),
-            borderRadius: BorderRadius.circular(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // صورة المنتج
-                Expanded(
-                  flex: 5,
-                  child: Stack(
-                    children: [
-                      // خلفية الصورة
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondaryLight.withOpacity(0.5),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16),
-                          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // صورة المنتج
+              Expanded(
+                flex: 5,
+                child: Stack(
+                  children: [
+                    // خلفية الصورة
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryLight.withOpacity(0.5),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
                         ),
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16),
-                          ),
-                          child: widget.product.imageUrl != null
-                              ? Image.network(
-                                  widget.product.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Center(
-                                    child: Icon(
-                                      Icons.image_outlined,
-                                      size: 40,
-                                      color:
-                                          AppColors.textHint.withOpacity(0.5),
-                                    ),
-                                  ),
-                                )
-                              : Center(
+                      ),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
+                        child: product.imageUrl != null
+                            ? Image.network(
+                                product.imageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
                                   child: Icon(
                                     Icons.image_outlined,
                                     size: 40,
                                     color: AppColors.textHint.withOpacity(0.5),
                                   ),
                                 ),
-                        ),
-                      ),
-                      // شارة المخزون
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: widget.product.isLowStock
-                                ? AppColors.warning
-                                : AppColors.success,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (widget.product.isLowStock
-                                        ? AppColors.warning
-                                        : AppColors.success)
-                                    .withOpacity(0.4),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            '${widget.product.totalStock}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // زر بيع سريع
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: Transform.translate(
-                            offset: const Offset(0, 20),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    AppColors.primary,
-                                    AppColors.primary.withOpacity(0.8),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
+                              )
+                            : Center(
+                                child: Icon(
+                                  Icons.image_outlined,
+                                  size: 40,
+                                  color: AppColors.textHint.withOpacity(0.5),
                                 ),
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary.withOpacity(0.4),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
+                              ),
+                      ),
+                    ),
+                    // شارة المخزون
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: product.isLowStock
+                              ? AppColors.warning
+                              : AppColors.success,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (product.isLowStock
+                                      ? AppColors.warning
+                                      : AppColors.success)
+                                  .withOpacity(0.4),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '${product.totalStock}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // زر بيع سريع
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Transform.translate(
+                          offset: const Offset(0, 20),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.primary.withOpacity(0.8),
                                 ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: widget.onTap,
-                                  borderRadius: BorderRadius.circular(25),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(12),
-                                    child: Icon(
-                                      Icons.add_shopping_cart_rounded,
-                                      size: 22,
-                                      color: Colors.white,
-                                    ),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: onTap,
+                                borderRadius: BorderRadius.circular(25),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Icon(
+                                    Icons.add_shopping_cart_rounded,
+                                    size: 22,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // معلومات المنتج
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 24, 12, 12),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        product.name,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              height: 1.2,
+                            ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        product.price.toCurrency(),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
                 ),
-                // معلومات المنتج
-                Expanded(
-                  flex: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 24, 12, 12),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          widget.product.name,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.2,
-                                  ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          widget.product.price.toCurrency(),
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

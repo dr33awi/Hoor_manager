@@ -1,16 +1,37 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../../../core/services/offline_service.dart';
 import '../../data/repositories/category_repository_impl.dart';
 import '../../data/repositories/product_repository_impl.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/product_repository.dart';
 
+// ==================== Offline Service Provider ====================
+
+/// مزود خدمة الأوفلاين
+final offlineServiceProvider = Provider<OfflineService>((ref) {
+  return OfflineService();
+});
+
+/// مزود حالة الاتصال
+final isOnlineProvider = StreamProvider<bool>((ref) {
+  final offlineService = ref.watch(offlineServiceProvider);
+  return offlineService.connectivityStream;
+});
+
+/// مزود عدد العمليات المعلقة
+final pendingOperationsCountProvider = Provider<int>((ref) {
+  final offlineService = ref.watch(offlineServiceProvider);
+  return offlineService.pendingOperationsCount;
+});
+
 // ==================== Repository Providers ====================
 
 /// مزود مستودع المنتجات
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
-  return ProductRepositoryImpl();
+  final offlineService = ref.watch(offlineServiceProvider);
+  return ProductRepositoryImpl(offlineService: offlineService);
 });
 
 /// مزود مستودع الفئات
@@ -161,7 +182,7 @@ final filteredProductsProvider = Provider<List<ProductEntity>>((ref) {
 
 // ==================== Product Actions Notifier ====================
 
-/// إدارة عمليات المنتجات
+/// إدارة عمليات المنتجات مع دعم الأوفلاين
 class ProductActionsNotifier extends StateNotifier<AsyncValue<void>> {
   final ProductRepository _repository;
   final Ref _ref;
@@ -169,7 +190,10 @@ class ProductActionsNotifier extends StateNotifier<AsyncValue<void>> {
   ProductActionsNotifier(this._repository, this._ref)
       : super(const AsyncValue.data(null));
 
-  /// إضافة منتج
+  /// التحقق من حالة الاتصال
+  bool get isOnline => OfflineService().isOnline;
+
+  /// إضافة منتج (يعمل أوفلاين)
   Future<bool> addProduct(ProductEntity product) async {
     state = const AsyncValue.loading();
     final result = await _repository.addProduct(product);
@@ -184,7 +208,7 @@ class ProductActionsNotifier extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  /// تحديث منتج
+  /// تحديث منتج (يعمل أوفلاين)
   Future<bool> updateProduct(ProductEntity product) async {
     state = const AsyncValue.loading();
     final result = await _repository.updateProduct(product);
