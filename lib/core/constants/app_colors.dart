@@ -42,4 +42,20 @@ class AppColors {
   // ألوان أخرى
   static const Color disabled = Color(0xFF9CA3AF);
   static const Color shadow = Color(0x1A000000);
+
+  // ===== ألوان الوضع الداكن =====
+
+  // ألوان الخلفية الداكنة
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkSurface = Color(0xFF1E1E1E);
+  static const Color darkScaffoldBackground = Color(0xFF0A0A0A);
+
+  // ألوان النصوص الداكنة
+  static const Color darkTextPrimary = Color(0xFFE0E0E0);
+  static const Color darkTextSecondary = Color(0xFF9E9E9E);
+  static const Color darkTextHint = Color(0xFF757575);
+
+  // ألوان الحدود الداكنة
+  static const Color darkBorder = Color(0xFF2C2C2C);
+  static const Color darkDivider = Color(0xFF2C2C2C);
 }

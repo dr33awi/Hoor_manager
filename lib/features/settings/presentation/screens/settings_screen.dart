@@ -7,6 +7,7 @@ import '../../../../core/services/backup_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../products/domain/entities/entities.dart';
 import '../../../products/presentation/providers/product_providers.dart';
+import '../providers/theme_provider.dart';
 
 /// شاشة الإعدادات
 class SettingsScreen extends ConsumerWidget {
@@ -112,6 +113,13 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'إضافة وتعديل فئات المنتجات',
               onTap: () => _showCategoriesSheet(context, ref),
             ),
+
+          const Divider(),
+
+          // قسم المظهر
+          _SettingsHeader(title: 'المظهر'),
+
+          _ThemeToggleTile(),
 
           const Divider(),
 
@@ -388,6 +396,28 @@ class _SettingsTile extends StatelessWidget {
       subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: trailing ?? const Icon(Icons.chevron_left),
       onTap: onTap,
+    );
+  }
+}
+
+/// مفتاح تبديل الوضع الداكن
+class _ThemeToggleTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDarkMode = ref.watch(isDarkModeProvider);
+
+    return ListTile(
+      leading: Icon(
+        isDarkMode ? Icons.dark_mode : Icons.light_mode,
+        color: AppColors.primary,
+      ),
+      title: const Text('الوضع الداكن'),
+      subtitle: Text(isDarkMode ? 'مُفعّل' : 'غير مُفعّل'),
+      trailing: Switch(
+        value: isDarkMode,
+        onChanged: (_) => ref.read(isDarkModeProvider.notifier).toggle(),
+      ),
+      onTap: () => ref.read(isDarkModeProvider.notifier).toggle(),
     );
   }
 }

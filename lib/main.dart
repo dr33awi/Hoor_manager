@@ -17,6 +17,7 @@ import 'core/services/storage_service.dart';
 import 'core/services/offline_service.dart';
 import 'features/products/presentation/providers/product_providers.dart';
 import 'features/sales/presentation/providers/sales_providers.dart';
+import 'features/settings/presentation/providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,15 +56,6 @@ Future<void> _initializeApp() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // إعداد لون شريط الحالة
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
-    ),
-  );
 }
 
 /// التطبيق الرئيسي
@@ -93,6 +85,18 @@ class _HoorAppState extends ConsumerState<HoorApp> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ref.watch(isDarkModeProvider);
+
+    // تحديث ألوان شريط النظام بناءً على الوضع
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDarkMode ? Brightness.light : Brightness.light,
+        systemNavigationBarColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        systemNavigationBarIconBrightness: isDarkMode ? Brightness.light : Brightness.dark,
+      ),
+    );
+
     return ScreenUtilInit(
       // أبعاد التصميم الأساسية (iPhone 14)
       designSize: const Size(393, 852),
@@ -106,6 +110,8 @@ class _HoorAppState extends ConsumerState<HoorApp> {
 
           // الثيم
           theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
 
           // دعم اللغة العربية
           locale: const Locale('ar'),

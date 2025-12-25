@@ -130,4 +130,14 @@ class StorageService {
   bool getNotificationsEnabled() {
     return getSetting<bool>('notifications_enabled', defaultValue: true) ?? true;
   }
+
+  /// حفظ وضع الثيم (true = داكن، false = فاتح)
+  Future<void> setDarkMode(bool value) async {
+    await saveSetting('dark_mode', value);
+  }
+
+  /// قراءة وضع الثيم
+  bool getDarkMode() {
+    return getSetting<bool>('dark_mode', defaultValue: false) ?? false;
+  }
 }
