@@ -68,12 +68,6 @@ class DashboardScreen extends ConsumerWidget {
           error: (e, _) => Center(child: Text('خطأ: $e')),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'dashboard_fab',
-        onPressed: () => context.push('/sales/new'),
-        icon: const Icon(Icons.add_shopping_cart),
-        label: const Text('بيع جديد'),
-      ),
     );
   }
 

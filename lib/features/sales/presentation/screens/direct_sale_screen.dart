@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,6 +13,14 @@ import '../../domain/entities/entities.dart';
 import '../../domain/repositories/sales_repository.dart';
 import '../providers/sales_providers.dart';
 
+/// ترتيب المنتجات
+enum ProductSortType {
+  name,
+  price,
+  stock,
+  bestSelling,
+}
+
 /// شاشة البيع المباشر - بدون سلة
 class DirectSaleScreen extends ConsumerStatefulWidget {
   const DirectSaleScreen({super.key});
@@ -20,13 +29,28 @@ class DirectSaleScreen extends ConsumerStatefulWidget {
   ConsumerState<DirectSaleScreen> createState() => _DirectSaleScreenState();
 }
 
-class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
+class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen>
+    with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String? _selectedCategoryId;
+  ProductSortType _sortType = ProductSortType.name;
+  bool _isGridView = true;
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -35,12 +59,35 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
     final productsAsync = ref.watch(allProductsStreamProvider);
     final todayStats = ref.watch(todayStatsProvider);
     final todayInvoices = ref.watch(todayInvoicesProvider);
+    final categoriesAsync = ref.watch(categoriesProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('البيع المباشر'),
         centerTitle: true,
         actions: [
+          // زر تبديل العرض
+          IconButton(
+            icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+            tooltip: _isGridView ? 'عرض قائمة' : 'عرض شبكة',
+            onPressed: () => setState(() => _isGridView = !_isGridView),
+          ),
+          // زر الترتيب
+          PopupMenuButton<ProductSortType>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'ترتيب',
+            onSelected: (type) => setState(() => _sortType = type),
+            itemBuilder: (context) => [
+              _buildSortMenuItem(
+                  ProductSortType.name, 'الاسم', Icons.sort_by_alpha),
+              _buildSortMenuItem(
+                  ProductSortType.price, 'السعر', Icons.attach_money),
+              _buildSortMenuItem(
+                  ProductSortType.stock, 'المخزون', Icons.inventory),
+              _buildSortMenuItem(ProductSortType.bestSelling, 'الأكثر مبيعاً',
+                  Icons.trending_up),
+            ],
+          ),
           // زر إحصائيات اليوم
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
@@ -57,6 +104,20 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
       ),
       body: Column(
         children: [
+          // شريط الإحصائيات السريعة
+          todayStats.when(
+            data: (stats) => _buildQuickStats(stats),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+
+          // شريط الفئات
+          categoriesAsync.when(
+            data: (categories) => _buildCategoriesBar(categories),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+
           // شريط البحث
           Padding(
             padding: const EdgeInsets.all(AppSizes.md),
@@ -95,26 +156,13 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
           Expanded(
             child: productsAsync.when(
               data: (products) {
-                final filtered = _filterProducts(products);
+                final filtered = _filterAndSortProducts(products);
                 if (filtered.isEmpty) {
                   return _buildEmptyState();
                 }
-                return GridView.builder(
-                  padding: const EdgeInsets.all(AppSizes.md),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: AppSizes.sm,
-                    mainAxisSpacing: AppSizes.sm,
-                  ),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    return _ProductCard(
-                      product: filtered[index],
-                      onTap: () => _showDirectSaleDialog(filtered[index]),
-                    );
-                  },
-                );
+                return _isGridView
+                    ? _buildGridView(filtered)
+                    : _buildListView(filtered);
               },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
@@ -139,10 +187,143 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
     );
   }
 
+  PopupMenuItem<ProductSortType> _buildSortMenuItem(
+      ProductSortType type, String label, IconData icon) {
+    return PopupMenuItem(
+      value: type,
+      child: Row(
+        children: [
+          Icon(icon,
+              size: 20, color: _sortType == type ? AppColors.primary : null),
+          const SizedBox(width: AppSizes.sm),
+          Text(label),
+          if (_sortType == type) ...[
+            const Spacer(),
+            const Icon(Icons.check, size: 18, color: AppColors.primary),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoriesBar(List<CategoryEntity> categories) {
+    return SizedBox(
+      height: 50,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+        itemCount: categories.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(left: AppSizes.sm),
+              child: FilterChip(
+                label: const Text('الكل'),
+                selected: _selectedCategoryId == null,
+                onSelected: (_) => setState(() => _selectedCategoryId = null),
+                selectedColor: AppColors.primary.withOpacity(0.2),
+              ),
+            );
+          }
+          final category = categories[index - 1];
+          return Padding(
+            padding: const EdgeInsets.only(left: AppSizes.sm),
+            child: FilterChip(
+              label: Text(category.name),
+              selected: _selectedCategoryId == category.id,
+              onSelected: (_) =>
+                  setState(() => _selectedCategoryId = category.id),
+              selectedColor: AppColors.primary.withOpacity(0.2),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGridView(List<ProductEntity> products) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(AppSizes.md),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+        childAspectRatio: 0.75,
+        crossAxisSpacing: AppSizes.sm,
+        mainAxisSpacing: AppSizes.sm,
+      ),
+      itemCount: products.length,
+      itemBuilder: (context, index) {
+        return _ProductCard(
+          product: products[index],
+          onTap: () => _showDirectSaleDialog(products[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildListView(List<ProductEntity> products) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSizes.md),
+      itemCount: products.length,
+      itemBuilder: (context, index) {
+        final product = products[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: AppSizes.sm),
+          child: ListTile(
+            leading: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.secondaryLight,
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+              ),
+              child: product.imageUrl != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                      child:
+                          Image.network(product.imageUrl!, fit: BoxFit.cover),
+                    )
+                  : const Icon(Icons.image, color: AppColors.textHint),
+            ),
+            title: Text(product.name,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: product.isLowStock
+                        ? AppColors.warning
+                        : AppColors.success,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${product.totalStock}',
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.sm),
+                Text(product.price.toCurrency(),
+                    style: TextStyle(color: AppColors.primary)),
+              ],
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.add_shopping_cart),
+              color: AppColors.primary,
+              onPressed: () => _showDirectSaleDialog(product),
+            ),
+            onTap: () => _showDirectSaleDialog(product),
+          ),
+        );
+      },
+    );
+  }
+
   /// إحصائيات سريعة في الأعلى
   Widget _buildQuickStats(DailySalesStats stats) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppSizes.md, vertical: AppSizes.sm),
       padding: const EdgeInsets.all(AppSizes.md),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -151,6 +332,13 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -180,17 +368,46 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
     );
   }
 
-  List<ProductEntity> _filterProducts(List<ProductEntity> products) {
-    if (_searchQuery.isEmpty) {
-      return products.where((p) => p.isActive && p.totalStock > 0).toList();
+  List<ProductEntity> _filterAndSortProducts(List<ProductEntity> products) {
+    var filtered =
+        products.where((p) => p.isActive && p.totalStock > 0).toList();
+
+    // فلترة حسب الفئة
+    if (_selectedCategoryId != null) {
+      filtered =
+          filtered.where((p) => p.categoryId == _selectedCategoryId).toList();
     }
 
-    final query = _searchQuery.toLowerCase();
-    return products.where((p) {
-      if (!p.isActive || p.totalStock <= 0) return false;
-      return p.name.toLowerCase().contains(query) ||
-          (p.barcode?.contains(_searchQuery) ?? false);
-    }).toList();
+    // فلترة حسب البحث
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((p) {
+        return p.name.toLowerCase().contains(query) ||
+            (p.barcode?.contains(_searchQuery) ?? false);
+      }).toList();
+    }
+
+    // الترتيب
+    switch (_sortType) {
+      case ProductSortType.name:
+        filtered.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case ProductSortType.price:
+        filtered.sort((a, b) => b.price.compareTo(a.price));
+        break;
+      case ProductSortType.stock:
+        filtered.sort((a, b) => a.totalStock.compareTo(b.totalStock));
+        break;
+      case ProductSortType.bestSelling:
+        // يمكن إضافة حقل للمبيعات لاحقاً
+        break;
+    }
+
+    return filtered;
+  }
+
+  List<ProductEntity> _filterProducts(List<ProductEntity> products) {
+    return _filterAndSortProducts(products);
   }
 
   Widget _buildEmptyState() {
@@ -263,6 +480,10 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
 
   /// عرض حوار نجاح البيع
   void _showSaleSuccessDialog(InvoiceEntity invoice) {
+    // تشغيل صوت النجاح
+    HapticFeedback.mediumImpact();
+    SystemSound.play(SystemSoundType.click);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -283,11 +504,26 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
             ),
             if (invoice.change > 0) ...[
               const SizedBox(height: AppSizes.sm),
-              Text(
-                'الباقي: ${invoice.change.toCurrency()}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.success,
+              Container(
+                padding: const EdgeInsets.all(AppSizes.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.money, color: AppColors.success),
+                    const SizedBox(width: AppSizes.sm),
+                    Text(
+                      'الباقي: ${invoice.change.toCurrency()}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
+                  ],
+                ),
               ),
             ],
           ],
@@ -295,18 +531,51 @@ class _DirectSaleScreenState extends ConsumerState<DirectSaleScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.lg, vertical: AppSizes.sm),
+            ),
             child: const Text('إغلاق'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.push('/sales/${invoice.id}');
-            },
-            child: const Text('عرض الفاتورة'),
-          ),
         ],
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding: const EdgeInsets.only(bottom: AppSizes.md),
       ),
     );
+
+    // عرض خيارات إضافية بعد إغلاق الحوار الأول
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        showModalBottomSheet(
+          context: context,
+          builder: (context) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSizes.md),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push('/sales/${invoice.id}');
+                      },
+                      icon: const Icon(Icons.visibility),
+                      label: const Text('عرض الفاتورة والطباعة'),
+                      style: ElevatedButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: AppSizes.md),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    });
 
     // تحديث الإحصائيات والفواتير
     ref.invalidate(todayStatsProvider);
@@ -402,7 +671,7 @@ class _StatItem extends StatelessWidget {
 }
 
 /// بطاقة منتج للبيع المباشر
-class _ProductCard extends StatelessWidget {
+class _ProductCard extends StatefulWidget {
   final ProductEntity product;
   final VoidCallback? onTap;
 
@@ -412,96 +681,222 @@ class _ProductCard extends StatelessWidget {
   });
 
   @override
+  State<_ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<_ProductCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // صورة المنتج
-            Expanded(
-              flex: 3,
-              child: Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    color: AppColors.secondaryLight,
-                    child: product.imageUrl != null
-                        ? Image.network(
-                            product.imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.image,
-                              size: 48,
-                              color: AppColors.textHint,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.image,
-                            size: 48,
-                            color: AppColors.textHint,
-                          ),
-                  ),
-                  // شارة المخزون
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: product.isLowStock
-                            ? AppColors.warning
-                            : AppColors.success,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${product.totalStock}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // معلومات المنتج
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSizes.sm),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Text(
-                      product.price.toCurrency(),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) => Transform.scale(
+        scale: _scaleAnimation.value,
+        child: child,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            onTapDown: (_) => _controller.forward(),
+            onTapUp: (_) => _controller.reverse(),
+            onTapCancel: () => _controller.reverse(),
+            borderRadius: BorderRadius.circular(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // صورة المنتج
+                Expanded(
+                  flex: 5,
+                  child: Stack(
+                    children: [
+                      // خلفية الصورة
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: AppColors.secondaryLight.withOpacity(0.5),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          child: widget.product.imageUrl != null
+                              ? Image.network(
+                                  widget.product.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Center(
+                                    child: Icon(
+                                      Icons.image_outlined,
+                                      size: 40,
+                                      color:
+                                          AppColors.textHint.withOpacity(0.5),
+                                    ),
+                                  ),
+                                )
+                              : Center(
+                                  child: Icon(
+                                    Icons.image_outlined,
+                                    size: 40,
+                                    color: AppColors.textHint.withOpacity(0.5),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      // شارة المخزون
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.product.isLowStock
+                                ? AppColors.warning
+                                : AppColors.success,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (widget.product.isLowStock
+                                        ? AppColors.warning
+                                        : AppColors.success)
+                                    .withOpacity(0.4),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            '${widget.product.totalStock}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // زر بيع سريع
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Transform.translate(
+                            offset: const Offset(0, 20),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppColors.primary,
+                                    AppColors.primary.withOpacity(0.8),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withOpacity(0.4),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: widget.onTap,
+                                  borderRadius: BorderRadius.circular(25),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Icon(
+                                      Icons.add_shopping_cart_rounded,
+                                      size: 22,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // معلومات المنتج
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 24, 12, 12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          widget.product.name,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          widget.product.price.toCurrency(),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

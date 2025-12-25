@@ -94,11 +94,13 @@ class SalesScreen extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         heroTag: 'sales_fab',
         onPressed: () => context.push(AppRoutes.newSale),
-        icon: const Icon(Icons.add_shopping_cart),
-        label: const Text(AppStrings.newSale),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 6,
+        child: const Icon(Icons.add_shopping_cart),
       ),
     );
   }

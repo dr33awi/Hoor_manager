@@ -91,15 +91,13 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         heroTag: 'products_fab',
         onPressed: () => context.push(AppRoutes.addProduct),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          AppStrings.addProduct,
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
         backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 6,
+        child: const Icon(Icons.add),
       ),
     );
   }
