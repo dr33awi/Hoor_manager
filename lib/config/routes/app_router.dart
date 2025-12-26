@@ -38,6 +38,7 @@ class AppRoutes {
   // المسارات الرئيسية بعد تسجيل الدخول
   static const String home = '/home';
   static const String products = '/products';
+  static const String inventory = '/inventory';
   static const String addProduct = '/products/add';
   static const String editProduct = '/products/edit/:id';
   static const String productDetails = '/products/:id';
@@ -45,6 +46,7 @@ class AppRoutes {
   static const String sales = '/sales';
   static const String newSale = '/sales/new';
   static const String directSale = '/sales/direct';
+  static const String invoices = '/invoices';
   static const String invoiceDetails = '/sales/:id';
 
   static const String reports = '/reports';
@@ -225,6 +227,26 @@ class AppRouter {
             },
           ),
         ],
+      ),
+
+      // Invoices Route
+      GoRoute(
+        path: AppRoutes.invoices,
+        name: 'invoices',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const InvoicesScreen(),
+        ),
+      ),
+
+      // Inventory Route
+      GoRoute(
+        path: AppRoutes.inventory,
+        name: 'inventory',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const InventoryScreen(),
+        ),
       ),
 
       // Reports Routes

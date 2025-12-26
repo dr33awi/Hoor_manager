@@ -667,7 +667,20 @@ class SalesRepositoryImpl implements SalesRepository {
         }
       }
 
-      firebaseInvoices.sort((a, b) => b.saleDate.compareTo(a.saleDate));
+      // ترتيب الفواتير: حسب الحالة أولاً ثم حسب التاريخ
+      firebaseInvoices.sort((a, b) {
+        // ترتيب الحالات: مكتملة (0) > ملغاة (1) > مسترجعة (2)
+        final statusOrder = {
+          InvoiceStatus.completed: 0,
+          InvoiceStatus.cancelled: 1,
+          InvoiceStatus.refunded: 2,
+        };
+        final statusCompare =
+            statusOrder[a.status]!.compareTo(statusOrder[b.status]!);
+        if (statusCompare != 0) return statusCompare;
+        // داخل نفس الحالة، رتب حسب التاريخ (الأحدث أولاً)
+        return b.saleDate.compareTo(a.saleDate);
+      });
       return firebaseInvoices;
     });
   }
@@ -713,7 +726,20 @@ class SalesRepositoryImpl implements SalesRepository {
         }
       }
 
-      firebaseInvoices.sort((a, b) => b.saleDate.compareTo(a.saleDate));
+      // ترتيب الفواتير: حسب الحالة أولاً ثم حسب التاريخ
+      firebaseInvoices.sort((a, b) {
+        // ترتيب الحالات: مكتملة (0) > ملغاة (1) > مسترجعة (2)
+        final statusOrder = {
+          InvoiceStatus.completed: 0,
+          InvoiceStatus.cancelled: 1,
+          InvoiceStatus.refunded: 2,
+        };
+        final statusCompare =
+            statusOrder[a.status]!.compareTo(statusOrder[b.status]!);
+        if (statusCompare != 0) return statusCompare;
+        // داخل نفس الحالة، رتب حسب التاريخ (الأحدث أولاً)
+        return b.saleDate.compareTo(a.saleDate);
+      });
       return firebaseInvoices;
     });
   }

@@ -86,6 +86,13 @@ class AppDrawer extends ConsumerWidget {
                     index: 1,
                     isSelected: currentIndex == 1,
                   ),
+                  _buildQuickActionItem(
+                    context: context,
+                    icon: Icons.warehouse_outlined,
+                    title: 'المخزون',
+                    route: '/inventory',
+                    color: AppColors.warning,
+                  ),
                   _buildNavItem(
                     context: context,
                     icon: Icons.point_of_sale_outlined,
@@ -93,6 +100,13 @@ class AppDrawer extends ConsumerWidget {
                     title: 'المبيعات',
                     index: 2,
                     isSelected: currentIndex == 2,
+                  ),
+                  _buildQuickActionItem(
+                    context: context,
+                    icon: Icons.receipt_long_outlined,
+                    title: 'الفواتير',
+                    route: '/invoices',
+                    color: AppColors.info,
                   ),
                   _buildNavItem(
                     context: context,

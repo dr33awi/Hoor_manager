@@ -57,15 +57,25 @@ class SalesScreen extends ConsumerWidget {
                       'فواتير اليوم',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    todayInvoicesAsync
-                            .whenData(
-                              (invoices) => Text(
-                                '${invoices.length} فاتورة',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            )
-                            .value ??
-                        const SizedBox.shrink(),
+                    Row(
+                      children: [
+                        todayInvoicesAsync
+                                .whenData(
+                                  (invoices) => Text(
+                                    '${invoices.length} فاتورة',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                )
+                                .value ??
+                            const SizedBox.shrink(),
+                        const SizedBox(width: AppSizes.sm),
+                        TextButton(
+                          onPressed: () => context.push('/invoices'),
+                          child: const Text('عرض الكل'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
