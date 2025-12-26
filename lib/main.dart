@@ -19,6 +19,12 @@ import 'core/services/storage_service.dart';
 import 'core/services/offline_service.dart';
 import 'features/products/presentation/providers/product_providers.dart';
 import 'features/sales/presentation/providers/sales_providers.dart';
+import 'features/customers/presentation/providers/customer_providers.dart';
+import 'features/suppliers/presentation/providers/supplier_providers.dart';
+import 'features/purchases/presentation/providers/purchase_providers.dart';
+import 'features/payments/presentation/providers/payment_providers.dart';
+import 'features/inventory/presentation/providers/inventory_providers.dart';
+import 'features/accounts/presentation/providers/account_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +101,12 @@ class _HoorAppState extends ConsumerState<HoorApp> {
     // قراءة الـ repositories لتفعيل callbacks
     ref.read(productRepositoryProvider);
     ref.read(salesRepositoryProvider);
+    ref.read(customerRepositoryProvider);
+    ref.read(supplierRepositoryProvider);
+    ref.read(purchaseRepositoryProvider);
+    ref.read(paymentRepositoryProvider);
+    ref.read(inventoryRepositoryProvider);
+    ref.read(accountRepositoryProvider);
   }
 
   @override
@@ -135,7 +147,7 @@ class _HoorAppState extends ConsumerState<HoorApp> {
               textDirection: ui.TextDirection.rtl,
               child: Stack(
                 children: [
-                  devicePreviewChild ?? const SizedBox(),
+                  devicePreviewChild,
                   // مؤشر حالة الاتصال
                   const Positioned(
                     top: 0,

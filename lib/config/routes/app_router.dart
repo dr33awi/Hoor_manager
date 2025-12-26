@@ -8,6 +8,12 @@ import '../../features/sales/presentation/screens/screens.dart';
 import '../../features/reports/presentation/screens/screens.dart';
 import '../../features/home/presentation/screens/screens.dart';
 import '../../features/settings/presentation/screens/screens.dart';
+import '../../features/customers/presentation/screens/screens.dart';
+import '../../features/suppliers/presentation/screens/screens.dart';
+import '../../features/purchases/presentation/screens/screens.dart';
+import '../../features/payments/presentation/screens/screens.dart';
+import '../../features/inventory/presentation/screens/screens.dart';
+import '../../features/accounts/presentation/screens/screens.dart';
 
 /// صفحة بدون أنيميشن
 class NoTransitionPage<T> extends CustomTransitionPage<T> {
@@ -57,6 +63,24 @@ class AppRoutes {
 
   static const String settings = '/settings';
   static const String users = '/users';
+
+  // الوحدات الجديدة
+  static const String customers = '/customers';
+  static const String addCustomer = '/customers/add';
+  static const String editCustomer = '/customers/edit/:id';
+  static const String customerDetails = '/customers/:id';
+
+  static const String suppliers = '/suppliers';
+  static const String addSupplier = '/suppliers/add';
+  static const String editSupplier = '/suppliers/edit/:id';
+  static const String supplierDetails = '/suppliers/:id';
+
+  static const String purchases = '/purchases';
+  static const String addPurchase = '/purchases/add';
+  static const String purchaseDetails = '/purchases/:id';
+
+  static const String payments = '/payments';
+  static const String accounts = '/accounts';
 
   /// المسارات التي لا تحتاج مصادقة
   static const List<String> publicRoutes = [
@@ -310,6 +334,141 @@ class AppRouter {
         pageBuilder: (context, state) => NoTransitionPage(
           key: state.pageKey,
           child: const UsersManagementScreen(),
+        ),
+      ),
+
+      // Customers Routes - العملاء
+      GoRoute(
+        path: AppRoutes.customers,
+        name: 'customers',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const CustomersScreen(),
+        ),
+        routes: [
+          GoRoute(
+            path: 'add',
+            name: 'addCustomer',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const AddEditCustomerScreen(),
+            ),
+          ),
+          GoRoute(
+            path: 'edit/:id',
+            name: 'editCustomer',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(
+                key: state.pageKey,
+                child: AddEditCustomerScreen(customerId: id),
+              );
+            },
+          ),
+          GoRoute(
+            path: ':id',
+            name: 'customerDetails',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(
+                key: state.pageKey,
+                child: CustomerDetailsScreen(customerId: id),
+              );
+            },
+          ),
+        ],
+      ),
+
+      // Suppliers Routes - الموردين
+      GoRoute(
+        path: AppRoutes.suppliers,
+        name: 'suppliers',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const SuppliersScreen(),
+        ),
+        routes: [
+          GoRoute(
+            path: 'add',
+            name: 'addSupplier',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const AddEditSupplierScreen(),
+            ),
+          ),
+          GoRoute(
+            path: 'edit/:id',
+            name: 'editSupplier',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(
+                key: state.pageKey,
+                child: AddEditSupplierScreen(supplierId: id),
+              );
+            },
+          ),
+          GoRoute(
+            path: ':id',
+            name: 'supplierDetails',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(
+                key: state.pageKey,
+                child: SupplierDetailsScreen(supplierId: id),
+              );
+            },
+          ),
+        ],
+      ),
+
+      // Purchases Routes - المشتريات
+      GoRoute(
+        path: AppRoutes.purchases,
+        name: 'purchases',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const PurchasesScreen(),
+        ),
+        routes: [
+          GoRoute(
+            path: 'add',
+            name: 'addPurchase',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const AddEditPurchaseScreen(),
+            ),
+          ),
+          GoRoute(
+            path: ':id',
+            name: 'purchaseDetails',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(
+                key: state.pageKey,
+                child: PurchaseDetailsScreen(purchaseId: id),
+              );
+            },
+          ),
+        ],
+      ),
+
+      // Payments Routes - السندات المالية
+      GoRoute(
+        path: AppRoutes.payments,
+        name: 'payments',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const PaymentsScreen(),
+        ),
+      ),
+
+      // Accounts Routes - الحسابات
+      GoRoute(
+        path: AppRoutes.accounts,
+        name: 'accounts',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const AccountsScreen(),
         ),
       ),
     ],

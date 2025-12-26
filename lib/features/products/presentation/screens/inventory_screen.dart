@@ -86,15 +86,17 @@ final filteredStockProductsProvider =
   );
 });
 
-/// شاشة إدارة المخزون
-class InventoryScreen extends ConsumerStatefulWidget {
-  const InventoryScreen({super.key});
+/// شاشة إدارة المخزون (مخزون المنتجات)
+class ProductInventoryScreen extends ConsumerStatefulWidget {
+  const ProductInventoryScreen({super.key});
 
   @override
-  ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
+  ConsumerState<ProductInventoryScreen> createState() =>
+      _ProductInventoryScreenState();
 }
 
-class _InventoryScreenState extends ConsumerState<InventoryScreen> {
+class _ProductInventoryScreenState
+    extends ConsumerState<ProductInventoryScreen> {
   final _searchController = TextEditingController();
 
   @override
