@@ -5,6 +5,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../app/providers/database_providers.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../data/repositories/invoice_repository.dart';
+import '../../../../shared/services/print_service.dart';
 import '../../data/models/cart_item.dart';
 
 /// صفحة فاتورة المشتريات
@@ -568,8 +569,56 @@ class _PurchaseInvoicePageState extends ConsumerState<PurchaseInvoicePage> {
       ref.invalidate(allProductsProvider);
 
       if (mounted) {
-        showSnackBar(context, 'تم حفظ فاتورة المشتريات بنجاح');
-        Navigator.pop(context, true);
+        final printChoice = await showDialog<String>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('تم حفظ الفاتورة بنجاح'),
+            content: const Text('هل تريد طباعة الفاتورة؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'none'),
+                child: const Text('لا'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, 'print'),
+                child: const Text('طباعة'),
+              ),
+            ],
+          ),
+        );
+
+        if (printChoice == 'print' && mounted) {
+          final printableItems = _cartItems
+              .map((item) => PrintableInvoiceItem(
+                    name: item.name,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    lineTotal: item.lineTotal,
+                  ))
+              .toList();
+
+          final invoiceNumber =
+              DateTime.now().millisecondsSinceEpoch.toString().substring(5);
+
+          await PrintService.previewInvoice(
+            context: context,
+            invoiceNumber: invoiceNumber,
+            invoiceType: 'PURCHASE',
+            date: DateTime.now(),
+            partyName: _selectedSupplierName,
+            items: printableItems,
+            subtotal: _subtotal,
+            discountAmount: _totalDiscount,
+            taxAmount: _taxAmount,
+            total: _total,
+            paidAmount: _paymentMethod == 'CASH' ? _total : _paidAmount,
+            paymentMethod: _paymentMethod,
+          );
+        }
+
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {

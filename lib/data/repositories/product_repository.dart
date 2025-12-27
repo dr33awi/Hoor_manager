@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../database.dart';
 import '../../app/constants/app_constants.dart';
 
@@ -9,12 +10,18 @@ class ProductRepository {
   ProductRepository(this._db);
 
   /// الحصول على جميع المنتجات
-  Future<List<Product>> getAllProducts({bool activeOnly = true}) {
+  Future<List<Product>> getAllProducts({bool activeOnly = true}) async {
     final query = _db.select(_db.products);
     if (activeOnly) {
       query.where((p) => p.isActive.equals(true));
     }
-    return query.get();
+    final products = await query.get();
+    debugPrint('📦 getAllProducts: تم جلب ${products.length} منتج');
+    for (var p in products) {
+      debugPrint(
+          '   - ${p.name} (ID: ${p.id}, نشط: ${p.isActive}, كمية: ${p.qty})');
+    }
+    return products;
   }
 
   /// الحصول على منتج بالمعرف

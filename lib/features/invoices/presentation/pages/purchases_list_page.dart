@@ -5,6 +5,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../app/routes/app_router.dart';
 import '../../../../app/providers/database_providers.dart';
 import '../../../../data/database.dart';
+import '../../../../shared/services/print_service.dart';
 
 /// صفحة استعراض المشتريات
 class PurchasesListPage extends ConsumerStatefulWidget {
@@ -130,9 +131,7 @@ class _PurchasesListPageState extends ConsumerState<PurchasesListPage> {
                         ),
                       ],
                     ),
-                    onTap: () {
-                      // عرض تفاصيل الفاتورة
-                    },
+                    onTap: () => _showInvoiceDetails(invoice),
                   ),
                 );
               },
@@ -175,6 +174,284 @@ class _PurchasesListPageState extends ConsumerState<PurchasesListPage> {
               icon: const Icon(Icons.add),
               label: const Text('فاتورة جديدة'),
             ),
+    );
+  }
+
+  void _showInvoiceDetails(Invoice invoice) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => _PurchaseInvoiceDetailsSheet(
+          invoice: invoice,
+          scrollController: scrollController,
+          dateFormat: _dateFormat,
+          currencyFormat: _currencyFormat,
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseInvoiceDetailsSheet extends ConsumerWidget {
+  final Invoice invoice;
+  final ScrollController scrollController;
+  final DateFormat dateFormat;
+  final NumberFormat currencyFormat;
+
+  const _PurchaseInvoiceDetailsSheet({
+    required this.invoice,
+    required this.scrollController,
+    required this.dateFormat,
+    required this.currencyFormat,
+  });
+
+  Future<void> _printInvoice(BuildContext context, WidgetRef ref) async {
+    final items = await ref.read(invoiceItemsProvider(invoice.id).future);
+    final products = await Future.wait(
+      items.map((item) => ref.read(productByIdProvider(item.productId).future)),
+    );
+
+    final printableItems = items.asMap().entries.map((entry) {
+      final item = entry.value;
+      final product = products[entry.key];
+      return PrintableInvoiceItem(
+        name: product?.name ?? 'منتج غير معروف',
+        quantity: item.qty,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal,
+      );
+    }).toList();
+
+    if (context.mounted) {
+      await PrintService.previewInvoice(
+        context: context,
+        invoiceNumber: invoice.number,
+        invoiceType: invoice.type,
+        date: invoice.invoiceDate,
+        items: printableItems,
+        subtotal: invoice.subtotal,
+        discountAmount: invoice.discountAmount,
+        taxAmount: invoice.taxAmount,
+        total: invoice.total,
+        paidAmount: invoice.paidAmount,
+        paymentMethod: invoice.paymentMethod,
+      );
+    }
+  }
+
+  Future<void> _shareInvoice(WidgetRef ref) async {
+    final items = await ref.read(invoiceItemsProvider(invoice.id).future);
+    final products = await Future.wait(
+      items.map((item) => ref.read(productByIdProvider(item.productId).future)),
+    );
+
+    final printableItems = items.asMap().entries.map((entry) {
+      final item = entry.value;
+      final product = products[entry.key];
+      return PrintableInvoiceItem(
+        name: product?.name ?? 'منتج غير معروف',
+        quantity: item.qty,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal,
+      );
+    }).toList();
+
+    await PrintService.shareInvoice(
+      invoiceNumber: invoice.number,
+      invoiceType: invoice.type,
+      date: invoice.invoiceDate,
+      items: printableItems,
+      subtotal: invoice.subtotal,
+      discountAmount: invoice.discountAmount,
+      taxAmount: invoice.taxAmount,
+      total: invoice.total,
+      paidAmount: invoice.paidAmount,
+      paymentMethod: invoice.paymentMethod,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final itemsAsync = ref.watch(invoiceItemsProvider(invoice.id));
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSizes.paddingMD),
+            child: Row(
+              children: [
+                const Icon(Icons.shopping_cart, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Text(
+                  'فاتورة #${invoice.number}',
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.print),
+                  onPressed: () => _printInvoice(context, ref),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed: () => _shareInvoice(ref),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(AppSizes.paddingMD),
+              children: [
+                _DetailRow(
+                    label: 'التاريخ',
+                    value: dateFormat.format(invoice.invoiceDate)),
+                _DetailRow(label: 'الحالة', value: invoice.status),
+                _DetailRow(label: 'طريقة الدفع', value: invoice.paymentMethod),
+                const Divider(height: 24),
+                const Text('البنود',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                itemsAsync.when(
+                  data: (items) => Column(
+                    children: items
+                        .map((item) => _ItemRow(
+                            item: item, currencyFormat: currencyFormat))
+                        .toList(),
+                  ),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, s) => Text('خطأ: $e'),
+                ),
+                const Divider(height: 24),
+                _DetailRow(
+                    label: 'المجموع الفرعي',
+                    value: currencyFormat.format(invoice.subtotal)),
+                if (invoice.discountAmount > 0)
+                  _DetailRow(
+                      label: 'الخصم',
+                      value:
+                          '- ${currencyFormat.format(invoice.discountAmount)}',
+                      valueColor: AppColors.error),
+                if (invoice.taxAmount > 0)
+                  _DetailRow(
+                      label: 'الضريبة',
+                      value: currencyFormat.format(invoice.taxAmount)),
+                _DetailRow(
+                    label: 'الإجمالي',
+                    value: currencyFormat.format(invoice.total),
+                    isTotal: true),
+                const SizedBox(height: 8),
+                _DetailRow(
+                    label: 'المدفوع',
+                    value: currencyFormat.format(invoice.paidAmount),
+                    valueColor: AppColors.success),
+                _DetailRow(
+                    label: 'المتبقي',
+                    value: currencyFormat.format(invoice.dueAmount),
+                    valueColor: invoice.dueAmount > 0
+                        ? AppColors.warning
+                        : AppColors.success),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final bool isTotal;
+
+  const _DetailRow(
+      {required this.label,
+      required this.value,
+      this.valueColor,
+      this.isTotal = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: isTotal ? 16 : 14,
+                  fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: isTotal ? 18 : 14,
+                  fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+                  color: valueColor ?? (isTotal ? AppColors.primary : null))),
+        ],
+      ),
+    );
+  }
+}
+
+class _ItemRow extends ConsumerWidget {
+  final InvoiceItem item;
+  final NumberFormat currencyFormat;
+
+  const _ItemRow({required this.item, required this.currencyFormat});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final productAsync = ref.watch(productByIdProvider(item.productId));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.grey[200]!))),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                productAsync.when(
+                  data: (product) => Text(product?.name ?? 'منتج غير معروف',
+                      style: const TextStyle(fontWeight: FontWeight.w500)),
+                  loading: () => const Text('جاري التحميل...'),
+                  error: (e, s) => const Text('خطأ'),
+                ),
+                Text('${item.qty} × ${currencyFormat.format(item.unitPrice)}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              ],
+            ),
+          ),
+          Text(currencyFormat.format(item.lineTotal),
+              style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
+      ),
     );
   }
 }

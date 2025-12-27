@@ -7,7 +7,8 @@ import '../../data/database.dart';
 
 /// خدمة طباعة الفواتير والمستندات
 class PrintService {
-  static final _currencyFormat = intl.NumberFormat.currency(locale: 'ar_SA', symbol: 'ر.س');
+  static final _currencyFormat =
+      intl.NumberFormat.currency(locale: 'ar_SA', symbol: 'ر.س');
   static final _dateFormat = intl.DateFormat('yyyy/MM/dd HH:mm', 'ar');
 
   /// طباعة فاتورة
@@ -95,8 +96,8 @@ class PrintService {
                 ),
                 IconButton(
                   icon: const Icon(Icons.share),
-                  onPressed: () => Printing.sharePdf(
-                    bytes: pdf.save(),
+                  onPressed: () async => Printing.sharePdf(
+                    bytes: await pdf.save(),
                     filename: 'فاتورة_$invoiceNumber.pdf',
                   ),
                 ),
@@ -130,7 +131,7 @@ class PrintService {
     String? notes,
   }) async {
     final pdf = pw.Document();
-    
+
     // تحميل الخط العربي
     final arabicFont = await PdfGoogleFonts.cairoRegular();
     final arabicFontBold = await PdfGoogleFonts.cairoBold();
@@ -149,26 +150,28 @@ class PrintService {
               // الترويسة
               _buildHeader(arabicFontBold, invoiceTypeText, invoiceColor),
               pw.SizedBox(height: 20),
-              
+
               // معلومات الفاتورة
-              _buildInvoiceInfo(arabicFont, arabicFontBold, invoiceNumber, date, partyName),
+              _buildInvoiceInfo(
+                  arabicFont, arabicFontBold, invoiceNumber, date, partyName),
               pw.SizedBox(height: 20),
-              
+
               // جدول المنتجات
               _buildItemsTable(arabicFont, arabicFontBold, items),
               pw.SizedBox(height: 20),
-              
+
               // الملخص
-              _buildSummary(arabicFont, arabicFontBold, subtotal, discountAmount, taxAmount, total, paidAmount, paymentMethod),
-              
+              _buildSummary(arabicFont, arabicFontBold, subtotal,
+                  discountAmount, taxAmount, total, paidAmount, paymentMethod),
+
               // الملاحظات
               if (notes != null && notes.isNotEmpty) ...[
                 pw.SizedBox(height: 20),
                 _buildNotes(arabicFont, notes),
               ],
-              
+
               pw.Spacer(),
-              
+
               // التذييل
               _buildFooter(arabicFont),
             ],
@@ -180,7 +183,8 @@ class PrintService {
     return pdf;
   }
 
-  static pw.Widget _buildHeader(pw.Font fontBold, String invoiceType, PdfColor color) {
+  static pw.Widget _buildHeader(
+      pw.Font fontBold, String invoiceType, PdfColor color) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(15),
       decoration: pw.BoxDecoration(
@@ -191,19 +195,22 @@ class PrintService {
         children: [
           pw.Text(
             'حور للأحذية النسائية',
-            style: pw.TextStyle(font: fontBold, fontSize: 24, color: PdfColors.white),
+            style: pw.TextStyle(
+                font: fontBold, fontSize: 24, color: PdfColors.white),
           ),
           pw.SizedBox(height: 5),
           pw.Text(
             invoiceType,
-            style: pw.TextStyle(font: fontBold, fontSize: 18, color: PdfColors.white),
+            style: pw.TextStyle(
+                font: fontBold, fontSize: 18, color: PdfColors.white),
           ),
         ],
       ),
     );
   }
 
-  static pw.Widget _buildInvoiceInfo(pw.Font font, pw.Font fontBold, String number, DateTime date, String? partyName) {
+  static pw.Widget _buildInvoiceInfo(pw.Font font, pw.Font fontBold,
+      String number, DateTime date, String? partyName) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
@@ -216,18 +223,23 @@ class PrintService {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('رقم الفاتورة: $number', style: pw.TextStyle(font: fontBold, fontSize: 12)),
+              pw.Text('رقم الفاتورة: $number',
+                  style: pw.TextStyle(font: fontBold, fontSize: 12)),
               pw.SizedBox(height: 4),
-              pw.Text('التاريخ: ${_dateFormat.format(date)}', style: pw.TextStyle(font: font, fontSize: 11)),
+              pw.Text('التاريخ: ${_dateFormat.format(date)}',
+                  style: pw.TextStyle(font: font, fontSize: 11)),
             ],
           ),
           if (partyName != null)
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
-                pw.Text('العميل/المورد:', style: pw.TextStyle(font: font, fontSize: 11, color: PdfColors.grey600)),
+                pw.Text('العميل/المورد:',
+                    style: pw.TextStyle(
+                        font: font, fontSize: 11, color: PdfColors.grey600)),
                 pw.SizedBox(height: 4),
-                pw.Text(partyName, style: pw.TextStyle(font: fontBold, fontSize: 12)),
+                pw.Text(partyName,
+                    style: pw.TextStyle(font: fontBold, fontSize: 12)),
               ],
             ),
         ],
@@ -235,10 +247,13 @@ class PrintService {
     );
   }
 
-  static pw.Widget _buildItemsTable(pw.Font font, pw.Font fontBold, List<PrintableInvoiceItem> items) {
+  static pw.Widget _buildItemsTable(
+      pw.Font font, pw.Font fontBold, List<PrintableInvoiceItem> items) {
     return pw.TableHelper.fromTextArray(
-      headerStyle: pw.TextStyle(font: fontBold, fontSize: 11, color: PdfColors.white),
-      headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF1976D2)),
+      headerStyle:
+          pw.TextStyle(font: fontBold, fontSize: 11, color: PdfColors.white),
+      headerDecoration:
+          const pw.BoxDecoration(color: PdfColor.fromInt(0xFF1976D2)),
       cellStyle: pw.TextStyle(font: font, fontSize: 10),
       cellHeight: 30,
       cellAlignments: {
@@ -254,21 +269,23 @@ class PrintService {
         3: pw.Alignment.center,
       },
       headers: ['المنتج', 'الكمية', 'السعر', 'الإجمالي'],
-      data: items.map((item) => [
-        item.name,
-        item.quantity.toStringAsFixed(0),
-        _currencyFormat.format(item.unitPrice),
-        _currencyFormat.format(item.lineTotal),
-      ]).toList(),
+      data: items
+          .map((item) => [
+                item.name,
+                item.quantity.toStringAsFixed(0),
+                _currencyFormat.format(item.unitPrice),
+                _currencyFormat.format(item.lineTotal),
+              ])
+          .toList(),
     );
   }
 
   static pw.Widget _buildSummary(
-    pw.Font font, 
-    pw.Font fontBold, 
-    double subtotal, 
-    double discountAmount, 
-    double taxAmount, 
+    pw.Font font,
+    pw.Font fontBold,
+    double subtotal,
+    double discountAmount,
+    double taxAmount,
     double total,
     double? paidAmount,
     String? paymentMethod,
@@ -292,15 +309,19 @@ class PrintService {
             _summaryRow(fontBold, 'الإجمالي', total, fontSize: 14),
             if (paidAmount != null) ...[
               pw.SizedBox(height: 8),
-              _summaryRow(font, 'المدفوع', paidAmount, color: PdfColors.green700),
-              _summaryRow(font, 'المتبقي', total - paidAmount, 
-                color: (total - paidAmount) > 0 ? PdfColors.red : PdfColors.green700),
+              _summaryRow(font, 'المدفوع', paidAmount,
+                  color: PdfColors.green700),
+              _summaryRow(font, 'المتبقي', total - paidAmount,
+                  color: (total - paidAmount) > 0
+                      ? PdfColors.red
+                      : PdfColors.green700),
             ],
             if (paymentMethod != null) ...[
               pw.SizedBox(height: 4),
               pw.Text(
                 'طريقة الدفع: ${_getPaymentMethodText(paymentMethod)}',
-                style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey600),
+                style: pw.TextStyle(
+                    font: font, fontSize: 10, color: PdfColors.grey600),
               ),
             ],
           ],
@@ -309,7 +330,8 @@ class PrintService {
     );
   }
 
-  static pw.Widget _summaryRow(pw.Font font, String label, double value, {PdfColor? color, double fontSize = 11}) {
+  static pw.Widget _summaryRow(pw.Font font, String label, double value,
+      {PdfColor? color, double fontSize = 11}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),
       child: pw.Row(
@@ -337,7 +359,9 @@ class PrintService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('ملاحظات:', style: pw.TextStyle(font: font, fontSize: 11, color: PdfColors.grey700)),
+          pw.Text('ملاحظات:',
+              style: pw.TextStyle(
+                  font: font, fontSize: 11, color: PdfColors.grey700)),
           pw.SizedBox(height: 4),
           pw.Text(notes, style: pw.TextStyle(font: font, fontSize: 10)),
         ],
@@ -352,12 +376,14 @@ class PrintService {
         pw.SizedBox(height: 8),
         pw.Text(
           'شكراً لتعاملكم معنا',
-          style: pw.TextStyle(font: font, fontSize: 12, color: PdfColors.grey600),
+          style:
+              pw.TextStyle(font: font, fontSize: 12, color: PdfColors.grey600),
         ),
         pw.SizedBox(height: 4),
         pw.Text(
           'تم إنشاء هذه الفاتورة بواسطة نظام حور لإدارة المتاجر',
-          style: pw.TextStyle(font: font, fontSize: 9, color: PdfColors.grey400),
+          style:
+              pw.TextStyle(font: font, fontSize: 9, color: PdfColors.grey400),
         ),
       ],
     );
@@ -423,7 +449,7 @@ class PrintService {
     double? paidAmount,
   }) async {
     final pdf = pw.Document();
-    
+
     final arabicFont = await PdfGoogleFonts.cairoRegular();
     final arabicFontBold = await PdfGoogleFonts.cairoBold();
 
@@ -443,54 +469,67 @@ class PrintService {
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               // اسم المتجر
-              pw.Text('حور للأحذية', style: pw.TextStyle(font: arabicFontBold, fontSize: 16)),
-              pw.Text(_getInvoiceTypeText(invoiceType), style: pw.TextStyle(font: arabicFont, fontSize: 12)),
+              pw.Text('حور للأحذية',
+                  style: pw.TextStyle(font: arabicFontBold, fontSize: 16)),
+              pw.Text(_getInvoiceTypeText(invoiceType),
+                  style: pw.TextStyle(font: arabicFont, fontSize: 12)),
               pw.SizedBox(height: 8),
-              
+
               // خط فاصل
               pw.Container(
                 width: double.infinity,
-                child: pw.Text('─' * 30, style: pw.TextStyle(font: arabicFont, fontSize: 8)),
+                child: pw.Text('─' * 30,
+                    style: pw.TextStyle(font: arabicFont, fontSize: 8)),
               ),
-              
+
               // معلومات الفاتورة
-              pw.Text('رقم: $invoiceNumber', style: pw.TextStyle(font: arabicFont, fontSize: 10)),
-              pw.Text(_dateFormat.format(date), style: pw.TextStyle(font: arabicFont, fontSize: 9)),
+              pw.Text('رقم: $invoiceNumber',
+                  style: pw.TextStyle(font: arabicFont, fontSize: 10)),
+              pw.Text(_dateFormat.format(date),
+                  style: pw.TextStyle(font: arabicFont, fontSize: 9)),
               if (partyName != null)
-                pw.Text(partyName, style: pw.TextStyle(font: arabicFont, fontSize: 10)),
-              
+                pw.Text(partyName,
+                    style: pw.TextStyle(font: arabicFont, fontSize: 10)),
+
               pw.SizedBox(height: 8),
               pw.Container(
                 width: double.infinity,
-                child: pw.Text('─' * 30, style: pw.TextStyle(font: arabicFont, fontSize: 8)),
+                child: pw.Text('─' * 30,
+                    style: pw.TextStyle(font: arabicFont, fontSize: 8)),
               ),
-              
+
               // المنتجات
               ...items.map((item) => pw.Padding(
-                padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                  children: [
-                    pw.Text(item.name, style: pw.TextStyle(font: arabicFont, fontSize: 10)),
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                       children: [
-                        pw.Text('${item.quantity.toStringAsFixed(0)} × ${item.unitPrice}', 
-                            style: pw.TextStyle(font: arabicFont, fontSize: 9)),
-                        pw.Text('${item.lineTotal.toStringAsFixed(2)}', 
-                            style: pw.TextStyle(font: arabicFont, fontSize: 9)),
+                        pw.Text(item.name,
+                            style:
+                                pw.TextStyle(font: arabicFont, fontSize: 10)),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text(
+                                '${item.quantity.toStringAsFixed(0)} × ${item.unitPrice}',
+                                style: pw.TextStyle(
+                                    font: arabicFont, fontSize: 9)),
+                            pw.Text('${item.lineTotal.toStringAsFixed(2)}',
+                                style: pw.TextStyle(
+                                    font: arabicFont, fontSize: 9)),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
-              )),
-              
+                  )),
+
               pw.SizedBox(height: 8),
               pw.Container(
                 width: double.infinity,
-                child: pw.Text('─' * 30, style: pw.TextStyle(font: arabicFont, fontSize: 8)),
+                child: pw.Text('─' * 30,
+                    style: pw.TextStyle(font: arabicFont, fontSize: 8)),
               ),
-              
+
               // الإجمالي
               _thermalSummaryRow(arabicFont, 'المجموع', subtotal),
               if (discountAmount > 0)
@@ -498,14 +537,15 @@ class PrintService {
               _thermalSummaryRow(arabicFont, 'الضريبة', taxAmount),
               pw.SizedBox(height: 4),
               _thermalSummaryRow(arabicFontBold, 'الإجمالي', total),
-              
+
               if (paidAmount != null) ...[
                 _thermalSummaryRow(arabicFont, 'المدفوع', paidAmount),
                 _thermalSummaryRow(arabicFont, 'المتبقي', total - paidAmount),
               ],
-              
+
               pw.SizedBox(height: 12),
-              pw.Text('شكراً لزيارتكم', style: pw.TextStyle(font: arabicFont, fontSize: 10)),
+              pw.Text('شكراً لزيارتكم',
+                  style: pw.TextStyle(font: arabicFont, fontSize: 10)),
             ],
           );
         },
@@ -518,14 +558,16 @@ class PrintService {
     );
   }
 
-  static pw.Widget _thermalSummaryRow(pw.Font font, String label, double value) {
+  static pw.Widget _thermalSummaryRow(
+      pw.Font font, String label, double value) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 1),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(label, style: pw.TextStyle(font: font, fontSize: 10)),
-          pw.Text('${value.toStringAsFixed(2)} ر.س', style: pw.TextStyle(font: font, fontSize: 10)),
+          pw.Text('${value.toStringAsFixed(2)} ر.س',
+              style: pw.TextStyle(font: font, fontSize: 10)),
         ],
       ),
     );
@@ -538,7 +580,7 @@ class PrintService {
     required List<Product> products,
   }) async {
     final pdf = pw.Document();
-    
+
     final arabicFont = await PdfGoogleFonts.cairoRegular();
     final arabicFontBold = await PdfGoogleFonts.cairoBold();
 
@@ -548,27 +590,39 @@ class PrintService {
         textDirection: pw.TextDirection.rtl,
         header: (context) => pw.Column(
           children: [
-            pw.Text(title, style: pw.TextStyle(font: arabicFontBold, fontSize: 20)),
-            pw.Text('تاريخ التقرير: ${_dateFormat.format(DateTime.now())}', 
+            pw.Text(title,
+                style: pw.TextStyle(font: arabicFontBold, fontSize: 20)),
+            pw.Text('تاريخ التقرير: ${_dateFormat.format(DateTime.now())}',
                 style: pw.TextStyle(font: arabicFont, fontSize: 11)),
             pw.SizedBox(height: 15),
           ],
         ),
         build: (context) => [
           pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(font: arabicFontBold, fontSize: 10, color: PdfColors.white),
-            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF1976D2)),
+            headerStyle: pw.TextStyle(
+                font: arabicFontBold, fontSize: 10, color: PdfColors.white),
+            headerDecoration:
+                const pw.BoxDecoration(color: PdfColor.fromInt(0xFF1976D2)),
             cellStyle: pw.TextStyle(font: arabicFont, fontSize: 9),
             cellHeight: 25,
-            headers: ['المنتج', 'الباركود', 'الكمية', 'سعر التكلفة', 'سعر البيع', 'القيمة'],
-            data: products.map((p) => [
-              p.name,
-              p.barcode ?? '-',
-              p.qty.toStringAsFixed(0),
-              _currencyFormat.format(p.costPrice),
-              _currencyFormat.format(p.salePrice),
-              _currencyFormat.format(p.qty * p.costPrice),
-            ]).toList(),
+            headers: [
+              'المنتج',
+              'الباركود',
+              'الكمية',
+              'سعر التكلفة',
+              'سعر البيع',
+              'القيمة'
+            ],
+            data: products
+                .map((p) => [
+                      p.name,
+                      p.barcode ?? '-',
+                      p.qty.toStringAsFixed(0),
+                      _currencyFormat.format(p.costPrice),
+                      _currencyFormat.format(p.salePrice),
+                      _currencyFormat.format(p.qty * p.costPrice),
+                    ])
+                .toList(),
           ),
         ],
         footer: (context) => pw.Container(
@@ -576,7 +630,8 @@ class PrintService {
           margin: const pw.EdgeInsets.only(top: 10),
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: arabicFont, fontSize: 9, color: PdfColors.grey),
+            style: pw.TextStyle(
+                font: arabicFont, fontSize: 9, color: PdfColors.grey),
           ),
         ),
       ),

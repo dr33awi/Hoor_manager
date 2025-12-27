@@ -301,6 +301,71 @@ class _InvoiceDetailsSheet extends ConsumerWidget {
     required this.currencyFormat,
   });
 
+  Future<void> _printInvoice(BuildContext context, WidgetRef ref) async {
+    final items = await ref.read(invoiceItemsProvider(invoice.id).future);
+    final products = await Future.wait(
+      items.map((item) => ref.read(productByIdProvider(item.productId).future)),
+    );
+
+    final printableItems = items.asMap().entries.map((entry) {
+      final item = entry.value;
+      final product = products[entry.key];
+      return PrintableInvoiceItem(
+        name: product?.name ?? 'منتج غير معروف',
+        quantity: item.qty,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal,
+      );
+    }).toList();
+
+    if (context.mounted) {
+      await PrintService.previewInvoice(
+        context: context,
+        invoiceNumber: invoice.number,
+        invoiceType: invoice.type,
+        date: invoice.invoiceDate,
+        items: printableItems,
+        subtotal: invoice.subtotal,
+        discountAmount: invoice.discountAmount,
+        taxAmount: invoice.taxAmount,
+        total: invoice.total,
+        paidAmount: invoice.paidAmount,
+        paymentMethod: invoice.paymentMethod,
+      );
+    }
+  }
+
+  Future<void> _shareInvoice(WidgetRef ref) async {
+    final items = await ref.read(invoiceItemsProvider(invoice.id).future);
+    final products = await Future.wait(
+      items.map((item) => ref.read(productByIdProvider(item.productId).future)),
+    );
+
+    final printableItems = items.asMap().entries.map((entry) {
+      final item = entry.value;
+      final product = products[entry.key];
+      return PrintableInvoiceItem(
+        name: product?.name ?? 'منتج غير معروف',
+        quantity: item.qty,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal,
+      );
+    }).toList();
+
+    await PrintService.shareInvoice(
+      invoiceNumber: invoice.number,
+      invoiceType: invoice.type,
+      date: invoice.invoiceDate,
+      items: printableItems,
+      subtotal: invoice.subtotal,
+      discountAmount: invoice.discountAmount,
+      taxAmount: invoice.taxAmount,
+      total: invoice.total,
+      paidAmount: invoice.paidAmount,
+      paymentMethod: invoice.paymentMethod,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(invoiceItemsProvider(invoice.id));

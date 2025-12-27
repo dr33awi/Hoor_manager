@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../app/routes/app_router.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../app/providers/database_providers.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../data/database.dart';
 import '../../../../data/repositories/invoice_repository.dart';
+import '../../../../data/repositories/product_repository.dart';
+import '../../../../shared/services/print_service.dart';
 import '../../data/models/cart_item.dart';
 
 /// صفحة فاتورة المبيعات
@@ -251,98 +254,31 @@ class _SalesInvoicePageState extends ConsumerState<SalesInvoicePage> {
   }
 
   void _showProductSearch() {
+    // جلب المنتجات مباشرة
+    final productRepo = ref.read(productRepositoryProvider);
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
+      builder: (modalContext) => DraggableScrollableSheet(
         initialChildSize: 0.9,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(AppSizes.paddingMD),
-                child: CustomSearchField(
-                  controller: _searchController,
-                  hintText: 'ابحث عن منتج...',
-                  autofocus: true,
-                  onChanged: (value) {
-                    // البحث يتم تلقائياً
-                  },
-                ),
-              ),
-              Expanded(
-                child: Consumer(
-                  builder: (context, ref, child) {
-                    final query = _searchController.text;
-                    final productsAsync = query.isEmpty
-                        ? ref.watch(allProductsProvider)
-                        : ref.watch(productSearchProvider(query));
-
-                    return productsAsync.when(
-                      data: (products) => ListView.builder(
-                        controller: scrollController,
-                        itemCount: products.length,
-                        itemBuilder: (context, index) {
-                          final product = products[index];
-                          return ListTile(
-                            leading: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceVariant,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.inventory_2_outlined),
-                            ),
-                            title: Text(product.name),
-                            subtitle: Text(
-                              '${_currencyFormat.format(product.salePrice)} - متوفر: ${product.qty}',
-                              style: TextStyle(
-                                color: product.qty > 0
-                                    ? AppColors.textSecondary
-                                    : AppColors.error,
-                              ),
-                            ),
-                            enabled: product.qty > 0,
-                            onTap: product.qty > 0
-                                ? () {
-                                    _addProductToCart(
-                                      productId: product.id,
-                                      name: product.name,
-                                      barcode: product.barcode,
-                                      price: product.salePrice,
-                                      costPrice: product.costPrice,
-                                      availableQty: product.qty,
-                                    );
-                                    Navigator.pop(context);
-                                  }
-                                : null,
-                          );
-                        },
-                      ),
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, s) => Center(child: Text('خطأ: $e')),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+        builder: (context, scrollController) => _ProductSearchSheet(
+          scrollController: scrollController,
+          searchController: _searchController,
+          productRepo: productRepo,
+          onProductSelected: (product) {
+            _addProductToCart(
+              productId: product.id,
+              name: product.name,
+              barcode: product.barcode,
+              price: product.salePrice,
+              costPrice: product.costPrice,
+              availableQty: product.qty,
+            );
+            Navigator.pop(modalContext);
+          },
+          currencyFormat: _currencyFormat,
         ),
       ),
     );
@@ -574,8 +510,77 @@ class _SalesInvoicePageState extends ConsumerState<SalesInvoicePage> {
       ref.invalidate(allProductsProvider);
 
       if (mounted) {
-        showSnackBar(context, 'تم حفظ الفاتورة بنجاح');
-        Navigator.pop(context, true);
+        // عرض خيارات الطباعة
+        final printChoice = await showDialog<String>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('تم حفظ الفاتورة بنجاح'),
+            content: const Text('هل تريد طباعة الفاتورة؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'none'),
+                child: const Text('لا'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'thermal'),
+                child: const Text('إيصال حراري'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, 'a4'),
+                child: const Text('طباعة A4'),
+              ),
+            ],
+          ),
+        );
+
+        if (printChoice != null && printChoice != 'none' && mounted) {
+          final printableItems = _cartItems
+              .map((item) => PrintableInvoiceItem(
+                    name: item.name,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    lineTotal: item.lineTotal,
+                  ))
+              .toList();
+
+          final invoiceNumber =
+              DateTime.now().millisecondsSinceEpoch.toString().substring(5);
+
+          if (printChoice == 'thermal') {
+            await PrintService.printThermalReceipt(
+              context: context,
+              invoiceNumber: invoiceNumber,
+              invoiceType: 'SALE',
+              date: DateTime.now(),
+              partyName: _selectedCustomerName,
+              items: printableItems,
+              subtotal: _subtotal,
+              discountAmount: _totalDiscount,
+              taxAmount: _taxAmount,
+              total: _total,
+              paidAmount: _paymentMethod == 'CASH' ? _total : _paidAmount,
+            );
+          } else {
+            await PrintService.previewInvoice(
+              context: context,
+              invoiceNumber: invoiceNumber,
+              invoiceType: 'SALE',
+              date: DateTime.now(),
+              partyName: _selectedCustomerName,
+              items: printableItems,
+              subtotal: _subtotal,
+              discountAmount: _totalDiscount,
+              taxAmount: _taxAmount,
+              total: _total,
+              paidAmount: _paymentMethod == 'CASH' ? _total : _paidAmount,
+              paymentMethod: _paymentMethod,
+            );
+          }
+        }
+
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -710,6 +715,198 @@ class _SummaryRow extends StatelessWidget {
               )),
         ],
       ),
+    );
+  }
+}
+
+/// Widget للبحث عن المنتجات
+class _ProductSearchSheet extends StatefulWidget {
+  final ScrollController scrollController;
+  final TextEditingController searchController;
+  final ProductRepository productRepo;
+  final Function(Product) onProductSelected;
+  final NumberFormat currencyFormat;
+
+  const _ProductSearchSheet({
+    required this.scrollController,
+    required this.searchController,
+    required this.productRepo,
+    required this.onProductSelected,
+    required this.currencyFormat,
+  });
+
+  @override
+  State<_ProductSearchSheet> createState() => _ProductSearchSheetState();
+}
+
+class _ProductSearchSheetState extends State<_ProductSearchSheet> {
+  List<Product> _products = [];
+  List<Product> _filteredProducts = [];
+  bool _isLoading = true;
+  String _error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('🔄 _ProductSearchSheet initState called');
+    _loadProducts();
+    widget.searchController.addListener(_filterProducts);
+  }
+
+  @override
+  void dispose() {
+    widget.searchController.removeListener(_filterProducts);
+    super.dispose();
+  }
+
+  Future<void> _loadProducts() async {
+    debugPrint('🔄 _loadProducts started');
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = '';
+      });
+      final products = await widget.productRepo.getAllProducts();
+      debugPrint('📦 _ProductSearchSheet: تم جلب ${products.length} منتج');
+      for (var p in products) {
+        debugPrint('   ✅ ${p.name} - كمية: ${p.qty}');
+      }
+      if (mounted) {
+        setState(() {
+          _products = products;
+          _filteredProducts = products;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ خطأ في جلب المنتجات: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _filterProducts() {
+    final query = widget.searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredProducts = _products;
+      } else {
+        _filteredProducts = _products.where((p) {
+          return p.name.toLowerCase().contains(query) ||
+              (p.barcode?.toLowerCase().contains(query) ?? false);
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSizes.paddingMD),
+            child: CustomSearchField(
+              controller: widget.searchController,
+              hintText: 'ابحث عن منتج...',
+              autofocus: true,
+              onChanged: (_) {},
+            ),
+          ),
+          Expanded(
+            child: _buildContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('خطأ: $_error', style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadProducts,
+              child: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_filteredProducts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('لا توجد منتجات', style: TextStyle(color: Colors.grey)),
+            SizedBox(height: 8),
+            Text(
+              'قم بإضافة منتجات من صفحة بطاقات المواد أولاً',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: widget.scrollController,
+      itemCount: _filteredProducts.length,
+      itemBuilder: (context, index) {
+        final product = _filteredProducts[index];
+        return ListTile(
+          leading: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.inventory_2_outlined),
+          ),
+          title: Text(product.name),
+          subtitle: Text(
+            '${widget.currencyFormat.format(product.salePrice)} - متوفر: ${product.qty}',
+            style: TextStyle(
+              color: product.qty > 0 ? AppColors.textSecondary : AppColors.error,
+            ),
+          ),
+          enabled: product.qty > 0,
+          onTap: product.qty > 0
+              ? () => widget.onProductSelected(product)
+              : null,
+        );
+      },
     );
   }
 }

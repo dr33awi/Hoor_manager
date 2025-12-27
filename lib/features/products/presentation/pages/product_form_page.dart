@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 import '../../../../app/theme/app_theme.dart';
 import '../../../../shared/widgets/common_widgets.dart';
+import '../../../../app/providers/database_providers.dart';
+import '../../../../data/database.dart';
 
 /// صفحة نموذج المنتج
-class ProductFormPage extends StatefulWidget {
+class ProductFormPage extends ConsumerStatefulWidget {
   final String? productId;
 
   const ProductFormPage({super.key, this.productId});
 
   @override
-  State<ProductFormPage> createState() => _ProductFormPageState();
+  ConsumerState<ProductFormPage> createState() => _ProductFormPageState();
 }
 
-class _ProductFormPageState extends State<ProductFormPage> {
+class _ProductFormPageState extends ConsumerState<ProductFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _barcodeController = TextEditingController();
@@ -25,6 +29,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
   int? _selectedCategoryId;
   bool _isActive = true;
   bool _trackStock = true;
+  bool _isSaving = false;
+  Product? _existingProduct;
 
   bool get _isEditing => widget.productId != null;
 
@@ -36,14 +42,26 @@ class _ProductFormPageState extends State<ProductFormPage> {
     }
   }
 
-  void _loadProduct() {
-    // TODO: تحميل بيانات المنتج من قاعدة البيانات
-    _nameController.text = 'منتج تجريبي';
-    _barcodeController.text = '6000000000001';
-    _costPriceController.text = '50';
-    _salePriceController.text = '75';
-    _qtyController.text = '100';
-    _minQtyController.text = '10';
+  Future<void> _loadProduct() async {
+    final productId = int.tryParse(widget.productId ?? '');
+    if (productId == null) return;
+
+    final product = await ref.read(productByIdProvider(productId).future);
+    if (product != null && mounted) {
+      setState(() {
+        _existingProduct = product;
+        _nameController.text = product.name;
+        _barcodeController.text = product.barcode ?? '';
+        _skuController.text = product.sku ?? '';
+        _costPriceController.text = product.costPrice.toString();
+        _salePriceController.text = product.salePrice.toString();
+        _qtyController.text = product.qty.toString();
+        _minQtyController.text = product.minQty.toString();
+        _selectedCategoryId = product.categoryId;
+        _isActive = product.isActive;
+        _trackStock = product.trackStock;
+      });
+    }
   }
 
   @override
@@ -227,9 +245,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
             // زر الحفظ
             PrimaryButton(
-              text: _isEditing ? 'حفظ التغييرات' : 'إضافة المنتج',
-              icon: Icons.save,
-              onPressed: _saveProduct,
+              text: _isSaving
+                  ? 'جاري الحفظ...'
+                  : (_isEditing ? 'حفظ التغييرات' : 'إضافة المنتج'),
+              icon: _isSaving ? null : Icons.save,
+              onPressed: _isSaving ? null : _saveProduct,
             ),
           ],
         ),
@@ -237,11 +257,71 @@ class _ProductFormPageState extends State<ProductFormPage> {
     );
   }
 
-  void _saveProduct() {
-    if (_formKey.currentState!.validate()) {
-      // TODO: حفظ المنتج
-      showSnackBar(context, 'تم حفظ المنتج بنجاح');
-      Navigator.pop(context);
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final productRepo = ref.read(productRepositoryProvider);
+
+      final name = _nameController.text.trim();
+      final barcode = _barcodeController.text.trim();
+      final sku = _skuController.text.trim();
+      final costPrice = double.tryParse(_costPriceController.text) ?? 0;
+      final salePrice = double.tryParse(_salePriceController.text) ?? 0;
+      final qty = double.tryParse(_qtyController.text) ?? 0;
+      final minQty = double.tryParse(_minQtyController.text) ?? 0;
+
+      if (_isEditing && _existingProduct != null) {
+        // تحديث منتج موجود
+        final updatedProduct = _existingProduct!.copyWith(
+          name: name,
+          barcode: Value(barcode.isEmpty ? null : barcode),
+          sku: Value(sku.isEmpty ? null : sku),
+          costPrice: costPrice,
+          salePrice: salePrice,
+          qty: qty,
+          minQty: minQty,
+          categoryId: Value(_selectedCategoryId),
+          isActive: _isActive,
+          trackStock: _trackStock,
+          updatedAt: Value(DateTime.now()),
+        );
+        await productRepo.updateProduct(updatedProduct);
+      } else {
+        // إضافة منتج جديد
+        await productRepo.insertProduct(ProductsCompanion(
+          name: Value(name),
+          barcode: Value(barcode.isEmpty ? null : barcode),
+          sku: Value(sku.isEmpty ? null : sku),
+          costPrice: Value(costPrice),
+          salePrice: Value(salePrice),
+          qty: Value(qty),
+          minQty: Value(minQty),
+          categoryId: Value(_selectedCategoryId),
+          isActive: Value(_isActive),
+          trackStock: Value(_trackStock),
+        ));
+      }
+
+      // تحديث قائمة المنتجات
+      ref.invalidate(allProductsProvider);
+
+      if (mounted) {
+        showSnackBar(context,
+            _isEditing ? 'تم تحديث المنتج بنجاح' : 'تم إضافة المنتج بنجاح');
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        showSnackBar(context, 'خطأ في حفظ المنتج: $e', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -255,9 +335,22 @@ class _ProductFormPageState extends State<ProductFormPage> {
     );
 
     if (confirm == true) {
-      // TODO: حذف المنتج
-      showSnackBar(context, 'تم حذف المنتج');
-      Navigator.pop(context);
+      try {
+        final productId = int.tryParse(widget.productId ?? '');
+        if (productId != null) {
+          final productRepo = ref.read(productRepositoryProvider);
+          await productRepo.deleteProduct(productId);
+          ref.invalidate(allProductsProvider);
+        }
+        if (mounted) {
+          showSnackBar(context, 'تم حذف المنتج');
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          showSnackBar(context, 'خطأ في حذف المنتج: $e', isError: true);
+        }
+      }
     }
   }
 }
