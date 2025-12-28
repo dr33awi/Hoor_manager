@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -21,54 +21,76 @@ class _CashScreenState extends ConsumerState<CashScreen> {
   final _shiftRepo = getIt<ShiftRepository>();
   final _cashRepo = getIt<CashRepository>();
 
-  Shift? _currentShift;
-
   @override
-  void initState() {
-    super.initState();
-    _loadCurrentShift();
-  }
+  Widget build(BuildContext context) {
+    return StreamBuilder<Shift?>(
+      stream: _shiftRepo.watchOpenShift(),
+      builder: (context, shiftSnapshot) {
+        if (shiftSnapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('حركة الصندوق')),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
 
-  Future<void> _loadCurrentShift() async {
-    final shift = await _shiftRepo.getOpenShift();
-    setState(() => _currentShift = shift);
+        final currentShift = shiftSnapshot.data;
+
+        if (currentShift == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('حركة الصندوق')),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.warning,
+                    size: 64.sp,
+                    color: AppColors.warning,
+                  ),
+                  Gap(16.h),
+                  Text(
+                    'لا توجد وردية مفتوحة',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Gap(8.h),
+                  Text(
+                    'يجب فتح وردية لإدارة حركة الصندوق',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return _CashScreenBody(
+          shiftRepo: _shiftRepo,
+          cashRepo: _cashRepo,
+          currentShift: currentShift,
+        );
+      },
+    );
   }
+}
+
+class _CashScreenBody extends StatelessWidget {
+  final ShiftRepository shiftRepo;
+  final CashRepository cashRepo;
+  final Shift currentShift;
+
+  const _CashScreenBody({
+    required this.shiftRepo,
+    required this.cashRepo,
+    required this.currentShift,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (_currentShift == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('حركة الصندوق')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.warning,
-                size: 64.sp,
-                color: AppColors.warning,
-              ),
-              Gap(16.h),
-              Text(
-                'لا توجد وردية مفتوحة',
-                style: TextStyle(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Gap(8.h),
-              Text(
-                'يجب فتح وردية لإدارة حركة الصندوق',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('حركة الصندوق'),
@@ -76,8 +98,8 @@ class _CashScreenState extends ConsumerState<CashScreen> {
       body: Column(
         children: [
           // Current Balance Card
-          FutureBuilder<Map<String, double>>(
-            future: _cashRepo.getShiftCashSummary(_currentShift!.id),
+          StreamBuilder<Map<String, double>>(
+            stream: cashRepo.watchShiftCashSummary(currentShift.id),
             builder: (context, snapshot) {
               final summary = snapshot.data ?? {};
               return Container(
@@ -102,7 +124,7 @@ class _CashScreenState extends ConsumerState<CashScreen> {
                     ),
                     Gap(8.h),
                     Text(
-                      '${(_currentShift!.openingBalance + (summary['netCash'] ?? 0)).toStringAsFixed(2)} ر.س',
+                      '${(currentShift.openingBalance + (summary['netCash'] ?? 0)).toStringAsFixed(2)} ل.س',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 32.sp,
@@ -143,7 +165,9 @@ class _CashScreenState extends ConsumerState<CashScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _showAddMovementDialog(isIncome: true),
+                    onPressed: () => _showAddMovementDialog(
+                        context, cashRepo, currentShift,
+                        isIncome: true),
                     icon: const Icon(Icons.add),
                     label: const Text('إيراد'),
                     style: ElevatedButton.styleFrom(
@@ -155,7 +179,9 @@ class _CashScreenState extends ConsumerState<CashScreen> {
                 Gap(12.w),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _showAddMovementDialog(isIncome: false),
+                    onPressed: () => _showAddMovementDialog(
+                        context, cashRepo, currentShift,
+                        isIncome: false),
                     icon: const Icon(Icons.remove),
                     label: const Text('مصروف'),
                     style: ElevatedButton.styleFrom(
@@ -188,7 +214,7 @@ class _CashScreenState extends ConsumerState<CashScreen> {
 
           Expanded(
             child: StreamBuilder<List<CashMovement>>(
-              stream: _cashRepo.watchMovementsByShift(_currentShift!.id),
+              stream: cashRepo.watchMovementsByShift(currentShift.id),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -235,7 +261,9 @@ class _CashScreenState extends ConsumerState<CashScreen> {
     );
   }
 
-  void _showAddMovementDialog({required bool isIncome}) {
+  void _showAddMovementDialog(
+      BuildContext context, CashRepository cashRepo, Shift currentShift,
+      {required bool isIncome}) {
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
 
@@ -252,7 +280,7 @@ class _CashScreenState extends ConsumerState<CashScreen> {
               decoration: const InputDecoration(
                 labelText: 'المبلغ',
                 prefixIcon: Icon(Icons.attach_money),
-                suffixText: 'ر.س',
+                suffixText: 'ل.س',
               ),
             ),
             Gap(16.h),
@@ -280,20 +308,18 @@ class _CashScreenState extends ConsumerState<CashScreen> {
               Navigator.pop(context);
 
               if (isIncome) {
-                await _cashRepo.addIncome(
-                  shiftId: _currentShift!.id,
+                await cashRepo.addIncome(
+                  shiftId: currentShift.id,
                   amount: amount,
                   description: descriptionController.text,
                 );
               } else {
-                await _cashRepo.addExpense(
-                  shiftId: _currentShift!.id,
+                await cashRepo.addExpense(
+                  shiftId: currentShift.id,
                   amount: amount,
                   description: descriptionController.text,
                 );
               }
-
-              setState(() {});
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: isIncome ? AppColors.success : AppColors.error,
@@ -422,7 +448,7 @@ class _MovementCard extends StatelessWidget {
           ],
         ),
         trailing: Text(
-          '${isPositive ? '+' : '-'}${movement.amount.toStringAsFixed(2)} ر.س',
+          '${isPositive ? '+' : '-'}${movement.amount.toStringAsFixed(2)} ل.س',
           style: TextStyle(
             fontSize: 16.sp,
             fontWeight: FontWeight.bold,

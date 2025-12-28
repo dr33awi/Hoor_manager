@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -75,7 +75,11 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () => context.push('/products/edit/${product.id}'),
+            onPressed: () async {
+              await context.push('/products/edit/${product.id}');
+              // إعادة تحميل البيانات بعد العودة من شاشة التعديل
+              _loadData();
+            },
           ),
           PopupMenuButton<String>(
             onSelected: (value) async {
@@ -152,16 +156,6 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              if (product.sku != null) ...[
-                                Gap(4.h),
-                                Text(
-                                  'SKU: ${product.sku}',
-                                  style: TextStyle(
-                                    fontSize: 14.sp,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ),
@@ -261,23 +255,17 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                     Gap(12.h),
                     _InfoRow(
                       label: 'سعر الشراء',
-                      value: '${product.purchasePrice.toStringAsFixed(2)} ر.س',
+                      value: '${product.purchasePrice.toStringAsFixed(2)} ل.س',
                     ),
                     _InfoRow(
                       label: 'سعر البيع',
-                      value: '${product.salePrice.toStringAsFixed(2)} ر.س',
+                      value: '${product.salePrice.toStringAsFixed(2)} ل.س',
                     ),
                     _InfoRow(
                       label: 'هامش الربح',
                       value:
-                          '${(product.salePrice - product.purchasePrice).toStringAsFixed(2)} ر.س',
+                          '${(product.salePrice - product.purchasePrice).toStringAsFixed(2)} ل.س',
                     ),
-                    if (product.taxRate != null)
-                      _InfoRow(
-                        label: 'نسبة الضريبة',
-                        value:
-                            '${(product.taxRate! * 100).toStringAsFixed(0)}%',
-                      ),
                   ],
                 ),
               ),
@@ -453,7 +441,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
               ),
               pw.Text(product.barcode!, style: pw.TextStyle(fontSize: 8)),
               pw.SizedBox(height: 4),
-              pw.Text('${product.salePrice.toStringAsFixed(2)} ر.س',
+              pw.Text('${product.salePrice.toStringAsFixed(2)} ل.س',
                   style: pw.TextStyle(
                       fontSize: 14, fontWeight: pw.FontWeight.bold)),
             ],

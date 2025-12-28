@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,8 @@ import 'base_repository.dart';
 
 class InventoryRepository
     extends BaseRepository<InventoryMovement, InventoryMovementsCompanion> {
+  StreamSubscription? _inventoryFirestoreSubscription;
+
   InventoryRepository({
     required super.database,
     required super.firestore,
@@ -127,6 +130,8 @@ class InventoryRepository
     for (final movement in pending) {
       try {
         await collection.doc(movement.id).set(toFirestore(movement));
+        // Update sync status to synced
+        await database.updateInventoryMovementSyncStatus(movement.id, 'synced');
       } catch (e) {
         debugPrint('Error syncing inventory movement ${movement.id}: $e');
       }
@@ -170,5 +175,40 @@ class InventoryRepository
       syncStatus: const Value('synced'),
       createdAt: Value((data['createdAt'] as Timestamp).toDate()),
     );
+  }
+
+  @override
+  void startRealtimeSync() {
+    _inventoryFirestoreSubscription?.cancel();
+    _inventoryFirestoreSubscription = collection.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        switch (change.type) {
+          case DocumentChangeType.added:
+          case DocumentChangeType.modified:
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+            _handleRemoteChange(data, change.doc.id);
+            break;
+          case DocumentChangeType.removed:
+            // Inventory movements typically shouldn't be deleted
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRemoteChange(Map<String, dynamic> data, String id) async {
+    try {
+      final movements =
+          await database.getInventoryMovements(data['productId'] as String);
+      final existing = movements.where((m) => m.id == id).firstOrNull;
+      final companion = fromFirestore(data, id);
+
+      if (existing == null) {
+        await database.insertInventoryMovement(companion);
+      }
+    } catch (e) {
+      debugPrint('Error handling remote inventory movement change: $e');
+    }
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,8 @@ import '../../core/constants/app_constants.dart';
 import 'base_repository.dart';
 
 class SupplierRepository extends BaseRepository<Supplier, SuppliersCompanion> {
+  StreamSubscription? _supplierFirestoreSubscription;
+
   SupplierRepository({
     required super.database,
     required super.firestore,
@@ -170,5 +173,55 @@ class SupplierRepository extends BaseRepository<Supplier, SuppliersCompanion> {
       createdAt: Value((data['createdAt'] as Timestamp).toDate()),
       updatedAt: Value((data['updatedAt'] as Timestamp).toDate()),
     );
+  }
+
+  @override
+  void startRealtimeSync() {
+    _supplierFirestoreSubscription?.cancel();
+    _supplierFirestoreSubscription = collection.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        switch (change.type) {
+          case DocumentChangeType.added:
+          case DocumentChangeType.modified:
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+            _handleRemoteChange(data, change.doc.id);
+            break;
+          case DocumentChangeType.removed:
+            _handleRemoteDelete(change.doc.id);
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRemoteChange(Map<String, dynamic> data, String id) async {
+    try {
+      final existing = await database.getSupplierById(id);
+      final companion = fromFirestore(data, id);
+
+      if (existing == null) {
+        await database.insertSupplier(companion);
+      } else if (existing.syncStatus == 'synced') {
+        final cloudUpdatedAt = (data['updatedAt'] as Timestamp).toDate();
+        if (cloudUpdatedAt.isAfter(existing.updatedAt)) {
+          await database.updateSupplier(companion);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling remote supplier change: $e');
+    }
+  }
+
+  Future<void> _handleRemoteDelete(String id) async {
+    try {
+      final existing = await database.getSupplierById(id);
+      if (existing != null) {
+        await database.deleteSupplier(id);
+        debugPrint('Deleted supplier from remote: $id');
+      }
+    } catch (e) {
+      debugPrint('Error handling remote supplier delete: $e');
+    }
   }
 }

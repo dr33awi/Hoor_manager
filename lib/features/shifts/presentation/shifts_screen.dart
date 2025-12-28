@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,19 +21,6 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
   final _shiftRepo = getIt<ShiftRepository>();
   final _openingBalanceController = TextEditingController();
 
-  Shift? _openShift;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadOpenShift();
-  }
-
-  Future<void> _loadOpenShift() async {
-    final shift = await _shiftRepo.getOpenShift();
-    setState(() => _openShift = shift);
-  }
-
   @override
   void dispose() {
     _openingBalanceController.dispose();
@@ -49,13 +36,20 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
       body: Column(
         children: [
           // Current Shift Status
-          if (_openShift != null)
-            _OpenShiftCard(
-              shift: _openShift!,
-              onClose: () => _showCloseShiftDialog(_openShift!),
-            )
-          else
-            _NoShiftCard(onOpen: _showOpenShiftDialog),
+          StreamBuilder<Shift?>(
+            stream: _shiftRepo.watchOpenShift(),
+            builder: (context, snapshot) {
+              final openShift = snapshot.data;
+              if (openShift != null) {
+                return _OpenShiftCard(
+                  shift: openShift,
+                  onClose: () => _showCloseShiftDialog(openShift),
+                );
+              } else {
+                return _NoShiftCard(onOpen: _showOpenShiftDialog);
+              }
+            },
+          ),
 
           Gap(16.h),
 
@@ -144,7 +138,7 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
               decoration: const InputDecoration(
                 labelText: 'الرصيد الافتتاحي',
                 prefixIcon: Icon(Icons.account_balance_wallet),
-                suffixText: 'ر.س',
+                suffixText: 'ل.س',
               ),
             ),
           ],
@@ -162,7 +156,6 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
 
               try {
                 await _shiftRepo.openShift(openingBalance: balance);
-                await _loadOpenShift();
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -201,7 +194,7 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-                'الرصيد الافتتاحي: ${shift.openingBalance.toStringAsFixed(2)} ر.س'),
+                'الرصيد الافتتاحي: ${shift.openingBalance.toStringAsFixed(2)} ل.س'),
             Gap(16.h),
             TextField(
               controller: closingBalanceController,
@@ -209,7 +202,7 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
               decoration: const InputDecoration(
                 labelText: 'الرصيد الختامي',
                 prefixIcon: Icon(Icons.account_balance_wallet),
-                suffixText: 'ر.س',
+                suffixText: 'ل.س',
               ),
             ),
           ],
@@ -230,7 +223,6 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
                   shiftId: shift.id,
                   closingBalance: balance,
                 );
-                await _loadOpenShift();
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -306,7 +298,7 @@ class _OpenShiftCard extends StatelessWidget {
           Text('رقم الوردية: ${shift.shiftNumber}'),
           Text('وقت الفتح: ${dateFormat.format(shift.openedAt)}'),
           Text(
-              'الرصيد الافتتاحي: ${shift.openingBalance.toStringAsFixed(2)} ر.س'),
+              'الرصيد الافتتاحي: ${shift.openingBalance.toStringAsFixed(2)} ل.س'),
         ],
       ),
     );
@@ -443,7 +435,7 @@ class _ShiftCard extends StatelessWidget {
                     if (!isOpen && shift.difference != null) ...[
                       Gap(4.h),
                       Text(
-                        'الفرق: ${shift.difference!.toStringAsFixed(2)} ر.س',
+                        'الفرق: ${shift.difference!.toStringAsFixed(2)} ل.س',
                         style: TextStyle(
                           fontSize: 12.sp,
                           color: shift.difference! >= 0
@@ -466,7 +458,7 @@ class _ShiftCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'ر.س',
+                    'ل.س',
                     style: TextStyle(
                       fontSize: 10.sp,
                       color: AppColors.textSecondary,

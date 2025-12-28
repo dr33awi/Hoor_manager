@@ -284,8 +284,8 @@ class _AlertsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Product>>(
-      future: productRepo.getLowStockProducts(),
+    return StreamBuilder<List<Product>>(
+      stream: productRepo.watchLowStockProducts(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

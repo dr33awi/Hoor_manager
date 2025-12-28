@@ -8,6 +8,8 @@ import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/backup_service.dart';
 import '../../../core/services/sync_service.dart';
+import '../../../core/services/currency_service.dart';
+import '../../../data/database/app_database.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -19,9 +21,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _backupService = getIt<BackupService>();
   final _syncService = getIt<SyncService>();
+  final _currencyService = getIt<CurrencyService>();
+  final _database = getIt<AppDatabase>();
 
   bool _autoBackup = true;
-  bool _darkMode = false;
 
   @override
   Widget build(BuildContext context) {
@@ -32,59 +35,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: EdgeInsets.all(16.w),
         children: [
-          // Store Info Section
-          _SectionTitle(title: 'معلومات المتجر'),
+          // Currency & Exchange Rate Settings
+          _SectionTitle(title: 'العملة وسعر الصرف'),
           Card(
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.store),
-                  title: const Text('اسم المتجر'),
-                  subtitle: const Text('متجر هور'),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () => _showEditDialog('اسم المتجر', 'متجر هور'),
+                  leading: const Icon(Icons.currency_exchange),
+                  title: const Text('العملة الرئيسية'),
+                  subtitle: const Text('الليرة السورية (ل.س)'),
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.phone),
-                  title: const Text('رقم الهاتف'),
-                  subtitle: const Text('0500000000'),
+                  leading: const Icon(Icons.attach_money),
+                  title: const Text('سعر صرف الدولار'),
+                  subtitle: Text(
+                    '1 \$ = ${_currencyService.exchangeRate.toStringAsFixed(0)} ل.س',
+                  ),
                   trailing: const Icon(Icons.chevron_left),
-                  onTap: () => _showEditDialog('رقم الهاتف', '0500000000'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.location_on),
-                  title: const Text('العنوان'),
-                  subtitle: const Text('المملكة العربية السعودية'),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () =>
-                      _showEditDialog('العنوان', 'المملكة العربية السعودية'),
-                ),
-              ],
-            ),
-          ),
-          Gap(16.h),
-
-          // Tax Settings
-          _SectionTitle(title: 'الضرائب'),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.percent),
-                  title: const Text('نسبة ضريبة القيمة المضافة'),
-                  subtitle: const Text('15%'),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () => _showTaxDialog(),
+                  onTap: () => _showExchangeRateDialog(),
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
-                  secondary: const Icon(Icons.calculate),
-                  title: const Text('أسعار شاملة الضريبة'),
-                  subtitle: const Text('احتساب الضريبة ضمن السعر'),
-                  value: true,
-                  onChanged: (value) {},
+                  secondary: const Icon(Icons.swap_horiz),
+                  title: const Text('الأسعار المدخلة بالدولار'),
+                  subtitle: const Text('تحويل تلقائي للأسعار عند التغيير'),
+                  value: _currencyService.basePriceInUsd,
+                  onChanged: (value) async {
+                    await _currencyService.setBasePriceInUsd(value);
+                    setState(() {});
+                  },
                 ),
               ],
             ),
@@ -145,30 +125,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           Gap(16.h),
 
-          // Appearance Section
-          _SectionTitle(title: 'المظهر'),
-          Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.dark_mode),
-                  title: const Text('الوضع الداكن'),
-                  value: _darkMode,
-                  onChanged: (value) => setState(() => _darkMode = value),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.language),
-                  title: const Text('اللغة'),
-                  subtitle: const Text('العربية'),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () {},
-                ),
-              ],
-            ),
-          ),
-          Gap(16.h),
-
           // Invoice Settings
           _SectionTitle(title: 'إعدادات الفواتير'),
           Card(
@@ -211,20 +167,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: const Icon(Icons.info),
                   title: const Text('الإصدار'),
                   subtitle: const Text('1.0.0'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.help),
-                  title: const Text('المساعدة والدعم'),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () {},
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.privacy_tip),
-                  title: const Text('سياسة الخصوصية'),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () {},
                 ),
               ],
             ),
@@ -270,27 +212,161 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  void _showTaxDialog() {
+  void _showExchangeRateDialog() {
+    final controller = TextEditingController(
+      text: _currencyService.exchangeRate.toStringAsFixed(0),
+    );
+    final parentContext = context; // حفظ السياق الأصلي
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('نسبة الضريبة'),
-        content: TextField(
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'النسبة المئوية',
-            suffixText: '%',
-          ),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('سعر صرف الدولار'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'أدخل سعر صرف الدولار الأمريكي مقابل الليرة السورية',
+              style: TextStyle(fontSize: 14),
+            ),
+            Gap(16.h),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'سعر الصرف',
+                prefixText: '1 \$ = ',
+                suffixText: 'ل.س',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            Gap(8.h),
+            Text(
+              'ملاحظة: تغيير سعر الصرف سيؤثر على عرض أسعار جميع المنتجات',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.warning,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Save tax rate
+            onPressed: () async {
+              final newRate = double.tryParse(controller.text);
+              if (newRate != null && newRate > 0) {
+                final oldRate = _currencyService.exchangeRate;
+
+                // حساب نسبة التغيير
+                final ratio = newRate / oldRate;
+
+                Navigator.pop(dialogContext);
+
+                if (!mounted) return;
+
+                // عرض مربع حوار للتأكيد
+                final confirmed = await showDialog<bool>(
+                  context: parentContext,
+                  builder: (confirmContext) => AlertDialog(
+                    title: const Text('تأكيد تحديث الأسعار'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            'سعر الصرف القديم: ${oldRate.toStringAsFixed(0)} ل.س'),
+                        Text(
+                            'سعر الصرف الجديد: ${newRate.toStringAsFixed(0)} ل.س'),
+                        Gap(8.h),
+                        Text(
+                          'نسبة التغيير: ${((ratio - 1) * 100).toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            color:
+                                ratio > 1 ? AppColors.error : AppColors.success,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Gap(16.h),
+                        const Text(
+                          'سيتم تحديث جميع أسعار المنتجات تلقائياً حسب النسبة الجديدة.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(confirmContext, false),
+                        child: const Text('إلغاء'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(confirmContext, true),
+                        child: const Text('تأكيد التحديث'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true && mounted) {
+                  // عرض مؤشر التحميل
+                  showDialog(
+                    context: parentContext,
+                    barrierDismissible: false,
+                    builder: (loadingContext) => const AlertDialog(
+                      content: Row(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 16),
+                          Text('جاري تحديث الأسعار...'),
+                        ],
+                      ),
+                    ),
+                  );
+
+                  try {
+                    // تحديث سعر الصرف
+                    await _currencyService.setExchangeRate(newRate);
+
+                    // تحديث جميع أسعار المنتجات
+                    final updatedCount =
+                        await _database.updateAllProductPricesByRatio(ratio);
+
+                    if (mounted) {
+                      Navigator.pop(parentContext); // إغلاق مؤشر التحميل
+                      setState(() {});
+
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'تم تحديث سعر الصرف وأسعار $updatedCount منتج',
+                          ),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.pop(parentContext); // إغلاق مؤشر التحميل
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                        SnackBar(
+                          content: Text('حدث خطأ: $e'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                }
+              } else {
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('الرجاء إدخال قيمة صحيحة'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
             },
             child: const Text('حفظ'),
           ),

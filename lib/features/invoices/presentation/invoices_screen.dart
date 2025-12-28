@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -273,7 +273,7 @@ class _InvoiceCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          '${invoice.total.toStringAsFixed(2)} ر.س',
+                          '${invoice.total.toStringAsFixed(2)} ل.س',
                           style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.bold,

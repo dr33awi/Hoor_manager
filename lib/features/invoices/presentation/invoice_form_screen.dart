@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -34,6 +34,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   final _notesController = TextEditingController();
 
   final List<Map<String, dynamic>> _items = [];
+  final Map<String, int> _productStock = {}; // لتخزين كميات المخزون
   String _paymentMethod = 'cash';
   bool _isLoading = false;
   Shift? _currentShift;
@@ -159,11 +160,30 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                     itemCount: _items.length,
                     itemBuilder: (context, index) {
                       final item = _items[index];
+                      final isSale = widget.type == 'sale' ||
+                          widget.type == 'purchase_return';
                       return _InvoiceItemCard(
                         item: item,
                         isPurchase: widget.type == 'purchase' ||
                             widget.type == 'opening_balance',
+                        isSale: isSale,
                         onQuantityChanged: (qty) {
+                          if (isSale) {
+                            final availableStock =
+                                item['availableStock'] as int? ??
+                                    _productStock[item['productId']] ??
+                                    999;
+                            if (qty > availableStock) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'الكمية المطلوبة ($qty) أكبر من المتاح ($availableStock)'),
+                                  backgroundColor: AppColors.warning,
+                                ),
+                              );
+                              return;
+                            }
+                          }
                           setState(() => item['quantity'] = qty);
                         },
                         onPriceChanged: (price) {
@@ -202,7 +222,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                         decoration: const InputDecoration(
                           labelText: 'الخصم',
                           prefixIcon: Icon(Icons.discount),
-                          suffixText: 'ر.س',
+                          suffixText: 'ل.س',
                           isDense: true,
                         ),
                         onChanged: (_) => setState(() {}),
@@ -236,7 +256,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('المجموع:', style: TextStyle(fontSize: 14.sp)),
-                    Text('${_subtotal.toStringAsFixed(2)} ر.س'),
+                    Text('${_subtotal.toStringAsFixed(2)} ل.س'),
                   ],
                 ),
                 if (_discount > 0) ...[
@@ -247,7 +267,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       Text('الخصم:',
                           style: TextStyle(
                               fontSize: 14.sp, color: AppColors.error)),
-                      Text('-${_discount.toStringAsFixed(2)} ر.س',
+                      Text('-${_discount.toStringAsFixed(2)} ل.س',
                           style: TextStyle(color: AppColors.error)),
                     ],
                   ),
@@ -264,7 +284,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
                       ),
                     ),
                     Text(
-                      '${_total.toStringAsFixed(2)} ر.س',
+                      '${_total.toStringAsFixed(2)} ل.س',
                       style: TextStyle(
                         fontSize: 20.sp,
                         fontWeight: FontWeight.bold,
@@ -362,7 +382,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
               final product = filtered[index];
               return ListTile(
                 title: Text(product.name),
-                subtitle: Text('${product.salePrice.toStringAsFixed(2)} ر.س'),
+                subtitle: Text('${product.salePrice.toStringAsFixed(2)} ل.س'),
                 trailing: Text('الكمية: ${product.quantity}'),
                 onTap: () => Navigator.pop(context, product),
               );
@@ -384,15 +404,45 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
   }
 
   void _addProduct(Product product) {
+    // For sales, check stock availability
+    final isSale = widget.type == 'sale' || widget.type == 'purchase_return';
+
+    if (isSale && product.quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('المنتج "${product.name}" غير متوفر في المخزون'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     // Check if already in list
     final existingIndex =
         _items.indexWhere((i) => i['productId'] == product.id);
 
     if (existingIndex >= 0) {
+      final currentQty = _items[existingIndex]['quantity'] as int;
+      final availableStock = _productStock[product.id] ?? product.quantity;
+
+      if (isSale && currentQty >= availableStock) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('لا يمكن إضافة المزيد. الكمية المتاحة: $availableStock'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _items[existingIndex]['quantity']++;
       });
     } else {
+      // Store the original stock for this product
+      _productStock[product.id] = product.quantity;
+
       final isPurchase =
           widget.type == 'purchase' || widget.type == 'opening_balance';
       setState(() {
@@ -402,7 +452,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
           'quantity': 1,
           'unitPrice': isPurchase ? product.purchasePrice : product.salePrice,
           'purchasePrice': product.purchasePrice,
-          'taxRate': product.taxRate ?? 0,
+          'availableStock': product.quantity, // تخزين الكمية المتاحة
         });
       });
     }
@@ -479,6 +529,7 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 class _InvoiceItemCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final bool isPurchase;
+  final bool isSale;
   final Function(int) onQuantityChanged;
   final Function(double) onPriceChanged;
   final VoidCallback onRemove;
@@ -486,6 +537,7 @@ class _InvoiceItemCard extends StatelessWidget {
   const _InvoiceItemCard({
     required this.item,
     required this.isPurchase,
+    this.isSale = false,
     required this.onQuantityChanged,
     required this.onPriceChanged,
     required this.onRemove,
@@ -496,6 +548,7 @@ class _InvoiceItemCard extends StatelessWidget {
     final quantity = item['quantity'] as int;
     final unitPrice = item['unitPrice'] as double;
     final total = quantity * unitPrice;
+    final availableStock = item['availableStock'] as int? ?? 999;
 
     return Card(
       margin: EdgeInsets.only(bottom: 8.h),
@@ -507,12 +560,29 @@ class _InvoiceItemCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    item['productName'] as String,
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['productName'] as String,
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (isSale) ...[
+                        Gap(2.h),
+                        Text(
+                          'المتاح: $availableStock',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: quantity >= availableStock
+                                ? AppColors.error
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 IconButton(
@@ -558,7 +628,7 @@ class _InvoiceItemCard extends StatelessWidget {
                     decoration: const InputDecoration(
                       labelText: 'السعر',
                       isDense: true,
-                      suffixText: 'ر.س',
+                      suffixText: 'ل.س',
                     ),
                     onChanged: (value) {
                       final price = double.tryParse(value);
@@ -579,7 +649,7 @@ class _InvoiceItemCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${total.toStringAsFixed(2)} ر.س',
+                      '${total.toStringAsFixed(2)} ل.س',
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.bold,

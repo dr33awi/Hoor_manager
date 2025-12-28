@@ -64,9 +64,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ),
           Gap(16.h),
 
-          // Quick Summary
-          FutureBuilder<Map<String, double>>(
-            future: _db.getSalesSummary(_dateRange.start, _dateRange.end),
+          // Quick Summary - Real-time updates
+          StreamBuilder<Map<String, double>>(
+            stream: _db.watchSalesSummary(_dateRange.start, _dateRange.end),
             builder: (context, snapshot) {
               final summary = snapshot.data ?? {};
               return Row(
@@ -82,8 +82,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   Gap(8.w),
                   Expanded(
                     child: _SummaryCard(
-                      title: 'المشتريات',
-                      value: summary['totalPurchases'] ?? 0,
+                      title: 'المرتجعات',
+                      value: summary['totalReturns'] ?? 0,
                       icon: Icons.shopping_cart,
                       color: AppColors.purchases,
                     ),
@@ -91,9 +91,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   Gap(8.w),
                   Expanded(
                     child: _SummaryCard(
-                      title: 'صافي الربح',
-                      value: (summary['totalSales'] ?? 0) -
-                          (summary['totalPurchases'] ?? 0),
+                      title: 'صافي المبيعات',
+                      value: summary['netSales'] ?? 0,
                       icon: Icons.account_balance_wallet,
                       color: AppColors.primary,
                     ),

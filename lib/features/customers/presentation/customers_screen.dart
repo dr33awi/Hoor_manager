@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -279,7 +279,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             _DetailRow(
               icon: Icons.account_balance_wallet,
               label: 'الرصيد',
-              value: '${customer.balance.toStringAsFixed(2)} ر.س',
+              value: '${customer.balance.toStringAsFixed(2)} ل.س',
               valueColor:
                   customer.balance >= 0 ? AppColors.success : AppColors.error,
             ),
@@ -383,7 +383,7 @@ class _CustomerCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'ر.س',
+                    'ل.س',
                     style: TextStyle(
                       fontSize: 10.sp,
                       color: AppColors.textSecondary,

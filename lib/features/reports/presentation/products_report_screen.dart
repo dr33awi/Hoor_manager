@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -22,8 +22,6 @@ class _ProductsReportScreenState extends ConsumerState<ProductsReportScreen> {
   final _db = getIt<AppDatabase>();
 
   late DateTimeRange _dateRange;
-  List<Map<String, dynamic>> _topProducts = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -33,20 +31,6 @@ class _ProductsReportScreenState extends ConsumerState<ProductsReportScreen> {
           start: DateTime.now().subtract(const Duration(days: 30)),
           end: DateTime.now(),
         );
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final topProducts = await _db.getTopSellingProducts(
-      _dateRange.start,
-      _dateRange.end,
-      20,
-    );
-
-    setState(() {
-      _topProducts = topProducts;
-      _isLoading = false;
-    });
   }
 
   @override
@@ -61,113 +45,121 @@ class _ProductsReportScreenState extends ConsumerState<ProductsReportScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Date Range
-                Padding(
-                  padding: EdgeInsets.all(16.w),
-                  child: Text(
-                    '${DateFormat('dd/MM/yyyy').format(_dateRange.start)} - ${DateFormat('dd/MM/yyyy').format(_dateRange.end)}',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14.sp,
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream:
+            _db.watchTopSellingProducts(_dateRange.start, _dateRange.end, 20),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final topProducts = snapshot.data!;
+
+          return Column(
+            children: [
+              // Date Range
+              Padding(
+                padding: EdgeInsets.all(16.w),
+                child: Text(
+                  '${DateFormat('dd/MM/yyyy').format(_dateRange.start)} - ${DateFormat('dd/MM/yyyy').format(_dateRange.end)}',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14.sp,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              // Summary
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'المنتجات المباعة',
+                        value: '${topProducts.length}',
+                        icon: Icons.inventory_2,
+                        color: AppColors.products,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-                // Summary
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _SummaryCard(
-                          title: 'المنتجات المباعة',
-                          value: '${_topProducts.length}',
-                          icon: Icons.inventory_2,
-                          color: AppColors.products,
-                        ),
+                    Gap(8.w),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'إجمالي الكميات',
+                        value:
+                            '${topProducts.fold(0, (sum, p) => sum + ((p['quantity'] as num?)?.toInt() ?? 0))}',
+                        icon: Icons.numbers,
+                        color: AppColors.primary,
                       ),
-                      Gap(8.w),
-                      Expanded(
-                        child: _SummaryCard(
-                          title: 'إجمالي الكميات',
-                          value:
-                              '${_topProducts.fold(0, (sum, p) => sum + ((p['quantity'] as num?)?.toInt() ?? 0))}',
-                          icon: Icons.numbers,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Gap(16.h),
+              ),
+              Gap(16.h),
 
-                // Header
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Row(
-                    children: [
-                      Text(
-                        'المنتجات الأكثر مبيعاً',
-                        style: TextStyle(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
+              // Header
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Row(
+                  children: [
+                    Text(
+                      'المنتجات الأكثر مبيعاً',
+                      style: TextStyle(
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.bold,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Gap(8.h),
+              ),
+              Gap(8.h),
 
-                // Products List
-                Expanded(
-                  child: _topProducts.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.inventory_2,
-                                size: 64.sp,
+              // Products List
+              Expanded(
+                child: topProducts.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.inventory_2,
+                              size: 64.sp,
+                              color: Colors.grey,
+                            ),
+                            Gap(16.h),
+                            Text(
+                              'لا توجد مبيعات في هذه الفترة',
+                              style: TextStyle(
+                                fontSize: 16.sp,
                                 color: Colors.grey,
                               ),
-                              Gap(16.h),
-                              Text(
-                                'لا توجد مبيعات في هذه الفترة',
-                                style: TextStyle(
-                                  fontSize: 16.sp,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: EdgeInsets.symmetric(horizontal: 16.w),
-                          itemCount: _topProducts.length,
-                          itemBuilder: (context, index) {
-                            final product = _topProducts[index];
-                            return _ProductCard(
-                              rank: index + 1,
-                              name: product['name'] ?? 'غير معروف',
-                              quantity:
-                                  (product['quantity'] as num?)?.toInt() ?? 0,
-                              total:
-                                  (product['total'] as num?)?.toDouble() ?? 0,
-                              maxQuantity:
-                                  (_topProducts.first['quantity'] as num?)
-                                          ?.toInt() ??
-                                      1,
-                            );
-                          },
+                            ),
+                          ],
                         ),
-                ),
-              ],
-            ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        itemCount: topProducts.length,
+                        itemBuilder: (context, index) {
+                          final product = topProducts[index];
+                          return _ProductCard(
+                            rank: index + 1,
+                            name: product['name'] ?? 'غير معروف',
+                            quantity:
+                                (product['quantity'] as num?)?.toInt() ?? 0,
+                            total: (product['total'] as num?)?.toDouble() ?? 0,
+                            maxQuantity: (topProducts.first['quantity'] as num?)
+                                    ?.toInt() ??
+                                1,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -183,9 +175,7 @@ class _ProductsReportScreenState extends ConsumerState<ProductsReportScreen> {
     if (picked != null) {
       setState(() {
         _dateRange = picked;
-        _isLoading = true;
       });
-      _loadData();
     }
   }
 }
@@ -327,7 +317,7 @@ class _ProductCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'ر.س',
+                  'ل.س',
                   style: TextStyle(
                     fontSize: 10.sp,
                     color: AppColors.textSecondary,

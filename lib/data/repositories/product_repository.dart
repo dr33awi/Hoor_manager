@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,8 @@ import '../../core/constants/app_constants.dart';
 import 'base_repository.dart';
 
 class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
+  StreamSubscription? _productFirestoreSubscription;
+
   ProductRepository({
     required super.database,
     required super.firestore,
@@ -29,6 +32,9 @@ class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
       database.getProductsByCategory(categoryId);
 
   Future<List<Product>> getLowStockProducts() => database.getLowStockProducts();
+
+  Stream<List<Product>> watchLowStockProducts() =>
+      database.watchLowStockProducts();
 
   Future<String> createProduct({
     required String name,
@@ -83,10 +89,19 @@ class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
     String? imageUrl,
     bool? isActive,
   }) async {
-    final existing = await database.getProductById(id);
-    if (existing == null) return;
+    print('updateProduct called with id: $id');
+    print(
+        'New values - name: $name, purchasePrice: $purchasePrice, salePrice: $salePrice');
 
-    await database.updateProduct(ProductsCompanion(
+    final existing = await database.getProductById(id);
+    if (existing == null) {
+      print('Error: Product not found with id: $id');
+      return;
+    }
+
+    print('Existing product found: ${existing.name}');
+
+    final updatedProduct = ProductsCompanion(
       id: Value(id),
       name: Value(name ?? existing.name),
       sku: Value(sku ?? existing.sku),
@@ -103,7 +118,23 @@ class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
       syncStatus: const Value('pending'),
       createdAt: Value(existing.createdAt),
       updatedAt: Value(DateTime.now()),
-    ));
+    );
+
+    final result = await database.updateProduct(updatedProduct);
+    print('Update result: $result');
+
+    // مزامنة مع Firestore
+    if (result) {
+      try {
+        final updated = await database.getProductById(id);
+        if (updated != null) {
+          await collection.doc(id).set(toFirestore(updated));
+          print('Product synced to Firestore');
+        }
+      } catch (e) {
+        print('Error syncing to Firestore: $e');
+      }
+    }
   }
 
   Future<void> updateProductQuantity(String productId, int newQuantity) =>
@@ -131,7 +162,17 @@ class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
     ));
   }
 
-  Future<void> deleteProduct(String id) => database.deleteProduct(id);
+  Future<void> deleteProduct(String id) async {
+    // حذف من قاعدة البيانات المحلية
+    await database.deleteProduct(id);
+
+    // حذف من Firestore
+    try {
+      await collection.doc(id).delete();
+    } catch (e) {
+      debugPrint('Error deleting product from Firestore: $e');
+    }
+  }
 
   Future<void> updateSalePrices(List<Map<String, dynamic>> updates) async {
     for (final update in updates) {
@@ -252,5 +293,52 @@ class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
       createdAt: Value((data['createdAt'] as Timestamp).toDate()),
       updatedAt: Value((data['updatedAt'] as Timestamp).toDate()),
     );
+  }
+
+  @override
+  void startRealtimeSync() {
+    _productFirestoreSubscription?.cancel();
+    _productFirestoreSubscription = collection.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        final data = change.doc.data() as Map<String, dynamic>?;
+        if (data == null) continue;
+
+        switch (change.type) {
+          case DocumentChangeType.added:
+          case DocumentChangeType.modified:
+            _handleRemoteChange(data, change.doc.id);
+            break;
+          case DocumentChangeType.removed:
+            _handleRemoteDelete(change.doc.id);
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRemoteChange(Map<String, dynamic> data, String id) async {
+    try {
+      final existing = await database.getProductById(id);
+      final companion = fromFirestore(data, id);
+
+      if (existing == null) {
+        await database.insertProduct(companion);
+      } else if (existing.syncStatus == 'synced') {
+        final cloudUpdatedAt = (data['updatedAt'] as Timestamp).toDate();
+        if (cloudUpdatedAt.isAfter(existing.updatedAt)) {
+          await database.updateProduct(companion);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling remote product change: $e');
+    }
+  }
+
+  Future<void> _handleRemoteDelete(String id) async {
+    try {
+      await database.deleteProduct(id);
+    } catch (e) {
+      debugPrint('Error handling remote product delete: $e');
+    }
   }
 }

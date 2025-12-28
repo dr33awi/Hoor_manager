@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' hide Category;
@@ -7,6 +8,8 @@ import '../../core/constants/app_constants.dart';
 import 'base_repository.dart';
 
 class CategoryRepository extends BaseRepository<Category, CategoriesCompanion> {
+  StreamSubscription? _categoryFirestoreSubscription;
+
   CategoryRepository({
     required super.database,
     required super.firestore,
@@ -61,7 +64,17 @@ class CategoryRepository extends BaseRepository<Category, CategoriesCompanion> {
     ));
   }
 
-  Future<void> deleteCategory(String id) => database.deleteCategory(id);
+  Future<void> deleteCategory(String id) async {
+    // حذف من قاعدة البيانات المحلية
+    await database.deleteCategory(id);
+
+    // حذف من Firestore
+    try {
+      await collection.doc(id).delete();
+    } catch (e) {
+      debugPrint('Error deleting category from Firestore: $e');
+    }
+  }
 
   // ==================== Cloud Sync ====================
 
@@ -134,5 +147,52 @@ class CategoryRepository extends BaseRepository<Category, CategoriesCompanion> {
       createdAt: Value((data['createdAt'] as Timestamp).toDate()),
       updatedAt: Value((data['updatedAt'] as Timestamp).toDate()),
     );
+  }
+
+  @override
+  void startRealtimeSync() {
+    _categoryFirestoreSubscription?.cancel();
+    _categoryFirestoreSubscription = collection.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        final data = change.doc.data() as Map<String, dynamic>?;
+        if (data == null) continue;
+
+        switch (change.type) {
+          case DocumentChangeType.added:
+          case DocumentChangeType.modified:
+            _handleRemoteChange(data, change.doc.id);
+            break;
+          case DocumentChangeType.removed:
+            _handleRemoteDelete(change.doc.id);
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRemoteChange(Map<String, dynamic> data, String id) async {
+    try {
+      final existing = await database.getCategoryById(id);
+      final companion = fromFirestore(data, id);
+
+      if (existing == null) {
+        await database.insertCategory(companion);
+      } else if (existing.syncStatus == 'synced') {
+        final cloudUpdatedAt = (data['updatedAt'] as Timestamp).toDate();
+        if (cloudUpdatedAt.isAfter(existing.updatedAt)) {
+          await database.updateCategory(companion);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling remote category change: $e');
+    }
+  }
+
+  Future<void> _handleRemoteDelete(String id) async {
+    try {
+      await database.deleteCategory(id);
+    } catch (e) {
+      debugPrint('Error handling remote category delete: $e');
+    }
   }
 }

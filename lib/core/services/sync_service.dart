@@ -24,6 +24,7 @@ class SyncService extends ChangeNotifier {
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
   String? _lastError;
+  bool _realtimeSyncStarted = false;
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
@@ -53,12 +54,14 @@ class SyncService extends ChangeNotifier {
     // Listen for connectivity changes
     _connectivity.addListener(_onConnectivityChanged);
 
-    // Start periodic sync
+    // Start periodic sync for pending changes
     _startPeriodicSync();
 
     // Initial sync if online
     if (_connectivity.isOnline) {
       await syncAll();
+      // Start real-time sync after initial sync
+      _startRealtimeSync();
     }
   }
 
@@ -66,20 +69,80 @@ class SyncService extends ChangeNotifier {
     if (_connectivity.isOnline) {
       // Sync pending changes when coming online
       syncAll();
+      // Start real-time sync
+      _startRealtimeSync();
+    } else {
+      // Stop real-time sync when offline
+      _stopRealtimeSync();
     }
     notifyListeners();
+  }
+
+  /// Start listening to Firestore changes in real-time
+  void _startRealtimeSync() {
+    if (_realtimeSyncStarted) return;
+
+    _realtimeSyncStarted = true;
+    debugPrint('Starting real-time sync...');
+
+    // Start real-time listeners for main data
+    _productRepo.startRealtimeSync();
+    _categoryRepo.startRealtimeSync();
+    _invoiceRepo.startRealtimeSync();
+
+    debugPrint('Real-time sync started');
+  }
+
+  /// Stop listening to Firestore changes
+  void _stopRealtimeSync() {
+    if (!_realtimeSyncStarted) return;
+
+    _realtimeSyncStarted = false;
+    debugPrint('Stopping real-time sync...');
+
+    _productRepo.stopRealtimeSync();
+    _categoryRepo.stopRealtimeSync();
+    _invoiceRepo.stopRealtimeSync();
+
+    debugPrint('Real-time sync stopped');
   }
 
   void _startPeriodicSync() {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(AppConstants.syncInterval, (_) {
       if (_connectivity.isOnline && !_isSyncing) {
-        syncAll();
+        // Only sync pending changes periodically
+        _syncPendingOnly();
       }
     });
   }
 
-  /// Sync all data
+  /// Sync only pending changes (for periodic sync)
+  Future<void> _syncPendingOnly() async {
+    if (_isSyncing || !_connectivity.isOnline) return;
+
+    _isSyncing = true;
+    notifyListeners();
+
+    try {
+      await _categoryRepo.syncPendingChanges();
+      await _productRepo.syncPendingChanges();
+      await _invoiceRepo.syncPendingChanges();
+      await _inventoryRepo.syncPendingChanges();
+      await _shiftRepo.syncPendingChanges();
+      await _cashRepo.syncPendingChanges();
+
+      _lastSyncTime = DateTime.now();
+    } catch (e) {
+      _lastError = e.toString();
+      debugPrint('Sync pending error: $e');
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
+
+  /// Sync all data (full sync)
   Future<void> syncAll() async {
     if (_isSyncing || !_connectivity.isOnline) return;
 
@@ -88,7 +151,7 @@ class SyncService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Sync in order of dependencies
+      // Sync pending changes first
       await _categoryRepo.syncPendingChanges();
       await _productRepo.syncPendingChanges();
       await _invoiceRepo.syncPendingChanges();
@@ -96,7 +159,7 @@ class SyncService extends ChangeNotifier {
       await _shiftRepo.syncPendingChanges();
       await _cashRepo.syncPendingChanges();
 
-      // Pull latest from cloud
+      // Pull latest from cloud (initial load)
       await _categoryRepo.pullFromCloud();
       await _productRepo.pullFromCloud();
       await _invoiceRepo.pullFromCloud();
@@ -154,6 +217,7 @@ class SyncService extends ChangeNotifier {
   @override
   void dispose() {
     _syncTimer?.cancel();
+    _stopRealtimeSync();
     _connectivity.removeListener(_onConnectivityChanged);
     super.dispose();
   }

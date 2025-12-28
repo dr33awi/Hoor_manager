@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,8 @@ import '../../core/constants/app_constants.dart';
 import 'base_repository.dart';
 
 class ShiftRepository extends BaseRepository<Shift, ShiftsCompanion> {
+  StreamSubscription? _shiftFirestoreSubscription;
+
   ShiftRepository({
     required super.database,
     required super.firestore,
@@ -19,6 +22,8 @@ class ShiftRepository extends BaseRepository<Shift, ShiftsCompanion> {
   Stream<List<Shift>> watchAllShifts() => database.watchAllShifts();
 
   Future<Shift?> getOpenShift() => database.getOpenShift();
+
+  Stream<Shift?> watchOpenShift() => database.watchOpenShift();
 
   Future<Shift?> getShiftById(String id) => database.getShiftById(id);
 
@@ -292,5 +297,58 @@ class ShiftRepository extends BaseRepository<Shift, ShiftsCompanion> {
       createdAt: Value((data['createdAt'] as Timestamp).toDate()),
       updatedAt: Value((data['updatedAt'] as Timestamp).toDate()),
     );
+  }
+
+  @override
+  void startRealtimeSync() {
+    _shiftFirestoreSubscription?.cancel();
+    _shiftFirestoreSubscription = collection.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        switch (change.type) {
+          case DocumentChangeType.added:
+          case DocumentChangeType.modified:
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+            _handleRemoteChange(data, change.doc.id);
+            break;
+          case DocumentChangeType.removed:
+            _handleRemoteDelete(change.doc.id);
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRemoteChange(Map<String, dynamic> data, String id) async {
+    try {
+      final existing = await database.getShiftById(id);
+      final companion = fromFirestore(data, id);
+
+      if (existing == null) {
+        await database.insertShift(companion);
+      } else if (existing.syncStatus == 'synced') {
+        final cloudUpdatedAt = (data['updatedAt'] as Timestamp).toDate();
+        if (cloudUpdatedAt.isAfter(existing.updatedAt)) {
+          await database.updateShift(companion);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling remote shift change: $e');
+    }
+  }
+
+  Future<void> _handleRemoteDelete(String id) async {
+    try {
+      final existing = await database.getShiftById(id);
+      if (existing != null) {
+        // Delete cash movements for this shift first
+        await database.deleteCashMovementsByShift(id);
+        // Then delete the shift
+        await database.deleteShift(id);
+        debugPrint('Deleted shift from remote: $id');
+      }
+    } catch (e) {
+      debugPrint('Error handling remote shift delete: $e');
+    }
   }
 }

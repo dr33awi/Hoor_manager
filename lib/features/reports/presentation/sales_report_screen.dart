@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -22,9 +22,6 @@ class _SalesReportScreenState extends ConsumerState<SalesReportScreen> {
   final _db = getIt<AppDatabase>();
 
   late DateTimeRange _dateRange;
-  Map<String, double> _summary = {};
-  List<Invoice> _invoices = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -34,22 +31,6 @@ class _SalesReportScreenState extends ConsumerState<SalesReportScreen> {
           start: DateTime.now().subtract(const Duration(days: 30)),
           end: DateTime.now(),
         );
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final summary = await _db.getSalesSummary(_dateRange.start, _dateRange.end);
-    final allInvoices = await _db.getInvoicesByDateRange(
-      _dateRange.start,
-      _dateRange.end,
-    );
-    final invoices = allInvoices.where((i) => i.type == 'sale').toList();
-
-    setState(() {
-      _summary = summary;
-      _invoices = invoices;
-      _isLoading = false;
-    });
   }
 
   @override
@@ -68,131 +49,149 @@ class _SalesReportScreenState extends ConsumerState<SalesReportScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: EdgeInsets.all(16.w),
-              children: [
-                // Date Range
-                Text(
-                  '${DateFormat('dd/MM/yyyy').format(_dateRange.start)} - ${DateFormat('dd/MM/yyyy').format(_dateRange.end)}',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14.sp,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                Gap(16.h),
+      body: StreamBuilder<Map<String, double>>(
+        stream: _db.watchSalesSummary(_dateRange.start, _dateRange.end),
+        builder: (context, summarySnapshot) {
+          return StreamBuilder<List<Invoice>>(
+            stream:
+                _db.watchInvoicesByDateRange(_dateRange.start, _dateRange.end),
+            builder: (context, invoicesSnapshot) {
+              if (!summarySnapshot.hasData || !invoicesSnapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-                // Summary Cards
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        title: 'إجمالي المبيعات',
-                        value: _summary['totalSales'] ?? 0,
-                        icon: Icons.trending_up,
-                        color: AppColors.success,
-                      ),
-                    ),
-                    Gap(8.w),
-                    Expanded(
-                      child: _StatCard(
-                        title: 'عدد الفواتير',
-                        value: (_summary['invoiceCount'] ?? 0),
-                        icon: Icons.receipt,
-                        color: AppColors.primary,
-                        isCurrency: false,
-                      ),
-                    ),
-                  ],
-                ),
-                Gap(8.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        title: 'متوسط الفاتورة',
-                        value: _summary['averageInvoice'] ?? 0,
-                        icon: Icons.analytics,
-                        color: AppColors.accent,
-                      ),
-                    ),
-                    Gap(8.w),
-                    Expanded(
-                      child: _StatCard(
-                        title: 'المرتجعات',
-                        value: _summary['totalReturns'] ?? 0,
-                        icon: Icons.assignment_return,
-                        color: AppColors.error,
-                      ),
-                    ),
-                  ],
-                ),
-                Gap(24.h),
+              final summary = summarySnapshot.data!;
+              final allInvoices = invoicesSnapshot.data!;
+              final invoices =
+                  allInvoices.where((i) => i.type == 'sale').toList();
 
-                // Chart
-                Text(
-                  'المبيعات اليومية',
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Gap(12.h),
-                Container(
-                  height: 200.h,
-                  padding: EdgeInsets.all(16.w),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: _buildChart(),
-                ),
-                Gap(24.h),
-
-                // Payment Methods
-                Text(
-                  'طرق الدفع',
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Gap(12.h),
-                _PaymentMethodsCard(invoices: _invoices),
-                Gap(24.h),
-
-                // Recent Invoices
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'أحدث الفواتير',
-                      style: TextStyle(
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
+              return ListView(
+                padding: EdgeInsets.all(16.w),
+                children: [
+                  // Date Range
+                  Text(
+                    '${DateFormat('dd/MM/yyyy').format(_dateRange.start)} - ${DateFormat('dd/MM/yyyy').format(_dateRange.end)}',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14.sp,
                     ),
-                    Text(
-                      '${_invoices.length} فاتورة',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
+                    textAlign: TextAlign.center,
+                  ),
+                  Gap(16.h),
+
+                  // Summary Cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          title: 'إجمالي المبيعات',
+                          value: summary['totalSales'] ?? 0,
+                          icon: Icons.trending_up,
+                          color: AppColors.success,
+                        ),
                       ),
+                      Gap(8.w),
+                      Expanded(
+                        child: _StatCard(
+                          title: 'عدد الفواتير',
+                          value: (summary['invoiceCount'] ?? 0),
+                          icon: Icons.receipt,
+                          color: AppColors.primary,
+                          isCurrency: false,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Gap(8.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          title: 'متوسط الفاتورة',
+                          value: summary['averageInvoice'] ?? 0,
+                          icon: Icons.analytics,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                      Gap(8.w),
+                      Expanded(
+                        child: _StatCard(
+                          title: 'المرتجعات',
+                          value: summary['totalReturns'] ?? 0,
+                          icon: Icons.assignment_return,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Gap(24.h),
+
+                  // Chart
+                  Text(
+                    'المبيعات اليومية',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
-                Gap(12.h),
-                ..._invoices.take(10).map((i) => _InvoiceItem(invoice: i)),
-              ],
-            ),
+                  ),
+                  Gap(12.h),
+                  Container(
+                    height: 200.h,
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: _buildChart(invoices),
+                  ),
+                  Gap(24.h),
+
+                  // Payment Methods
+                  Text(
+                    'طرق الدفع',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Gap(12.h),
+                  _PaymentMethodsCard(invoices: invoices),
+                  Gap(24.h),
+
+                  // Recent Invoices
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'أحدث الفواتير',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${invoices.length} فاتورة',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Gap(12.h),
+                  ...invoices.take(10).map((i) => _InvoiceItem(invoice: i)),
+                ],
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildChart() {
+  Widget _buildChart(List<Invoice> invoices) {
     // Group invoices by day
     final Map<String, double> dailySales = {};
-    for (final invoice in _invoices) {
+    for (final invoice in invoices) {
       final day = DateFormat('dd/MM').format(invoice.createdAt);
       dailySales[day] = (dailySales[day] ?? 0) + invoice.total;
     }
@@ -266,9 +265,7 @@ class _SalesReportScreenState extends ConsumerState<SalesReportScreen> {
     if (picked != null) {
       setState(() {
         _dateRange = picked;
-        _isLoading = true;
       });
-      _loadData();
     }
   }
 }
@@ -312,7 +309,7 @@ class _StatCard extends StatelessWidget {
             Gap(8.h),
             Text(
               isCurrency
-                  ? '${value.toStringAsFixed(2)} ر.س'
+                  ? '${value.toStringAsFixed(2)} ل.س'
                   : value.toInt().toString(),
               style: TextStyle(
                 fontSize: 20.sp,
@@ -420,7 +417,7 @@ class _PaymentMethodRow extends StatelessWidget {
           children: [
             Text(label),
             Text(
-              '${amount.toStringAsFixed(2)} ر.س (${percentage.toStringAsFixed(1)}%)',
+              '${amount.toStringAsFixed(2)} ل.س (${percentage.toStringAsFixed(1)}%)',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
@@ -458,7 +455,7 @@ class _InvoiceItem extends StatelessWidget {
         subtitle:
             Text(DateFormat('dd/MM/yyyy HH:mm').format(invoice.createdAt)),
         trailing: Text(
-          '${invoice.total.toStringAsFixed(2)} ر.س',
+          '${invoice.total.toStringAsFixed(2)} ل.س',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.success,

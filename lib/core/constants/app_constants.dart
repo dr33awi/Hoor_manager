@@ -38,8 +38,15 @@ class AppConstants {
   static const String displayTimeFormat = 'HH:mm';
 
   // Currency
-  static const String currencySymbol = 'ر.س';
-  static const String currencyCode = 'SAR';
+  static const String currencySymbol = 'ل.س';
+  static const String currencyCode = 'SYP';
+
+  // USD Currency
+  static const String usdSymbol = '\$';
+  static const String usdCode = 'USD';
+
+  // Default Exchange Rate (USD to SYP)
+  static const double defaultExchangeRate = 14500.0;
 
   // Sync
   static const Duration syncInterval = Duration(minutes: 5);

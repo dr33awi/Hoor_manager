@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
@@ -41,40 +44,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             onPressed: () => setState(() => _showLowStock = !_showLowStock),
             tooltip: 'نقص المخزون',
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              switch (value) {
-                case 'update_prices':
-                  _showPriceUpdateDialog();
-                  break;
-                case 'export':
-                  _exportProducts();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'update_prices',
-                child: Row(
-                  children: [
-                    Icon(Icons.price_change),
-                    SizedBox(width: 8),
-                    Text('تعديل الأسعار'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'export',
-                child: Row(
-                  children: [
-                    Icon(Icons.file_download),
-                    SizedBox(width: 8),
-                    Text('تصدير'),
-                  ],
-                ),
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            onPressed: _exportProducts,
+            tooltip: 'تصدير',
           ),
         ],
       ),
@@ -233,10 +206,124 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
   }
 
-  void _exportProducts() {
-    // Export products to Excel
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جاري تصدير المنتجات...')),
+  Future<void> _exportProducts() async {
+    final products = await _productRepo.getAllProducts();
+
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد منتجات للتصدير')),
+      );
+      return;
+    }
+
+    // تحميل الخط العربي
+    final arabicFont = await PdfGoogleFonts.cairoBold();
+    final arabicFontRegular = await PdfGoogleFonts.cairoRegular();
+
+    final pdf = pw.Document();
+
+    // تقسيم المنتجات إلى صفحات (25 منتج لكل صفحة)
+    const productsPerPage = 25;
+    final totalPages = (products.length / productsPerPage).ceil();
+
+    for (int page = 0; page < totalPages; page++) {
+      final startIndex = page * productsPerPage;
+      final endIndex = (startIndex + productsPerPage > products.length)
+          ? products.length
+          : startIndex + productsPerPage;
+      final pageProducts = products.sublist(startIndex, endIndex);
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          textDirection: pw.TextDirection.rtl,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                // العنوان
+                pw.Center(
+                  child: pw.Text(
+                    'قائمة المنتجات',
+                    style: pw.TextStyle(
+                      font: arabicFont,
+                      fontSize: 24,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+                pw.Center(
+                  child: pw.Text(
+                    'إجمالي المنتجات: ${products.length}',
+                    style: pw.TextStyle(
+                      font: arabicFontRegular,
+                      fontSize: 12,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+                // الجدول
+                pw.TableHelper.fromTextArray(
+                  context: context,
+                  headerStyle: pw.TextStyle(
+                    font: arabicFont,
+                    fontSize: 10,
+                    color: PdfColors.white,
+                  ),
+                  headerDecoration: const pw.BoxDecoration(
+                    color: PdfColors.blue800,
+                  ),
+                  cellStyle: pw.TextStyle(
+                    font: arabicFontRegular,
+                    fontSize: 9,
+                  ),
+                  cellAlignment: pw.Alignment.center,
+                  headerAlignment: pw.Alignment.center,
+                  headers: [
+                    'الكمية',
+                    'سعر البيع',
+                    'سعر الشراء',
+                    'الباركود',
+                    'اسم المنتج',
+                    '#',
+                  ],
+                  data: pageProducts.asMap().entries.map((entry) {
+                    final index = startIndex + entry.key + 1;
+                    final p = entry.value;
+                    return [
+                      '${p.quantity}',
+                      '${p.salePrice.toStringAsFixed(0)}',
+                      '${p.purchasePrice.toStringAsFixed(0)}',
+                      p.barcode ?? '-',
+                      p.name,
+                      '$index',
+                    ];
+                  }).toList(),
+                ),
+                pw.Spacer(),
+                // رقم الصفحة
+                pw.Center(
+                  child: pw.Text(
+                    'صفحة ${page + 1} من $totalPages',
+                    style: pw.TextStyle(
+                      font: arabicFontRegular,
+                      fontSize: 10,
+                      color: PdfColors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    // طباعة أو مشاركة الملف
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'products_list.pdf',
     );
   }
 }
@@ -320,7 +407,7 @@ class _ProductCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          '${product.salePrice.toStringAsFixed(2)} ر.س',
+                          '${product.salePrice.toStringAsFixed(2)} ل.س',
                           style: TextStyle(
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w600,

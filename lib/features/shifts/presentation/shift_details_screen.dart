@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -311,7 +311,7 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
           Text(
-            '${value.toStringAsFixed(2)} ر.س',
+            '${value.toStringAsFixed(2)} ل.س',
             style: TextStyle(
               color: color,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
@@ -389,7 +389,7 @@ class _MovementCard extends StatelessWidget {
         title: Text(movement.description),
         subtitle: Text(timeFormat.format(movement.createdAt)),
         trailing: Text(
-          '${isIncome ? '+' : '-'}${movement.amount.toStringAsFixed(2)} ر.س',
+          '${isIncome ? '+' : '-'}${movement.amount.toStringAsFixed(2)} ل.س',
           style: TextStyle(
             color: isIncome ? AppColors.success : AppColors.error,
             fontWeight: FontWeight.bold,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,8 @@ import 'base_repository.dart';
 
 class CashRepository
     extends BaseRepository<CashMovement, CashMovementsCompanion> {
+  StreamSubscription? _cashFirestoreSubscription;
+
   CashRepository({
     required super.database,
     required super.firestore,
@@ -148,6 +151,41 @@ class CashRepository
     };
   }
 
+  /// Watch cash summary for a shift (real-time updates)
+  Stream<Map<String, double>> watchShiftCashSummary(String shiftId) {
+    return database.watchCashMovementsByShift(shiftId).map((movements) {
+      double totalIncome = 0;
+      double totalExpense = 0;
+      double totalSales = 0;
+      double totalPurchases = 0;
+
+      for (final movement in movements) {
+        switch (movement.type) {
+          case 'income':
+            totalIncome += movement.amount;
+            break;
+          case 'expense':
+            totalExpense += movement.amount;
+            break;
+          case 'sale':
+            totalSales += movement.amount;
+            break;
+          case 'purchase':
+            totalPurchases += movement.amount;
+            break;
+        }
+      }
+
+      return {
+        'totalIncome': totalIncome,
+        'totalExpense': totalExpense,
+        'totalSales': totalSales,
+        'totalPurchases': totalPurchases,
+        'netCash': totalIncome + totalSales - totalExpense - totalPurchases,
+      };
+    });
+  }
+
   // ==================== Cloud Sync ====================
 
   @override
@@ -157,6 +195,8 @@ class CashRepository
     for (final movement in pending) {
       try {
         await collection.doc(movement.id).set(toFirestore(movement));
+        // Update sync status to synced
+        await database.updateCashMovementSyncStatus(movement.id, 'synced');
       } catch (e) {
         debugPrint('Error syncing cash movement ${movement.id}: $e');
       }
@@ -198,5 +238,56 @@ class CashRepository
       syncStatus: const Value('synced'),
       createdAt: Value((data['createdAt'] as Timestamp).toDate()),
     );
+  }
+
+  @override
+  void startRealtimeSync() {
+    _cashFirestoreSubscription?.cancel();
+    _cashFirestoreSubscription = collection.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        switch (change.type) {
+          case DocumentChangeType.added:
+          case DocumentChangeType.modified:
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+            _handleRemoteChange(data, change.doc.id);
+            break;
+          case DocumentChangeType.removed:
+            _handleRemoteDelete(change.doc.id);
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRemoteChange(Map<String, dynamic> data, String id) async {
+    try {
+      final existing = await database.getCashMovementById(id);
+      final companion = fromFirestore(data, id);
+
+      if (existing == null) {
+        await database.insertCashMovement(companion);
+      } else if (existing.syncStatus == 'synced') {
+        final cloudCreatedAt = (data['createdAt'] as Timestamp).toDate();
+        if (cloudCreatedAt.isAfter(existing.createdAt)) {
+          // Cash movements don't have updatedAt, so we use createdAt
+          // Typically cash movements shouldn't be modified
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling remote cash movement change: $e');
+    }
+  }
+
+  Future<void> _handleRemoteDelete(String id) async {
+    try {
+      final existing = await database.getCashMovementById(id);
+      if (existing != null) {
+        await database.deleteCashMovement(id);
+        debugPrint('Deleted cash movement from remote: $id');
+      }
+    } catch (e) {
+      debugPrint('Error handling remote cash movement delete: $e');
+    }
   }
 }

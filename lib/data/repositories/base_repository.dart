@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../database/app_database.dart';
@@ -7,6 +8,8 @@ abstract class BaseRepository<T, C> {
   final AppDatabase database;
   final FirebaseFirestore firestore;
   final String collectionName;
+
+  StreamSubscription? _firestoreSubscription;
 
   BaseRepository({
     required this.database,
@@ -27,6 +30,15 @@ abstract class BaseRepository<T, C> {
 
   /// Convert Firestore map to local companion
   C fromFirestore(Map<String, dynamic> data, String id);
+
+  /// Start listening to Firestore changes
+  void startRealtimeSync();
+
+  /// Stop listening to Firestore changes
+  void stopRealtimeSync() {
+    _firestoreSubscription?.cancel();
+    _firestoreSubscription = null;
+  }
 
   /// Generate unique ID
   String generateId() {

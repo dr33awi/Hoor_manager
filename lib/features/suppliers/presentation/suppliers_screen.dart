@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -292,7 +292,7 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
             _DetailRow(
               icon: Icons.account_balance_wallet,
               label: 'المستحق',
-              value: '${supplier.balance.toStringAsFixed(2)} ر.س',
+              value: '${supplier.balance.toStringAsFixed(2)} ل.س',
               valueColor:
                   supplier.balance >= 0 ? AppColors.success : AppColors.error,
             ),
@@ -396,7 +396,7 @@ class _SupplierCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'ر.س',
+                    'ل.س',
                     style: TextStyle(
                       fontSize: 10.sp,
                       color: AppColors.textSecondary,

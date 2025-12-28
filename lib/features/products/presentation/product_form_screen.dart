@@ -1,9 +1,14 @@
+﻿import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
@@ -26,13 +31,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   final _categoryRepo = getIt<CategoryRepository>();
 
   final _nameController = TextEditingController();
-  final _skuController = TextEditingController();
   final _barcodeController = TextEditingController();
   final _purchasePriceController = TextEditingController();
   final _salePriceController = TextEditingController();
   final _quantityController = TextEditingController(text: '0');
   final _minQuantityController = TextEditingController(text: '5');
-  final _taxRateController = TextEditingController(text: '15');
   final _descriptionController = TextEditingController();
 
   String? _selectedCategoryId;
@@ -54,13 +57,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     final product = await _productRepo.getProductById(widget.productId!);
     if (product != null) {
       _nameController.text = product.name;
-      _skuController.text = product.sku ?? '';
       _barcodeController.text = product.barcode ?? '';
       _purchasePriceController.text = product.purchasePrice.toString();
       _salePriceController.text = product.salePrice.toString();
       _quantityController.text = product.quantity.toString();
       _minQuantityController.text = product.minQuantity.toString();
-      _taxRateController.text = ((product.taxRate ?? 0) * 100).toString();
       _descriptionController.text = product.description ?? '';
       _selectedCategoryId = product.categoryId;
     }
@@ -71,13 +72,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _skuController.dispose();
     _barcodeController.dispose();
     _purchasePriceController.dispose();
     _salePriceController.dispose();
     _quantityController.dispose();
     _minQuantityController.dispose();
-    _taxRateController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -111,30 +110,37 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   ),
                   Gap(16.h),
 
-                  // SKU & Barcode
+                  // Barcode
+                  TextFormField(
+                    controller: _barcodeController,
+                    decoration: InputDecoration(
+                      labelText: 'الباركود',
+                      prefixIcon: const Icon(Icons.qr_code),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.qr_code_scanner),
+                        onPressed: _scanBarcode,
+                      ),
+                    ),
+                  ),
+                  Gap(8.h),
+                  // Barcode Actions
                   Row(
                     children: [
                       Expanded(
-                        child: TextFormField(
-                          controller: _skuController,
-                          decoration: const InputDecoration(
-                            labelText: 'رمز المنتج (SKU)',
-                            prefixIcon: Icon(Icons.tag),
-                          ),
+                        child: OutlinedButton.icon(
+                          onPressed: _generateBarcode,
+                          icon: const Icon(Icons.auto_awesome),
+                          label: const Text('توليد باركود'),
                         ),
                       ),
-                      Gap(12.w),
+                      Gap(8.w),
                       Expanded(
-                        child: TextFormField(
-                          controller: _barcodeController,
-                          decoration: InputDecoration(
-                            labelText: 'الباركود',
-                            prefixIcon: const Icon(Icons.qr_code),
-                            suffixIcon: IconButton(
-                              icon: const Icon(Icons.qr_code_scanner),
-                              onPressed: _scanBarcode,
-                            ),
-                          ),
+                        child: OutlinedButton.icon(
+                          onPressed: _barcodeController.text.isEmpty
+                              ? null
+                              : _printBarcode,
+                          icon: const Icon(Icons.print),
+                          label: const Text('طباعة الباركود'),
                         ),
                       ),
                     ],
@@ -179,7 +185,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                           decoration: const InputDecoration(
                             labelText: 'سعر الشراء *',
                             prefixIcon: Icon(Icons.shopping_cart),
-                            suffixText: 'ر.س',
+                            suffixText: 'ل.س',
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -200,7 +206,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                           decoration: const InputDecoration(
                             labelText: 'سعر البيع *',
                             prefixIcon: Icon(Icons.sell),
-                            suffixText: 'ر.س',
+                            suffixText: 'ل.س',
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -246,18 +252,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   ),
                   Gap(16.h),
 
-                  // Tax Rate
-                  TextFormField(
-                    controller: _taxRateController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'نسبة الضريبة',
-                      prefixIcon: Icon(Icons.percent),
-                      suffixText: '%',
-                    ),
-                  ),
-                  Gap(16.h),
-
                   // Description
                   TextFormField(
                     controller: _descriptionController,
@@ -294,7 +288,117 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     );
 
     if (barcode != null) {
+      setState(() {
+        _barcodeController.text = barcode;
+      });
+    }
+  }
+
+  void _generateBarcode() {
+    // Generate a random 13-digit EAN-13 barcode
+    final random = Random();
+    String barcode = '';
+
+    // Generate first 12 digits
+    for (int i = 0; i < 12; i++) {
+      barcode += random.nextInt(10).toString();
+    }
+
+    // Calculate check digit for EAN-13
+    int sum = 0;
+    for (int i = 0; i < 12; i++) {
+      int digit = int.parse(barcode[i]);
+      sum += (i % 2 == 0) ? digit : digit * 3;
+    }
+    int checkDigit = (10 - (sum % 10)) % 10;
+    barcode += checkDigit.toString();
+
+    setState(() {
       _barcodeController.text = barcode;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم توليد باركود جديد'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+  }
+
+  Future<void> _printBarcode() async {
+    if (_barcodeController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يوجد باركود للطباعة'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Load Arabic font from Google Fonts
+      final arabicFont = await PdfGoogleFonts.cairoRegular();
+      final arabicFontBold = await PdfGoogleFonts.cairoBold();
+
+      final pdf = pw.Document();
+      final barcodeValue = _barcodeController.text;
+      final productName =
+          _nameController.text.isEmpty ? 'منتج' : _nameController.text;
+
+      // Determine barcode type based on length
+      pw.Barcode barcodeType;
+      if (barcodeValue.length == 13) {
+        barcodeType = pw.Barcode.ean13();
+      } else if (barcodeValue.length == 8) {
+        barcodeType = pw.Barcode.ean8();
+      } else {
+        barcodeType = pw.Barcode.code128();
+      }
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.roll80,
+          textDirection: pw.TextDirection.rtl,
+          build: (pw.Context context) {
+            return pw.Center(
+              child: pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    productName,
+                    style: pw.TextStyle(
+                      font: arabicFontBold,
+                      fontSize: 14,
+                    ),
+                    textDirection: pw.TextDirection.rtl,
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.BarcodeWidget(
+                    barcode: barcodeType,
+                    data: barcodeValue,
+                    width: 150,
+                    height: 50,
+                    drawText: true,
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'barcode_$barcodeValue',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في الطباعة: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -308,28 +412,30 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       final salePrice = double.parse(_salePriceController.text);
       final quantity = int.tryParse(_quantityController.text) ?? 0;
       final minQuantity = int.tryParse(_minQuantityController.text) ?? 5;
-      final taxRate = (double.tryParse(_taxRateController.text) ?? 0) / 100;
+
+      print('_saveProduct called - isEditing: $_isEditing');
+      print('Product ID: ${widget.productId}');
+      print('Values: purchasePrice=$purchasePrice, salePrice=$salePrice');
 
       if (_isEditing) {
+        print('Calling updateProduct...');
         await _productRepo.updateProduct(
           id: widget.productId!,
           name: _nameController.text,
-          sku: _skuController.text.isEmpty ? null : _skuController.text,
           barcode:
               _barcodeController.text.isEmpty ? null : _barcodeController.text,
           categoryId: _selectedCategoryId,
           purchasePrice: purchasePrice,
           salePrice: salePrice,
           minQuantity: minQuantity,
-          taxRate: taxRate,
           description: _descriptionController.text.isEmpty
               ? null
               : _descriptionController.text,
         );
+        print('updateProduct completed');
       } else {
         await _productRepo.createProduct(
           name: _nameController.text,
-          sku: _skuController.text.isEmpty ? null : _skuController.text,
           barcode:
               _barcodeController.text.isEmpty ? null : _barcodeController.text,
           categoryId: _selectedCategoryId,
@@ -337,7 +443,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
           salePrice: salePrice,
           quantity: quantity,
           minQuantity: minQuantity,
-          taxRate: taxRate,
           description: _descriptionController.text.isEmpty
               ? null
               : _descriptionController.text,

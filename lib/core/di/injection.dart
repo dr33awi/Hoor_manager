@@ -8,6 +8,7 @@ import '../../data/database/app_database.dart';
 import '../services/connectivity_service.dart';
 import '../services/sync_service.dart';
 import '../services/backup_service.dart';
+import '../services/currency_service.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/invoice_repository.dart';
@@ -116,5 +117,10 @@ Future<void> configureDependencies() async {
       firestore: getIt<FirebaseFirestore>(),
       connectivity: getIt<ConnectivityService>(),
     ),
+  );
+
+  // Currency Service
+  getIt.registerSingleton<CurrencyService>(
+    CurrencyService(getIt<SharedPreferences>()),
   );
 }

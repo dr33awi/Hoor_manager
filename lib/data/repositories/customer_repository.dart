@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,8 @@ import '../../core/constants/app_constants.dart';
 import 'base_repository.dart';
 
 class CustomerRepository extends BaseRepository<Customer, CustomersCompanion> {
+  StreamSubscription? _customerFirestoreSubscription;
+
   CustomerRepository({
     required super.database,
     required super.firestore,
@@ -170,5 +173,55 @@ class CustomerRepository extends BaseRepository<Customer, CustomersCompanion> {
       createdAt: Value((data['createdAt'] as Timestamp).toDate()),
       updatedAt: Value((data['updatedAt'] as Timestamp).toDate()),
     );
+  }
+
+  @override
+  void startRealtimeSync() {
+    _customerFirestoreSubscription?.cancel();
+    _customerFirestoreSubscription = collection.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        switch (change.type) {
+          case DocumentChangeType.added:
+          case DocumentChangeType.modified:
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+            _handleRemoteChange(data, change.doc.id);
+            break;
+          case DocumentChangeType.removed:
+            _handleRemoteDelete(change.doc.id);
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRemoteChange(Map<String, dynamic> data, String id) async {
+    try {
+      final existing = await database.getCustomerById(id);
+      final companion = fromFirestore(data, id);
+
+      if (existing == null) {
+        await database.insertCustomer(companion);
+      } else if (existing.syncStatus == 'synced') {
+        final cloudUpdatedAt = (data['updatedAt'] as Timestamp).toDate();
+        if (cloudUpdatedAt.isAfter(existing.updatedAt)) {
+          await database.updateCustomer(companion);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling remote customer change: $e');
+    }
+  }
+
+  Future<void> _handleRemoteDelete(String id) async {
+    try {
+      final existing = await database.getCustomerById(id);
+      if (existing != null) {
+        await database.deleteCustomer(id);
+        debugPrint('Deleted customer from remote: $id');
+      }
+    } catch (e) {
+      debugPrint('Error handling remote customer delete: $e');
+    }
   }
 }

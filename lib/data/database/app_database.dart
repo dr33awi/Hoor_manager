@@ -88,29 +88,64 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
+  Stream<List<Product>> watchLowStockProducts() {
+    return customSelect(
+      'SELECT * FROM products WHERE quantity <= min_quantity AND is_active = 1',
+      readsFrom: {products},
+    )
+        .map((row) => Product(
+              id: row.read<String>('id'),
+              name: row.read<String>('name'),
+              sku: row.readNullable<String>('sku'),
+              barcode: row.readNullable<String>('barcode'),
+              categoryId: row.readNullable<String>('category_id'),
+              purchasePrice: row.read<double>('purchase_price'),
+              salePrice: row.read<double>('sale_price'),
+              quantity: row.read<int>('quantity'),
+              minQuantity: row.read<int>('min_quantity'),
+              taxRate: row.readNullable<double>('tax_rate'),
+              description: row.readNullable<String>('description'),
+              imageUrl: row.readNullable<String>('image_url'),
+              isActive: row.read<bool>('is_active'),
+              syncStatus: row.read<String>('sync_status'),
+              createdAt: row.read<DateTime>('created_at'),
+              updatedAt: row.read<DateTime>('updated_at'),
+            ))
+        .watch();
+  }
+
   Future<int> insertProduct(ProductsCompanion product) {
     return into(products).insert(product);
   }
 
-  Future<bool> updateProduct(ProductsCompanion product) {
-    return update(products).replace(Product(
-      id: product.id.value,
-      name: product.name.value,
-      sku: product.sku.value,
-      barcode: product.barcode.value,
-      categoryId: product.categoryId.value,
-      purchasePrice: product.purchasePrice.value,
-      salePrice: product.salePrice.value,
-      quantity: product.quantity.value,
-      minQuantity: product.minQuantity.value,
-      taxRate: product.taxRate.value,
-      description: product.description.value,
-      imageUrl: product.imageUrl.value,
-      isActive: product.isActive.value,
-      syncStatus: product.syncStatus.value,
-      createdAt: product.createdAt.value,
-      updatedAt: DateTime.now(),
+  Future<bool> updateProduct(ProductsCompanion product) async {
+    final productId = product.id.value;
+    if (productId == null) {
+      print('Error: Product ID is null');
+      return false;
+    }
+
+    final rowsAffected = await (update(products)
+          ..where((p) => p.id.equals(productId)))
+        .write(ProductsCompanion(
+      name: product.name,
+      sku: product.sku,
+      barcode: product.barcode,
+      categoryId: product.categoryId,
+      purchasePrice: product.purchasePrice,
+      salePrice: product.salePrice,
+      quantity: product.quantity,
+      minQuantity: product.minQuantity,
+      taxRate: product.taxRate,
+      description: product.description,
+      imageUrl: product.imageUrl,
+      isActive: product.isActive,
+      syncStatus: product.syncStatus,
+      updatedAt: Value(DateTime.now()),
     ));
+
+    print('Update product $productId: $rowsAffected rows affected');
+    return rowsAffected > 0;
   }
 
   Future<int> deleteProduct(String id) {
@@ -124,6 +159,28 @@ class AppDatabase extends _$AppDatabase {
       updatedAt: Value(DateTime.now()),
       syncStatus: const Value('pending'),
     ));
+  }
+
+  /// تحديث جميع أسعار المنتجات بنسبة معينة (عند تغيير سعر الصرف)
+  Future<int> updateAllProductPricesByRatio(double ratio) async {
+    final allProducts = await getAllProducts();
+    int updatedCount = 0;
+
+    for (final product in allProducts) {
+      final newPurchasePrice = product.purchasePrice * ratio;
+      final newSalePrice = product.salePrice * ratio;
+
+      await (update(products)..where((p) => p.id.equals(product.id)))
+          .write(ProductsCompanion(
+        purchasePrice: Value(newPurchasePrice),
+        salePrice: Value(newSalePrice),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value('pending'),
+      ));
+      updatedCount++;
+    }
+
+    return updatedCount;
   }
 
   // ==================== Categories ====================
@@ -194,6 +251,15 @@ class AppDatabase extends _$AppDatabase {
         .write(invoice);
   }
 
+  Future<int> deleteInvoice(String id) {
+    return (delete(invoices)..where((i) => i.id.equals(id))).go();
+  }
+
+  Future<int> deleteInvoiceItems(String invoiceId) {
+    return (delete(invoiceItems)..where((i) => i.invoiceId.equals(invoiceId)))
+        .go();
+  }
+
   // ==================== Invoice Items ====================
 
   Future<List<InvoiceItem>> getInvoiceItems(String invoiceId) {
@@ -230,6 +296,11 @@ class AppDatabase extends _$AppDatabase {
     return into(inventoryMovements).insert(movement);
   }
 
+  Future<void> updateInventoryMovementSyncStatus(String id, String status) {
+    return (update(inventoryMovements)..where((m) => m.id.equals(id)))
+        .write(InventoryMovementsCompanion(syncStatus: Value(status)));
+  }
+
   // ==================== Shifts ====================
 
   Future<List<Shift>> getAllShifts() {
@@ -247,6 +318,11 @@ class AppDatabase extends _$AppDatabase {
         .getSingleOrNull();
   }
 
+  Stream<Shift?> watchOpenShift() {
+    return (select(shifts)..where((s) => s.status.equals('open')))
+        .watchSingleOrNull();
+  }
+
   Future<Shift?> getShiftById(String id) {
     return (select(shifts)..where((s) => s.id.equals(id))).getSingleOrNull();
   }
@@ -258,6 +334,10 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateShift(ShiftsCompanion shift) {
     return (update(shifts)..where((s) => s.id.equals(shift.id.value)))
         .write(shift);
+  }
+
+  Future<int> deleteShift(String id) {
+    return (delete(shifts)..where((s) => s.id.equals(id))).go();
   }
 
   // ==================== Cash Movements ====================
@@ -280,6 +360,25 @@ class AppDatabase extends _$AppDatabase {
     return into(cashMovements).insert(movement);
   }
 
+  Future<void> updateCashMovementSyncStatus(String id, String status) {
+    return (update(cashMovements)..where((m) => m.id.equals(id)))
+        .write(CashMovementsCompanion(syncStatus: Value(status)));
+  }
+
+  Future<int> deleteCashMovement(String id) {
+    return (delete(cashMovements)..where((m) => m.id.equals(id))).go();
+  }
+
+  Future<int> deleteCashMovementsByShift(String shiftId) {
+    return (delete(cashMovements)..where((m) => m.shiftId.equals(shiftId)))
+        .go();
+  }
+
+  Future<CashMovement?> getCashMovementById(String id) {
+    return (select(cashMovements)..where((m) => m.id.equals(id)))
+        .getSingleOrNull();
+  }
+
   // ==================== Customers ====================
 
   Future<List<Customer>> getAllCustomers() => select(customers).get();
@@ -299,6 +398,10 @@ class AppDatabase extends _$AppDatabase {
         .write(customer);
   }
 
+  Future<int> deleteCustomer(String id) {
+    return (delete(customers)..where((c) => c.id.equals(id))).go();
+  }
+
   // ==================== Suppliers ====================
 
   Future<List<Supplier>> getAllSuppliers() => select(suppliers).get();
@@ -316,6 +419,10 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateSupplier(SuppliersCompanion supplier) {
     return (update(suppliers)..where((s) => s.id.equals(supplier.id.value)))
         .write(supplier);
+  }
+
+  Future<int> deleteSupplier(String id) {
+    return (delete(suppliers)..where((s) => s.id.equals(id))).go();
   }
 
   // ==================== Settings ====================
@@ -389,6 +496,75 @@ class AppDatabase extends _$AppDatabase {
       'totalReturns': result.read<double>('total_returns'),
       'netSales': result.read<double>('net_sales'),
     };
+  }
+
+  // Stream version for real-time updates
+  Stream<Map<String, double>> watchSalesSummary(DateTime start, DateTime end) {
+    return customSelect(
+      '''
+      SELECT 
+        COALESCE(SUM(CASE WHEN type = 'sale' THEN total ELSE 0 END), 0) as total_sales,
+        COALESCE(SUM(CASE WHEN type = 'sale_return' THEN total ELSE 0 END), 0) as total_returns,
+        COALESCE(SUM(CASE WHEN type = 'sale' THEN total ELSE 0 END), 0) - 
+        COALESCE(SUM(CASE WHEN type = 'sale_return' THEN total ELSE 0 END), 0) as net_sales,
+        COUNT(CASE WHEN type = 'sale' THEN 1 END) as invoice_count
+      FROM invoices 
+      WHERE invoice_date BETWEEN ? AND ?
+      ''',
+      variables: [Variable.withDateTime(start), Variable.withDateTime(end)],
+      readsFrom: {invoices},
+    ).watchSingle().map((result) => {
+          'totalSales': result.read<double>('total_sales'),
+          'totalReturns': result.read<double>('total_returns'),
+          'netSales': result.read<double>('net_sales'),
+          'invoiceCount': result.read<int>('invoice_count').toDouble(),
+          'averageInvoice': result.read<int>('invoice_count') > 0
+              ? result.read<double>('total_sales') /
+                  result.read<int>('invoice_count')
+              : 0.0,
+        });
+  }
+
+  // Watch invoices by date range
+  Stream<List<Invoice>> watchInvoicesByDateRange(DateTime start, DateTime end) {
+    return (select(invoices)
+          ..where((i) => i.invoiceDate.isBetweenValues(start, end))
+          ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]))
+        .watch();
+  }
+
+  // Watch top selling products - returns stream
+  Stream<List<Map<String, dynamic>>> watchTopSellingProducts(
+      DateTime start, DateTime end, int limit) {
+    return customSelect(
+      '''
+      SELECT 
+        p.id, p.name, p.sku,
+        COALESCE(SUM(ii.quantity), 0) as total_quantity,
+        COALESCE(SUM(ii.total), 0) as total_amount
+      FROM products p
+      LEFT JOIN invoice_items ii ON ii.product_id = p.id
+      LEFT JOIN invoices i ON ii.invoice_id = i.id AND i.type = 'sale' AND i.invoice_date BETWEEN ? AND ?
+      GROUP BY p.id
+      HAVING total_quantity > 0
+      ORDER BY total_quantity DESC
+      LIMIT ?
+      ''',
+      variables: [
+        Variable.withDateTime(start),
+        Variable.withDateTime(end),
+        Variable.withInt(limit),
+      ],
+      readsFrom: {invoiceItems, invoices, products},
+    ).watch().map((rows) => rows
+        .map((row) => {
+              'id': row.read<String>('id'),
+              'name': row.read<String>('name'),
+              'sku': row.readNullable<String>('sku'),
+              'quantity': row.read<int>('total_quantity'),
+              'total': row.read<double>('total_amount'),
+            })
+        .toList());
   }
 
   Future<List<Map<String, dynamic>>> getTopSellingProducts(

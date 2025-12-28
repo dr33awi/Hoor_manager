@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,8 @@ import '../../core/constants/app_constants.dart';
 import 'base_repository.dart';
 
 class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
+  StreamSubscription? _invoiceFirestoreSubscription;
+
   InvoiceRepository({
     required super.database,
     required super.firestore,
@@ -51,7 +54,6 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
 
     // Calculate totals
     double subtotal = 0;
-    double taxAmount = 0;
 
     final invoiceItems = <InvoiceItemsCompanion>[];
 
@@ -59,15 +61,12 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
       final quantity = item['quantity'] as int;
       final unitPrice = item['unitPrice'] as double;
       final purchasePrice = item['purchasePrice'] as double? ?? 0;
-      final itemTaxRate = item['taxRate'] as double? ?? 0;
       final itemDiscount = item['discount'] as double? ?? 0;
 
       final itemSubtotal = quantity * unitPrice;
-      final itemTax = itemSubtotal * itemTaxRate;
-      final itemTotal = itemSubtotal + itemTax - itemDiscount;
+      final itemTotal = itemSubtotal - itemDiscount;
 
       subtotal += itemSubtotal;
-      taxAmount += itemTax;
 
       invoiceItems.add(InvoiceItemsCompanion(
         id: Value(generateId()),
@@ -78,14 +77,14 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
         unitPrice: Value(unitPrice),
         purchasePrice: Value(purchasePrice),
         discountAmount: Value(itemDiscount),
-        taxAmount: Value(itemTax),
+        taxAmount: const Value(0),
         total: Value(itemTotal),
         syncStatus: const Value('pending'),
         createdAt: Value(now),
       ));
     }
 
-    final total = subtotal + taxAmount - discountAmount;
+    final total = subtotal - discountAmount;
 
     // Insert invoice
     await database.insertInvoice(InvoicesCompanion(
@@ -95,7 +94,7 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
       customerId: Value(customerId),
       supplierId: Value(supplierId),
       subtotal: Value(subtotal),
-      taxAmount: Value(taxAmount),
+      taxAmount: const Value(0),
       discountAmount: Value(discountAmount),
       total: Value(total),
       paidAmount: Value(paidAmount),
@@ -304,5 +303,58 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
       createdAt: Value((data['createdAt'] as Timestamp).toDate()),
       updatedAt: Value((data['updatedAt'] as Timestamp).toDate()),
     );
+  }
+
+  @override
+  void startRealtimeSync() {
+    _invoiceFirestoreSubscription?.cancel();
+    _invoiceFirestoreSubscription = collection.snapshots().listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        switch (change.type) {
+          case DocumentChangeType.added:
+          case DocumentChangeType.modified:
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+            _handleRemoteChange(data, change.doc.id);
+            break;
+          case DocumentChangeType.removed:
+            _handleRemoteDelete(change.doc.id);
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRemoteChange(Map<String, dynamic> data, String id) async {
+    try {
+      final existing = await database.getInvoiceById(id);
+      final companion = fromFirestore(data, id);
+
+      if (existing == null) {
+        await database.insertInvoice(companion);
+      } else if (existing.syncStatus == 'synced') {
+        final cloudUpdatedAt = (data['updatedAt'] as Timestamp).toDate();
+        if (cloudUpdatedAt.isAfter(existing.updatedAt)) {
+          await database.updateInvoice(companion);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling remote invoice change: $e');
+    }
+  }
+
+  Future<void> _handleRemoteDelete(String id) async {
+    try {
+      final existing = await database.getInvoiceById(id);
+      if (existing != null) {
+        // Delete invoice items first
+        await database.deleteInvoiceItems(id);
+        // Then delete the invoice
+        await database.deleteInvoice(id);
+        debugPrint('Deleted invoice from remote: $id');
+      }
+    } catch (e) {
+      debugPrint('Error handling remote invoice delete: $e');
+    }
   }
 }
