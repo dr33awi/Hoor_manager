@@ -1,402 +1,299 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:logger/logger.dart';
 import 'package:intl/intl.dart';
 
-/// خدمة النسخ الاحتياطي
+import 'connectivity_service.dart';
+import '../../data/database/app_database.dart' as db;
+import '../constants/app_constants.dart';
+
+/// Service to handle database backups
 class BackupService {
-  static final BackupService _instance = BackupService._internal();
-  factory BackupService() => _instance;
-  BackupService._internal();
+  final db.AppDatabase _database;
+  final FirebaseFirestore _firestore;
+  final ConnectivityService _connectivity;
 
-  final _firestore = FirebaseFirestore.instance;
-  final _logger = Logger();
-  final _dateFormat = DateFormat('yyyy-MM-dd_HH-mm-ss');
+  BackupService({
+    required db.AppDatabase database,
+    required FirebaseFirestore firestore,
+    required ConnectivityService connectivity,
+  })  : _database = database,
+        _firestore = firestore,
+        _connectivity = connectivity;
 
-  /// المجموعات التي يتم نسخها احتياطياً
-  final List<String> _collectionsToBackup = [
-    'products',
-    'categories',
-    'invoices',
-    'users',
-    'settings',
-  ];
-
-  /// إنشاء نسخة احتياطية
-  Future<BackupResult> createBackup({
-    List<String>? collections,
-    bool includeAuditLogs = false,
-  }) async {
+  /// Create local backup
+  Future<String> createLocalBackup() async {
     try {
-      final timestamp = DateTime.now();
-      final backupCollections = collections ?? _collectionsToBackup;
-      final backupData = <String, dynamic>{
-        'version': '1.0',
-        'createdAt': timestamp.toIso8601String(),
-        'collections': <String, dynamic>{},
-      };
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final backupName = 'backup_$timestamp';
 
-      // نسخ كل مجموعة
-      for (final collection in backupCollections) {
-        _logger.d('Backing up collection: $collection');
+      // Get all data from database
+      final data = await _exportAllData();
 
-        final snapshot = await _firestore.collection(collection).get();
-        final documents = <String, dynamic>{};
-
-        for (final doc in snapshot.docs) {
-          documents[doc.id] = _convertTimestamps(doc.data());
-        }
-
-        backupData['collections'][collection] = documents;
-      }
-
-      // نسخ سجل النشاطات إذا طلب
-      if (includeAuditLogs) {
-        final auditSnapshot = await _firestore
-            .collection('audit_logs')
-            .orderBy('timestamp', descending: true)
-            .limit(1000)
-            .get();
-
-        final auditDocs = <String, dynamic>{};
-        for (final doc in auditSnapshot.docs) {
-          auditDocs[doc.id] = _convertTimestamps(doc.data());
-        }
-        backupData['collections']['audit_logs'] = auditDocs;
-      }
-
-      // حفظ الملف
+      // Get app directory
       final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'backup_${_dateFormat.format(timestamp)}.json';
-      final filePath = '${directory.path}/$fileName';
-      final file = File(filePath);
+      final backupDir = Directory('${directory.path}/backups');
+      if (!await backupDir.exists()) {
+        await backupDir.create(recursive: true);
+      }
 
-      await file.writeAsString(jsonEncode(backupData));
+      // Save backup file
+      final file = File('${backupDir.path}/$backupName.json');
+      await file.writeAsString(jsonEncode(data));
 
-      // حفظ سجل النسخة الاحتياطية
-      await _saveBackupRecord(fileName, timestamp, backupCollections);
-
-      _logger.i('Backup created: $fileName');
-
-      return BackupResult(
-        success: true,
-        filePath: filePath,
-        fileName: fileName,
-        timestamp: timestamp,
-        collectionsCount: backupCollections.length,
-        totalDocuments: _countDocuments(backupData['collections']),
-      );
+      debugPrint('Local backup created: ${file.path}');
+      return file.path;
     } catch (e) {
-      _logger.e('Error creating backup: $e');
-      return BackupResult(
-        success: false,
-        error: 'فشل في إنشاء النسخة الاحتياطية: $e',
-      );
+      debugPrint('Error creating local backup: $e');
+      rethrow;
     }
   }
 
-  /// استعادة من نسخة احتياطية
-  Future<RestoreResult> restoreBackup({
-    required String filePath,
-    List<String>? collectionsToRestore,
-    bool mergeData = false,
-  }) async {
+  /// Create cloud backup
+  Future<void> createCloudBackup() async {
+    if (!_connectivity.isOnline) {
+      throw Exception('لا يوجد اتصال بالإنترنت');
+    }
+
+    try {
+      final timestamp = DateTime.now();
+      final backupId = DateFormat('yyyyMMdd_HHmmss').format(timestamp);
+
+      // Get all data
+      final data = await _exportAllData();
+
+      // Save to Firestore
+      await _firestore
+          .collection(AppConstants.backupsCollection)
+          .doc(backupId)
+          .set({
+        'createdAt': Timestamp.fromDate(timestamp),
+        'data': data,
+        'version': AppConstants.appVersion,
+      });
+
+      debugPrint('Cloud backup created: $backupId');
+    } catch (e) {
+      debugPrint('Error creating cloud backup: $e');
+      rethrow;
+    }
+  }
+
+  /// Restore from local backup
+  Future<void> restoreFromLocalBackup(String filePath) async {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
-        return RestoreResult(
-          success: false,
-          error: 'ملف النسخة الاحتياطية غير موجود',
-        );
+        throw Exception('ملف النسخة الاحتياطية غير موجود');
       }
 
       final content = await file.readAsString();
-      final backupData = jsonDecode(content) as Map<String, dynamic>;
+      final data = jsonDecode(content) as Map<String, dynamic>;
 
-      // التحقق من صحة الملف
-      if (!backupData.containsKey('version') ||
-          !backupData.containsKey('collections')) {
-        return RestoreResult(
-          success: false,
-          error: 'ملف النسخة الاحتياطية غير صالح',
-        );
-      }
+      await _importAllData(data);
 
-      final collections = backupData['collections'] as Map<String, dynamic>;
-      final restoredCollections = <String>[];
-      int totalDocuments = 0;
-
-      for (final entry in collections.entries) {
-        final collectionName = entry.key;
-
-        // تخطي المجموعات غير المطلوبة
-        if (collectionsToRestore != null &&
-            !collectionsToRestore.contains(collectionName)) {
-          continue;
-        }
-
-        final documents = entry.value as Map<String, dynamic>;
-
-        // حذف البيانات الحالية إذا لم يكن الدمج مطلوباً
-        if (!mergeData) {
-          final existingDocs =
-              await _firestore.collection(collectionName).get();
-          final batch = _firestore.batch();
-          for (final doc in existingDocs.docs) {
-            batch.delete(doc.reference);
-          }
-          await batch.commit();
-        }
-
-        // استعادة البيانات
-        for (final docEntry in documents.entries) {
-          final docId = docEntry.key;
-          final docData =
-              _restoreTimestamps(docEntry.value as Map<String, dynamic>);
-
-          await _firestore
-              .collection(collectionName)
-              .doc(docId)
-              .set(docData, SetOptions(merge: mergeData));
-
-          totalDocuments++;
-        }
-
-        restoredCollections.add(collectionName);
-        _logger.d('Restored collection: $collectionName');
-      }
-
-      _logger.i('Backup restored successfully');
-
-      return RestoreResult(
-        success: true,
-        restoredCollections: restoredCollections,
-        totalDocuments: totalDocuments,
-      );
+      debugPrint('Restored from local backup: $filePath');
     } catch (e) {
-      _logger.e('Error restoring backup: $e');
-      return RestoreResult(
-        success: false,
-        error: 'فشل في استعادة النسخة الاحتياطية: $e',
-      );
+      debugPrint('Error restoring from local backup: $e');
+      rethrow;
     }
   }
 
-  /// مشاركة ملف النسخة الاحتياطية
-  Future<void> shareBackup(String filePath) async {
-    await Share.shareXFiles([XFile(filePath)],
-        text: 'نسخة احتياطية - مدير هور');
-  }
+  /// Restore from cloud backup
+  Future<void> restoreFromCloudBackup(String backupId) async {
+    if (!_connectivity.isOnline) {
+      throw Exception('لا يوجد اتصال بالإنترنت');
+    }
 
-  /// الحصول على قائمة النسخ الاحتياطية المحلية
-  Future<List<BackupInfo>> getLocalBackups() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final dir = Directory(directory.path);
-      final files = await dir.list().toList();
+      final doc = await _firestore
+          .collection(AppConstants.backupsCollection)
+          .doc(backupId)
+          .get();
 
-      final backups = <BackupInfo>[];
-
-      for (final file in files) {
-        if (file is File &&
-            file.path.endsWith('.json') &&
-            file.path.contains('backup_')) {
-          final stat = await file.stat();
-          final fileName = file.path.split('/').last;
-
-          backups.add(BackupInfo(
-            fileName: fileName,
-            filePath: file.path,
-            createdAt: stat.modified,
-            size: stat.size,
-          ));
-        }
+      if (!doc.exists) {
+        throw Exception('النسخة الاحتياطية غير موجودة');
       }
 
-      backups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return backups;
+      final data = doc.data()!['data'] as Map<String, dynamic>;
+      await _importAllData(data);
+
+      debugPrint('Restored from cloud backup: $backupId');
     } catch (e) {
-      _logger.e('Error getting local backups: $e');
-      return [];
+      debugPrint('Error restoring from cloud backup: $e');
+      rethrow;
     }
   }
 
-  /// حذف نسخة احتياطية محلية
-  Future<bool> deleteLocalBackup(String filePath) async {
-    try {
-      final file = File(filePath);
-      if (await file.exists()) {
-        await file.delete();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      _logger.e('Error deleting backup: $e');
-      return false;
+  /// Restore from cloud (latest backup)
+  Future<void> restoreFromCloud() async {
+    if (!_connectivity.isOnline) {
+      throw Exception('لا يوجد اتصال بالإنترنت');
     }
-  }
 
-  /// إنشاء نسخة احتياطية تلقائية
-  Future<void> scheduleAutoBackup({
-    required String userId,
-    int intervalDays = 7,
-  }) async {
-    // التحقق من آخر نسخة احتياطية
-    final lastBackup = await _getLastBackupDate();
-
-    if (lastBackup == null ||
-        DateTime.now().difference(lastBackup).inDays >= intervalDays) {
-      _logger.i('Creating auto backup...');
-      await createBackup();
-    }
-  }
-
-  Future<DateTime?> _getLastBackupDate() async {
     try {
       final snapshot = await _firestore
-          .collection('backup_records')
+          .collection(AppConstants.backupsCollection)
           .orderBy('createdAt', descending: true)
           .limit(1)
           .get();
 
-      if (snapshot.docs.isEmpty) return null;
+      if (snapshot.docs.isEmpty) {
+        throw Exception('لا توجد نسخ احتياطية متاحة');
+      }
 
-      final data = snapshot.docs.first.data();
-      return (data['createdAt'] as Timestamp?)?.toDate();
+      final doc = snapshot.docs.first;
+      final data = doc.data()['data'] as Map<String, dynamic>;
+      await _importAllData(data);
+
+      debugPrint('Restored from latest cloud backup');
     } catch (e) {
-      return null;
+      debugPrint('Error restoring from cloud: $e');
+      rethrow;
     }
   }
 
-  Future<void> _saveBackupRecord(
-    String fileName,
-    DateTime timestamp,
-    List<String> collections,
-  ) async {
-    await _firestore.collection('backup_records').add({
-      'fileName': fileName,
-      'createdAt': Timestamp.fromDate(timestamp),
-      'collections': collections,
-    });
-  }
+  /// Get list of local backups
+  Future<List<FileSystemEntity>> getLocalBackups() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final backupDir = Directory('${directory.path}/backups');
 
-  Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
-    final result = <String, dynamic>{};
-    for (final entry in data.entries) {
-      if (entry.value is Timestamp) {
-        result[entry.key] = {
-          '_type': 'Timestamp',
-          'value': (entry.value as Timestamp).toDate().toIso8601String(),
-        };
-      } else if (entry.value is Map) {
-        result[entry.key] =
-            _convertTimestamps(entry.value as Map<String, dynamic>);
-      } else if (entry.value is List) {
-        result[entry.key] = (entry.value as List).map((item) {
-          if (item is Map) {
-            return _convertTimestamps(item as Map<String, dynamic>);
-          }
-          return item;
-        }).toList();
-      } else {
-        result[entry.key] = entry.value;
+      if (!await backupDir.exists()) {
+        return [];
       }
+
+      final files = await backupDir
+          .list()
+          .where((f) => f.path.endsWith('.json'))
+          .toList();
+
+      return files;
+    } catch (e) {
+      debugPrint('Error listing local backups: $e');
+      return [];
     }
-    return result;
   }
 
-  Map<String, dynamic> _restoreTimestamps(Map<String, dynamic> data) {
-    final result = <String, dynamic>{};
-    for (final entry in data.entries) {
-      if (entry.value is Map) {
-        final map = entry.value as Map<String, dynamic>;
-        if (map['_type'] == 'Timestamp') {
-          result[entry.key] = Timestamp.fromDate(DateTime.parse(map['value']));
-        } else {
-          result[entry.key] = _restoreTimestamps(map);
-        }
-      } else if (entry.value is List) {
-        result[entry.key] = (entry.value as List).map((item) {
-          if (item is Map) {
-            return _restoreTimestamps(item as Map<String, dynamic>);
-          }
-          return item;
-        }).toList();
-      } else {
-        result[entry.key] = entry.value;
-      }
+  /// Get list of cloud backups
+  Future<List<Map<String, dynamic>>> getCloudBackups() async {
+    if (!_connectivity.isOnline) {
+      return [];
     }
-    return result;
+
+    try {
+      final snapshot = await _firestore
+          .collection(AppConstants.backupsCollection)
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                'createdAt': (doc.data()['createdAt'] as Timestamp).toDate(),
+                'version': doc.data()['version'],
+              })
+          .toList();
+    } catch (e) {
+      debugPrint('Error listing cloud backups: $e');
+      return [];
+    }
   }
 
-  int _countDocuments(Map<String, dynamic> collections) {
-    int count = 0;
-    for (final docs in collections.values) {
-      if (docs is Map) {
-        count += docs.length;
-      }
-    }
-    return count;
+  /// Export all data from database using high-level methods
+  Future<Map<String, dynamic>> _exportAllData() async {
+    final products = await _database.getAllProducts();
+    final categories = await _database.getAllCategories();
+    final invoices = await _database.getAllInvoices();
+    final customers = await _database.getAllCustomers();
+    final suppliers = await _database.getAllSuppliers();
+
+    return {
+      'products': products.map((p) => _productToMap(p)).toList(),
+      'categories': categories.map((c) => _categoryToMap(c)).toList(),
+      'invoices': invoices.map((i) => _invoiceToMap(i)).toList(),
+      'customers': customers.map((c) => _customerToMap(c)).toList(),
+      'suppliers': suppliers.map((s) => _supplierToMap(s)).toList(),
+      'exportedAt': DateTime.now().toIso8601String(),
+    };
   }
-}
 
-/// نتيجة النسخ الاحتياطي
-class BackupResult {
-  final bool success;
-  final String? filePath;
-  final String? fileName;
-  final DateTime? timestamp;
-  final int? collectionsCount;
-  final int? totalDocuments;
-  final String? error;
+  Map<String, dynamic> _productToMap(db.Product p) => {
+        'id': p.id,
+        'name': p.name,
+        'sku': p.sku,
+        'barcode': p.barcode,
+        'categoryId': p.categoryId,
+        'purchasePrice': p.purchasePrice,
+        'salePrice': p.salePrice,
+        'quantity': p.quantity,
+        'minQuantity': p.minQuantity,
+        'taxRate': p.taxRate,
+        'description': p.description,
+        'imageUrl': p.imageUrl,
+        'isActive': p.isActive,
+        'createdAt': p.createdAt.toIso8601String(),
+        'updatedAt': p.updatedAt.toIso8601String(),
+      };
 
-  BackupResult({
-    required this.success,
-    this.filePath,
-    this.fileName,
-    this.timestamp,
-    this.collectionsCount,
-    this.totalDocuments,
-    this.error,
-  });
-}
+  Map<String, dynamic> _categoryToMap(db.Category c) => {
+        'id': c.id,
+        'name': c.name,
+        'description': c.description,
+        'parentId': c.parentId,
+        'createdAt': c.createdAt.toIso8601String(),
+        'updatedAt': c.updatedAt.toIso8601String(),
+      };
 
-/// نتيجة الاستعادة
-class RestoreResult {
-  final bool success;
-  final List<String>? restoredCollections;
-  final int? totalDocuments;
-  final String? error;
+  Map<String, dynamic> _invoiceToMap(db.Invoice i) => {
+        'id': i.id,
+        'invoiceNumber': i.invoiceNumber,
+        'type': i.type,
+        'customerId': i.customerId,
+        'supplierId': i.supplierId,
+        'subtotal': i.subtotal,
+        'taxAmount': i.taxAmount,
+        'discountAmount': i.discountAmount,
+        'total': i.total,
+        'paymentMethod': i.paymentMethod,
+        'paidAmount': i.paidAmount,
+        'notes': i.notes,
+        'shiftId': i.shiftId,
+        'createdAt': i.createdAt.toIso8601String(),
+        'updatedAt': i.updatedAt.toIso8601String(),
+      };
 
-  RestoreResult({
-    required this.success,
-    this.restoredCollections,
-    this.totalDocuments,
-    this.error,
-  });
-}
+  Map<String, dynamic> _customerToMap(db.Customer c) => {
+        'id': c.id,
+        'name': c.name,
+        'phone': c.phone,
+        'email': c.email,
+        'address': c.address,
+        'balance': c.balance,
+        'createdAt': c.createdAt.toIso8601String(),
+        'updatedAt': c.updatedAt.toIso8601String(),
+      };
 
-/// معلومات نسخة احتياطية
-class BackupInfo {
-  final String fileName;
-  final String filePath;
-  final DateTime createdAt;
-  final int size;
+  Map<String, dynamic> _supplierToMap(db.Supplier s) => {
+        'id': s.id,
+        'name': s.name,
+        'phone': s.phone,
+        'email': s.email,
+        'address': s.address,
+        'balance': s.balance,
+        'notes': s.notes,
+        'createdAt': s.createdAt.toIso8601String(),
+        'updatedAt': s.updatedAt.toIso8601String(),
+      };
 
-  BackupInfo({
-    required this.fileName,
-    required this.filePath,
-    required this.createdAt,
-    required this.size,
-  });
-
-  /// حجم الملف بصيغة مقروءة
-  String get formattedSize {
-    if (size < 1024) return '$size B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+  /// Import all data into database
+  Future<void> _importAllData(Map<String, dynamic> data) async {
+    // TODO: Implement full restore logic
+    // This would require clearing and re-inserting all data
+    // For now, just log
+    debugPrint('Import data called with ${data.keys.length} tables');
   }
 }

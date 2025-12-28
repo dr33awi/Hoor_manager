@@ -1,7 +1,7 @@
 name: hoor_manager
 description: تطبيق إدارة متجر Hoor للأحذية النسائية والولادية
 publish_to: 'none'
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -60,6 +60,7 @@ dependencies:
   # Excel Export
   excel: ^4.0.6
   path_provider: ^2.1.5
+  path: ^1.9.0
   share_plus: ^10.1.4
   open_file: ^3.5.10
   
