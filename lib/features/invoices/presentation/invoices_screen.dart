@@ -7,7 +7,6 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 import '../../../core/di/injection.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/invoice_widgets.dart';
 import '../../../core/services/export_service.dart';
 import '../../../data/database/app_database.dart';
@@ -57,7 +56,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen>
   Future<void> _handleExport(String exportType) async {
     // Get current tab type
     final currentTabIndex = _tabController.index;
-    final currentType = _tabs[currentTabIndex]['type'] as String?;
+    final currentType = _tabs[currentTabIndex]['type'];
 
     // Get invoices
     var invoices = await _invoiceRepo.getAllInvoices();

@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../core/repositories/syncable_repository.dart';
 import '../database/app_database.dart';
 
 /// Base repository with common sync functionality
-abstract class BaseRepository<T, C> {
+/// يرث من SyncableRepository الموحد
+abstract class BaseRepository<T, C> implements SyncableRepository {
   final AppDatabase database;
   final FirebaseFirestore firestore;
   final String collectionName;
@@ -17,12 +19,17 @@ abstract class BaseRepository<T, C> {
     required this.collectionName,
   });
 
+  @override
+  String get repositoryName => collectionName;
+
   CollectionReference get collection => firestore.collection(collectionName);
 
   /// Sync pending changes to cloud
+  @override
   Future<void> syncPendingChanges();
 
   /// Pull latest data from cloud
+  @override
   Future<void> pullFromCloud();
 
   /// Convert local entity to Firestore map
@@ -32,9 +39,11 @@ abstract class BaseRepository<T, C> {
   C fromFirestore(Map<String, dynamic> data, String id);
 
   /// Start listening to Firestore changes
+  @override
   void startRealtimeSync();
 
   /// Stop listening to Firestore changes
+  @override
   void stopRealtimeSync() {
     _firestoreSubscription?.cancel();
     _firestoreSubscription = null;

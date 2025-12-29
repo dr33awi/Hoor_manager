@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/pdf_theme.dart';
 import 'core/services/sync_service.dart';
 
 void main() async {
@@ -17,6 +18,9 @@ void main() async {
 
   // Initialize dependency injection
   await configureDependencies();
+
+  // Initialize PDF fonts
+  await PdfFonts.init();
 
   // Initialize sync service
   await getIt<SyncService>().initialize();

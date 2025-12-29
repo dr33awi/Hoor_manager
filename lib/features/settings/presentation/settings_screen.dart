@@ -4,11 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/di/injection.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/services/backup_service.dart';
-import '../../../core/services/sync_service.dart';
-import '../../../core/services/currency_service.dart';
+// استخدام core_exports لتبسيط الاستيراد
+import '../../../core/core_exports.dart';
 import '../../../data/database/app_database.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {

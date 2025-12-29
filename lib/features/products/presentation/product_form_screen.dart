@@ -337,14 +337,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     }
 
     try {
-      // Load Arabic font from Google Fonts
-      final arabicFont = await PdfGoogleFonts.cairoRegular();
-      final arabicFontBold = await PdfGoogleFonts.cairoBold();
-
       final pdf = pw.Document();
       final barcodeValue = _barcodeController.text;
-      final productName =
-          _nameController.text.isEmpty ? 'منتج' : _nameController.text;
 
       // Determine barcode type based on length
       pw.Barcode barcodeType;

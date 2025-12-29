@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
@@ -50,7 +49,6 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   // إعدادات الطباعة
   bool _autoPrint = false;
-  String _printSize = '80mm';
 
   // العميل والمورد (اختياري)
   Customer? _selectedCustomer;
@@ -68,10 +66,8 @@ class _InvoiceFormScreenState extends ConsumerState<InvoiceFormScreen> {
 
   Future<void> _loadPrintSettings() async {
     final autoPrint = await _database.getSetting('auto_print');
-    final printSize = await _database.getSetting('print_size');
     setState(() {
       _autoPrint = autoPrint == 'true';
-      _printSize = printSize ?? '80mm';
     });
   }
 

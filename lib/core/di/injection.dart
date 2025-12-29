@@ -127,6 +127,6 @@ Future<void> configureDependencies() async {
 
   // Export Service
   getIt.registerSingleton<ExportService>(
-    ExportService(database: getIt<AppDatabase>()),
+    ExportService(),
   );
 }

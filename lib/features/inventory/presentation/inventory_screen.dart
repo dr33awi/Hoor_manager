@@ -5,7 +5,6 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
@@ -815,88 +814,6 @@ class _InventoryCountTabState extends State<_InventoryCountTab> {
         );
       }
     }
-  }
-}
-
-class _InventoryCountItem extends StatelessWidget {
-  final Product product;
-  final int? countedQuantity;
-  final ValueChanged<int?> onCountChanged;
-
-  const _InventoryCountItem({
-    required this.product,
-    required this.countedQuantity,
-    required this.onCountChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasChange =
-        countedQuantity != null && countedQuantity != product.quantity;
-    final difference =
-        countedQuantity != null ? countedQuantity! - product.quantity : 0;
-
-    return Card(
-      margin: EdgeInsets.only(bottom: 8.h),
-      color: hasChange
-          ? (difference > 0 ? AppColors.success : AppColors.error)
-              .withOpacity(0.05)
-          : null,
-      child: Padding(
-        padding: EdgeInsets.all(12.w),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'الكمية الحالية: ${product.quantity}',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  if (hasChange)
-                    Text(
-                      'الفرق: ${difference > 0 ? '+' : ''}$difference',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: difference > 0
-                            ? AppColors.success
-                            : AppColors.error,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: 100.w,
-              child: TextField(
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: '${product.quantity}',
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12.w,
-                    vertical: 8.h,
-                  ),
-                ),
-                onChanged: (value) {
-                  onCountChanged(int.tryParse(value));
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

@@ -3,14 +3,30 @@ import 'package:flutter/foundation.dart';
 
 import '../constants/app_constants.dart';
 import 'connectivity_service.dart';
+import 'network_utils.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/invoice_repository.dart';
 import '../../data/repositories/inventory_repository.dart';
 import '../../data/repositories/shift_repository.dart';
 import '../../data/repositories/cash_repository.dart';
+import '../../data/repositories/customer_repository.dart';
+import '../../data/repositories/supplier_repository.dart';
 
-/// Service to handle data synchronization between local and cloud storage
+/// ═══════════════════════════════════════════════════════════════════════════
+/// Sync Status - حالات المزامنة
+/// ═══════════════════════════════════════════════════════════════════════════
+enum SyncStatus {
+  idle,
+  syncing,
+  success,
+  error,
+  offline,
+}
+
+/// ═══════════════════════════════════════════════════════════════════════════
+/// Sync Service - خدمة المزامنة المحسّنة
+/// ═══════════════════════════════════════════════════════════════════════════
 class SyncService extends ChangeNotifier {
   final ConnectivityService _connectivity;
   final ProductRepository _productRepo;
@@ -20,16 +36,27 @@ class SyncService extends ChangeNotifier {
   final ShiftRepository _shiftRepo;
   final CashRepository _cashRepo;
 
+  // Repositories إضافية
+  CustomerRepository? _customerRepo;
+  SupplierRepository? _supplierRepo;
+
   Timer? _syncTimer;
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
   String? _lastError;
   bool _realtimeSyncStarted = false;
+  SyncStatus _status = SyncStatus.idle;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Getters
+  // ═══════════════════════════════════════════════════════════════════════════
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
   String? get lastError => _lastError;
   bool get isOnline => _connectivity.isOnline;
+  bool get isRealtimeSyncActive => _realtimeSyncStarted;
+  SyncStatus get status => _status;
 
   SyncService({
     required ConnectivityService connectivity,
@@ -39,13 +66,21 @@ class SyncService extends ChangeNotifier {
     required InventoryRepository inventoryRepo,
     required ShiftRepository shiftRepo,
     required CashRepository cashRepo,
+    CustomerRepository? customerRepo,
+    SupplierRepository? supplierRepo,
   })  : _connectivity = connectivity,
         _productRepo = productRepo,
         _categoryRepo = categoryRepo,
         _invoiceRepo = invoiceRepo,
         _inventoryRepo = inventoryRepo,
         _shiftRepo = shiftRepo,
-        _cashRepo = cashRepo;
+        _cashRepo = cashRepo,
+        _customerRepo = customerRepo,
+        _supplierRepo = supplierRepo;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // التهيئة
+  // ═══════════════════════════════════════════════════════════════════════════
 
   /// Initialize sync service and start periodic sync
   Future<void> initialize() async {
@@ -59,24 +94,48 @@ class SyncService extends ChangeNotifier {
 
     // Initial sync if online
     if (_connectivity.isOnline) {
+      _status = SyncStatus.syncing;
+      notifyListeners();
       await syncAll();
       // Start real-time sync after initial sync
       _startRealtimeSync();
+    } else {
+      _status = SyncStatus.offline;
+      notifyListeners();
     }
   }
 
+  /// تعيين الـ Repositories الإضافية
+  void setAdditionalRepositories({
+    CustomerRepository? customerRepo,
+    SupplierRepository? supplierRepo,
+  }) {
+    _customerRepo = customerRepo;
+    _supplierRepo = supplierRepo;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // إدارة الاتصال
+  // ═══════════════════════════════════════════════════════════════════════════
+
   void _onConnectivityChanged() {
     if (_connectivity.isOnline) {
+      _status = SyncStatus.idle;
       // Sync pending changes when coming online
       syncAll();
       // Start real-time sync
       _startRealtimeSync();
     } else {
+      _status = SyncStatus.offline;
       // Stop real-time sync when offline
       _stopRealtimeSync();
     }
     notifyListeners();
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // المزامنة في الوقت الفعلي
+  // ═══════════════════════════════════════════════════════════════════════════
 
   /// Start listening to Firestore changes in real-time
   void _startRealtimeSync() {
@@ -93,6 +152,10 @@ class SyncService extends ChangeNotifier {
     // Start real-time sync for shifts and cash
     _shiftRepo.startRealtimeSync();
     _cashRepo.startRealtimeSync();
+
+    // Start real-time sync for customers and suppliers if available
+    _customerRepo?.startRealtimeSync();
+    _supplierRepo?.startRealtimeSync();
 
     debugPrint('Real-time sync started');
   }
@@ -112,8 +175,16 @@ class SyncService extends ChangeNotifier {
     _shiftRepo.stopRealtimeSync();
     _cashRepo.stopRealtimeSync();
 
+    // Stop real-time sync for customers and suppliers if available
+    _customerRepo?.stopRealtimeSync();
+    _supplierRepo?.stopRealtimeSync();
+
     debugPrint('Real-time sync stopped');
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // المزامنة الدورية
+  // ═══════════════════════════════════════════════════════════════════════════
 
   void _startPeriodicSync() {
     _syncTimer?.cancel();
@@ -130,6 +201,7 @@ class SyncService extends ChangeNotifier {
     if (_isSyncing || !_connectivity.isOnline) return;
 
     _isSyncing = true;
+    _status = SyncStatus.syncing;
     notifyListeners();
 
     try {
@@ -140,9 +212,16 @@ class SyncService extends ChangeNotifier {
       await _shiftRepo.syncPendingChanges();
       await _cashRepo.syncPendingChanges();
 
+      // Sync customers and suppliers if available
+      await _customerRepo?.syncPendingChanges();
+      await _supplierRepo?.syncPendingChanges();
+
       _lastSyncTime = DateTime.now();
+      _status = SyncStatus.success;
+      _lastError = null;
     } catch (e) {
       _lastError = e.toString();
+      _status = SyncStatus.error;
       debugPrint('Sync pending error: $e');
     } finally {
       _isSyncing = false;
@@ -150,12 +229,17 @@ class SyncService extends ChangeNotifier {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // المزامنة الكاملة
+  // ═══════════════════════════════════════════════════════════════════════════
+
   /// Sync all data (full sync)
   Future<void> syncAll() async {
     if (_isSyncing || !_connectivity.isOnline) return;
 
     _isSyncing = true;
     _lastError = null;
+    _status = SyncStatus.syncing;
     notifyListeners();
 
     try {
@@ -167,6 +251,10 @@ class SyncService extends ChangeNotifier {
       await _shiftRepo.syncPendingChanges();
       await _cashRepo.syncPendingChanges();
 
+      // Sync customers and suppliers if available
+      await _customerRepo?.syncPendingChanges();
+      await _supplierRepo?.syncPendingChanges();
+
       // Pull latest from cloud (initial load)
       await _categoryRepo.pullFromCloud();
       await _productRepo.pullFromCloud();
@@ -175,15 +263,42 @@ class SyncService extends ChangeNotifier {
       await _shiftRepo.pullFromCloud();
       await _cashRepo.pullFromCloud();
 
+      // Pull customers and suppliers if available
+      await _customerRepo?.pullFromCloud();
+      await _supplierRepo?.pullFromCloud();
+
       _lastSyncTime = DateTime.now();
+      _status = SyncStatus.success;
     } catch (e) {
       _lastError = e.toString();
+      _status = SyncStatus.error;
       debugPrint('Sync error: $e');
     } finally {
       _isSyncing = false;
       notifyListeners();
     }
   }
+
+  /// مزامنة مع إعادة المحاولة عند الفشل
+  Future<void> syncWithRetry({int maxRetries = 3}) async {
+    if (!_connectivity.isOnline) {
+      throw NoConnectionException();
+    }
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await syncAll();
+        return;
+      } catch (e) {
+        if (attempt == maxRetries) rethrow;
+        await Future.delayed(Duration(seconds: attempt * 2));
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // مزامنة repository معين
+  // ═══════════════════════════════════════════════════════════════════════════
 
   /// Force sync specific repository
   Future<void> syncRepository(String repoName) async {
@@ -215,12 +330,26 @@ class SyncService extends ChangeNotifier {
           await _cashRepo.syncPendingChanges();
           await _cashRepo.pullFromCloud();
           break;
+        case 'customers':
+          await _customerRepo?.syncPendingChanges();
+          await _customerRepo?.pullFromCloud();
+          break;
+        case 'suppliers':
+          await _supplierRepo?.syncPendingChanges();
+          await _supplierRepo?.pullFromCloud();
+          break;
       }
+      _lastSyncTime = DateTime.now();
+      notifyListeners();
     } catch (e) {
       debugPrint('Sync error for $repoName: $e');
       rethrow;
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // التنظيف
+  // ═══════════════════════════════════════════════════════════════════════════
 
   @override
   void dispose() {
@@ -229,4 +358,31 @@ class SyncService extends ChangeNotifier {
     _connectivity.removeListener(_onConnectivityChanged);
     super.dispose();
   }
+}
+
+/// ═══════════════════════════════════════════════════════════════════════════
+/// Sync Status Extensions - إضافات حالة المزامنة
+/// ═══════════════════════════════════════════════════════════════════════════
+extension SyncStatusExtension on SyncService {
+  /// الحصول على رسالة الحالة
+  String get statusMessage {
+    switch (status) {
+      case SyncStatus.idle:
+        return 'جاهز';
+      case SyncStatus.syncing:
+        return 'جاري المزامنة...';
+      case SyncStatus.success:
+        return 'تمت المزامنة بنجاح';
+      case SyncStatus.error:
+        return lastError ?? 'حدث خطأ';
+      case SyncStatus.offline:
+        return 'غير متصل';
+    }
+  }
+
+  /// هل المزامنة ناجحة؟
+  bool get isSuccess => status == SyncStatus.success;
+
+  /// هل هناك خطأ؟
+  bool get hasError => status == SyncStatus.error;
 }

@@ -120,10 +120,6 @@ class AppDatabase extends _$AppDatabase {
 
   Future<bool> updateProduct(ProductsCompanion product) async {
     final productId = product.id.value;
-    if (productId == null) {
-      print('Error: Product ID is null');
-      return false;
-    }
 
     final rowsAffected = await (update(products)
           ..where((p) => p.id.equals(productId)))

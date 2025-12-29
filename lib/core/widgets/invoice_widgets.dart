@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/database/app_database.dart';
+import '../constants/invoice_types.dart';
 import '../theme/app_colors.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
@@ -11,7 +12,7 @@ import '../theme/app_colors.dart';
 /// Unified Invoice Constants & Data
 /// ═══════════════════════════════════════════════════════════════════════════
 
-/// معلومات نوع الفاتورة
+/// معلومات نوع الفاتورة - يستخدم InvoiceTypeConfig من invoice_types.dart
 class InvoiceTypeInfo {
   final String type;
   final String label;
@@ -29,57 +30,18 @@ class InvoiceTypeInfo {
 
   /// الحصول على معلومات النوع من الكود
   static InvoiceTypeInfo fromType(String type) {
-    return invoiceTypes[type] ?? invoiceTypes['default']!;
+    final config = InvoiceTypeConfig.fromCode(type);
+    return InvoiceTypeInfo(
+      type: config.type.code,
+      label: config.label,
+      shortLabel: config.shortLabel,
+      icon: config.icon,
+      color: config.color,
+    );
   }
 }
 
-/// جميع أنواع الفواتير
-final Map<String, InvoiceTypeInfo> invoiceTypes = {
-  'sale': InvoiceTypeInfo(
-    type: 'sale',
-    label: 'فاتورة مبيعات',
-    shortLabel: 'مبيعات',
-    icon: Icons.point_of_sale_outlined,
-    color: AppColors.sales,
-  ),
-  'purchase': InvoiceTypeInfo(
-    type: 'purchase',
-    label: 'فاتورة مشتريات',
-    shortLabel: 'مشتريات',
-    icon: Icons.shopping_cart_outlined,
-    color: AppColors.purchases,
-  ),
-  'sale_return': InvoiceTypeInfo(
-    type: 'sale_return',
-    label: 'مرتجع مبيعات',
-    shortLabel: 'مرتجع مبيعات',
-    icon: Icons.assignment_return_outlined,
-    color: AppColors.returns,
-  ),
-  'purchase_return': InvoiceTypeInfo(
-    type: 'purchase_return',
-    label: 'مرتجع مشتريات',
-    shortLabel: 'مرتجع مشتريات',
-    icon: Icons.assignment_return_outlined,
-    color: AppColors.warning,
-  ),
-  'opening_balance': InvoiceTypeInfo(
-    type: 'opening_balance',
-    label: 'فاتورة أول المدة',
-    shortLabel: 'أول المدة',
-    icon: Icons.inventory_outlined,
-    color: AppColors.inventory,
-  ),
-  'default': InvoiceTypeInfo(
-    type: 'default',
-    label: 'فاتورة',
-    shortLabel: 'فاتورة',
-    icon: Icons.receipt_outlined,
-    color: AppColors.secondary,
-  ),
-};
-
-/// معلومات طريقة الدفع
+/// معلومات طريقة الدفع - يستخدم PaymentMethodConfig من invoice_types.dart
 class PaymentMethodInfo {
   final String method;
   final String label;
@@ -93,31 +55,49 @@ class PaymentMethodInfo {
 
   /// الحصول على معلومات طريقة الدفع من الكود
   static PaymentMethodInfo fromMethod(String method) {
-    return paymentMethods[method] ?? paymentMethods['default']!;
+    final config = PaymentMethodConfig.fromCode(method);
+    return PaymentMethodInfo(
+      method: config.method.code,
+      label: config.label,
+      icon: config.icon,
+    );
   }
 }
 
-/// جميع طرق الدفع
+/// جميع أنواع الفواتير - للتوافق مع الكود القديم
+/// يُفضل استخدام InvoiceTypeConfig.all بدلاً منها
+final Map<String, InvoiceTypeInfo> invoiceTypes = {
+  for (final config in InvoiceTypeConfig.all)
+    config.type.code: InvoiceTypeInfo(
+      type: config.type.code,
+      label: config.label,
+      shortLabel: config.shortLabel,
+      icon: config.icon,
+      color: config.color,
+    ),
+  'default': InvoiceTypeInfo(
+    type: 'default',
+    label: 'فاتورة',
+    shortLabel: 'فاتورة',
+    icon: Icons.receipt_outlined,
+    color: AppColors.secondary,
+  ),
+};
+
+/// جميع طرق الدفع - للتوافق مع الكود القديم
+/// يُفضل استخدام PaymentMethodConfig.all بدلاً منها
 final Map<String, PaymentMethodInfo> paymentMethods = {
-  'cash': PaymentMethodInfo(
-    method: 'cash',
-    label: 'نقداً',
-    icon: Icons.payments_outlined,
-  ),
-  'card': PaymentMethodInfo(
-    method: 'card',
-    label: 'بطاقة',
-    icon: Icons.credit_card_outlined,
-  ),
+  for (final config in PaymentMethodConfig.all)
+    config.method.code: PaymentMethodInfo(
+      method: config.method.code,
+      label: config.label,
+      icon: config.icon,
+    ),
+  // إضافة bank_transfer للتوافق
   'bank_transfer': PaymentMethodInfo(
     method: 'bank_transfer',
     label: 'تحويل بنكي',
     icon: Icons.account_balance_outlined,
-  ),
-  'credit': PaymentMethodInfo(
-    method: 'credit',
-    label: 'آجل',
-    icon: Icons.schedule_outlined,
   ),
   'default': PaymentMethodInfo(
     method: 'default',
@@ -127,30 +107,33 @@ final Map<String, PaymentMethodInfo> paymentMethods = {
 };
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// دوال مساعدة
+/// دوال مساعدة - تستخدم invoice_types.dart
 /// Helper Functions
 /// ═══════════════════════════════════════════════════════════════════════════
 
 /// الحصول على لون نوع الفاتورة
-Color getInvoiceTypeColor(String type) => InvoiceTypeInfo.fromType(type).color;
+Color getInvoiceTypeColor(String type) =>
+    InvoiceTypeConfig.fromCode(type).color;
 
 /// الحصول على تسمية نوع الفاتورة
-String getInvoiceTypeLabel(String type) => InvoiceTypeInfo.fromType(type).label;
+String getInvoiceTypeLabel(String type) =>
+    InvoiceTypeConfig.fromCode(type).label;
 
 /// الحصول على التسمية المختصرة لنوع الفاتورة
 String getInvoiceTypeShortLabel(String type) =>
-    InvoiceTypeInfo.fromType(type).shortLabel;
+    InvoiceTypeConfig.fromCode(type).shortLabel;
 
 /// الحصول على أيقونة نوع الفاتورة
-IconData getInvoiceTypeIcon(String type) => InvoiceTypeInfo.fromType(type).icon;
+IconData getInvoiceTypeIcon(String type) =>
+    InvoiceTypeConfig.fromCode(type).icon;
 
 /// الحصول على تسمية طريقة الدفع
 String getPaymentMethodLabel(String method) =>
-    PaymentMethodInfo.fromMethod(method).label;
+    PaymentMethodConfig.fromCode(method).label;
 
 /// الحصول على أيقونة طريقة الدفع
 IconData getPaymentMethodIcon(String method) =>
-    PaymentMethodInfo.fromMethod(method).icon;
+    PaymentMethodConfig.fromCode(method).icon;
 
 /// تنسيق السعر بالليرة السورية (بدون أصفار زائدة)
 /// يعرض الرقم كامل مع فواصل الآلاف وبدون كسور إذا كان عدد صحيح

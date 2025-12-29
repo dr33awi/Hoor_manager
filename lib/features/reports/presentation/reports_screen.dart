@@ -5,9 +5,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/database/app_database.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -17,8 +15,6 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
-  final _db = getIt<AppDatabase>();
-
   DateTimeRange _dateRange = DateTimeRange(
     start: DateTime.now().subtract(const Duration(days: 30)),
     end: DateTime.now(),
@@ -125,50 +121,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     if (picked != null) {
       setState(() => _dateRange = picked);
     }
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final double value;
-  final IconData icon;
-  final Color color;
-
-  const _SummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(12.w),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24.sp),
-            Gap(8.h),
-            Text(
-              '${value.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11.sp,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

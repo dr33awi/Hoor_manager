@@ -6,18 +6,21 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/database/app_database.dart';
+import '../theme/pdf_theme.dart';
 import '../widgets/invoice_widgets.dart';
 import 'invoice_print_service.dart';
 
 /// خدمة موحدة للتصدير والطباعة
 class ExportService {
-  final AppDatabase _database;
+  ExportService();
 
-  ExportService({required AppDatabase database}) : _database = database;
+  /// تهيئة خطوط PDF - يجب استدعاؤها مرة واحدة عند بدء التطبيق
+  static Future<void> initializePdfFonts() async {
+    await PdfFonts.init();
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // تصدير Excel
@@ -378,10 +381,8 @@ class ExportService {
 
     // حساب الإحصائيات
     double totalAmount = 0;
-    double totalDiscount = 0;
     for (final inv in invoices) {
       totalAmount += inv.total;
-      totalDiscount += inv.discountAmount;
     }
 
     sheet.appendRow([TextCellValue(typeName)]);
@@ -442,13 +443,9 @@ class ExportService {
     required List<Invoice> invoices,
     String? type,
   }) async {
-    final arabicFont = await PdfGoogleFonts.cairoRegular();
-    final arabicFontBold = await PdfGoogleFonts.cairoBold();
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
     final now = DateTime.now();
-
     final doc = pw.Document();
-
     final typeName = type != null ? getInvoiceTypeLabel(type) : 'جميع الفواتير';
 
     // حساب الإحصائيات
@@ -463,27 +460,16 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: arabicFont, bold: arabicFontBold),
+        theme: PdfTheme.create(),
         header: (context) => pw.Directionality(
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Text(
-                typeName,
-                style:
-                    pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-                textDirection: pw.TextDirection.rtl,
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                'تاريخ التقرير: ${dateFormat.format(now)}',
-                style: const pw.TextStyle(fontSize: 12),
-                textDirection: pw.TextDirection.rtl,
+              PdfTheme.header(
+                title: typeName,
+                date: 'تاريخ التقرير: ${dateFormat.format(now)}',
               ),
               pw.SizedBox(height: 16),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
             ],
           ),
         ),
@@ -491,21 +477,17 @@ class ExportService {
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
             children: [
-              pw.Divider(),
+              pw.Divider(color: PdfColors.grey300),
               pw.SizedBox(height: 8),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(
-                    'عدد الفواتير: ${invoices.length}',
-                    style: const pw.TextStyle(fontSize: 10),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
-                  pw.Text(
-                    'صفحة ${context.pageNumber} من ${context.pagesCount}',
-                    style: const pw.TextStyle(fontSize: 10),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
+                  pw.Text('عدد الفواتير: ${invoices.length}',
+                      style: PdfStyles.caption(),
+                      textDirection: pw.TextDirection.rtl),
+                  pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}',
+                      style: PdfStyles.caption(),
+                      textDirection: pw.TextDirection.rtl),
                 ],
               ),
             ],
@@ -515,77 +497,24 @@ class ExportService {
           // ملخص الإحصائيات
           pw.Directionality(
             textDirection: pw.TextDirection.rtl,
-            child: pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey400),
-                borderRadius: pw.BorderRadius.circular(8),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-                children: [
-                  pw.Column(
-                    children: [
-                      pw.Text('عدد الفواتير',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text('${invoices.length}',
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('إجمالي المبلغ',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text(formatPrice(totalAmount),
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold),
-                          textDirection: pw.TextDirection.rtl),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('إجمالي الخصومات',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text(formatPrice(totalDiscount),
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold),
-                          textDirection: pw.TextDirection.rtl),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('المتوسط',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text(
-                          formatPrice(invoices.isNotEmpty
-                              ? totalAmount / invoices.length
-                              : 0),
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold),
-                          textDirection: pw.TextDirection.rtl),
-                    ],
-                  ),
-                ],
-              ),
+            child: PdfTheme.summaryBox(
+              items: [
+                MapEntry('عدد الفواتير', '${invoices.length}'),
+                MapEntry('إجمالي المبلغ', formatPrice(totalAmount)),
+                MapEntry('إجمالي الخصومات', formatPrice(totalDiscount)),
+                MapEntry(
+                    'المتوسط',
+                    formatPrice(invoices.isNotEmpty
+                        ? totalAmount / invoices.length
+                        : 0)),
+              ],
             ),
           ),
           pw.SizedBox(height: 16),
           // جدول الفواتير
           pw.Directionality(
             textDirection: pw.TextDirection.rtl,
-            child: pw.TableHelper.fromTextArray(
-              context: context,
-              headerAlignment: pw.Alignment.center,
-              cellAlignment: pw.Alignment.center,
-              headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-              headerStyle:
-                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 9),
+            child: PdfTheme.table(
               headers: [
                 'الإجمالي',
                 'الخصم',
@@ -623,11 +552,8 @@ class ExportService {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    final arabicFont = await PdfGoogleFonts.cairoRegular();
-    final arabicFontBold = await PdfGoogleFonts.cairoBold();
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
     final now = DateTime.now();
-
     final doc = pw.Document();
 
     // حساب الإحصائيات
@@ -641,33 +567,18 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: arabicFont, bold: arabicFontBold),
+        theme: PdfTheme.create(),
         header: (context) => pw.Directionality(
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Text(
-                'تقرير المبيعات',
-                style:
-                    pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-                textDirection: pw.TextDirection.rtl,
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                'الفترة: ${DateFormat('dd/MM/yyyy').format(startDate)} - ${DateFormat('dd/MM/yyyy').format(endDate)}',
-                style: const pw.TextStyle(fontSize: 12),
-                textDirection: pw.TextDirection.rtl,
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                'تاريخ التقرير: ${dateFormat.format(now)}',
-                style: const pw.TextStyle(fontSize: 10),
-                textDirection: pw.TextDirection.rtl,
+              PdfTheme.header(
+                title: 'تقرير المبيعات',
+                subtitle:
+                    'الفترة: ${DateFormat('dd/MM/yyyy').format(startDate)} - ${DateFormat('dd/MM/yyyy').format(endDate)}',
+                date: 'تاريخ التقرير: ${dateFormat.format(now)}',
               ),
               pw.SizedBox(height: 16),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
             ],
           ),
         ),
@@ -675,21 +586,17 @@ class ExportService {
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
             children: [
-              pw.Divider(),
+              pw.Divider(color: PdfColors.grey300),
               pw.SizedBox(height: 8),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(
-                    'عدد الفواتير: $invoiceCount',
-                    style: const pw.TextStyle(fontSize: 10),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
-                  pw.Text(
-                    'صفحة ${context.pageNumber} من ${context.pagesCount}',
-                    style: const pw.TextStyle(fontSize: 10),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
+                  pw.Text('عدد الفواتير: $invoiceCount',
+                      style: PdfStyles.caption(),
+                      textDirection: pw.TextDirection.rtl),
+                  pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}',
+                      style: PdfStyles.caption(),
+                      textDirection: pw.TextDirection.rtl),
                 ],
               ),
             ],
@@ -699,74 +606,20 @@ class ExportService {
           // ملخص الإحصائيات
           pw.Directionality(
             textDirection: pw.TextDirection.rtl,
-            child: pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey400),
-                borderRadius: pw.BorderRadius.circular(8),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-                children: [
-                  pw.Column(
-                    children: [
-                      pw.Text('عدد الفواتير',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text('$invoiceCount',
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('إجمالي المبيعات',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text(formatPrice(totalSales),
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold),
-                          textDirection: pw.TextDirection.rtl),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('متوسط الفاتورة',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text(formatPrice(averageInvoice),
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold),
-                          textDirection: pw.TextDirection.rtl),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('إجمالي الخصومات',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text(formatPrice(totalDiscount),
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold),
-                          textDirection: pw.TextDirection.rtl),
-                    ],
-                  ),
-                ],
-              ),
+            child: PdfTheme.summaryBox(
+              items: [
+                MapEntry('عدد الفواتير', '$invoiceCount'),
+                MapEntry('إجمالي المبيعات', formatPrice(totalSales)),
+                MapEntry('متوسط الفاتورة', formatPrice(averageInvoice)),
+                MapEntry('إجمالي الخصومات', formatPrice(totalDiscount)),
+              ],
             ),
           ),
           pw.SizedBox(height: 16),
           // جدول الفواتير
           pw.Directionality(
             textDirection: pw.TextDirection.rtl,
-            child: pw.TableHelper.fromTextArray(
-              context: context,
-              headerAlignment: pw.Alignment.center,
-              cellAlignment: pw.Alignment.center,
-              headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-              headerStyle:
-                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 9),
+            child: PdfTheme.table(
               headers: [
                 'الإجمالي',
                 'الخصم',
@@ -933,11 +786,8 @@ class ExportService {
     required List<Product> products,
     Map<String, int>? soldQuantities,
   }) async {
-    final arabicFont = await PdfGoogleFonts.cairoRegular();
-    final arabicFontBold = await PdfGoogleFonts.cairoBold();
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
     final now = DateTime.now();
-
     final doc = pw.Document();
 
     // حساب الإحصائيات
@@ -955,27 +805,16 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: arabicFont, bold: arabicFontBold),
+        theme: PdfTheme.create(),
         header: (context) => pw.Directionality(
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Text(
-                'قائمة المنتجات',
-                style:
-                    pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-                textDirection: pw.TextDirection.rtl,
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                'تاريخ التقرير: ${dateFormat.format(now)}',
-                style: const pw.TextStyle(fontSize: 12),
-                textDirection: pw.TextDirection.rtl,
+              PdfTheme.header(
+                title: 'قائمة المنتجات',
+                date: 'تاريخ التقرير: ${dateFormat.format(now)}',
               ),
               pw.SizedBox(height: 16),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
             ],
           ),
         ),
@@ -983,21 +822,17 @@ class ExportService {
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
             children: [
-              pw.Divider(),
+              pw.Divider(color: PdfColors.grey300),
               pw.SizedBox(height: 8),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(
-                    'إجمالي المنتجات: ${products.length}',
-                    style: const pw.TextStyle(fontSize: 10),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
-                  pw.Text(
-                    'صفحة ${context.pageNumber} من ${context.pagesCount}',
-                    style: const pw.TextStyle(fontSize: 10),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
+                  pw.Text('إجمالي المنتجات: ${products.length}',
+                      style: PdfStyles.caption(),
+                      textDirection: pw.TextDirection.rtl),
+                  pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}',
+                      style: PdfStyles.caption(),
+                      textDirection: pw.TextDirection.rtl),
                 ],
               ),
             ],
@@ -1007,72 +842,20 @@ class ExportService {
           // ملخص الإحصائيات
           pw.Directionality(
             textDirection: pw.TextDirection.rtl,
-            child: pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey400),
-                borderRadius: pw.BorderRadius.circular(8),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-                children: [
-                  pw.Column(
-                    children: [
-                      pw.Text('عدد المنتجات',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text('${products.length}',
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('إجمالي الكميات',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text('$totalQuantity',
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('إجمالي المباع',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text('$totalSold',
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('قيمة المخزون',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text(formatPrice(totalCostValue),
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold),
-                          textDirection: pw.TextDirection.rtl),
-                    ],
-                  ),
-                ],
-              ),
+            child: PdfTheme.summaryBox(
+              items: [
+                MapEntry('عدد المنتجات', '${products.length}'),
+                MapEntry('إجمالي الكميات', '$totalQuantity'),
+                MapEntry('إجمالي المباع', '$totalSold'),
+                MapEntry('قيمة المخزون', formatPrice(totalCostValue)),
+              ],
             ),
           ),
           pw.SizedBox(height: 16),
           // جدول المنتجات
           pw.Directionality(
             textDirection: pw.TextDirection.rtl,
-            child: pw.TableHelper.fromTextArray(
-              context: context,
-              headerAlignment: pw.Alignment.center,
-              cellAlignment: pw.Alignment.center,
-              headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-              headerStyle:
-                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 9),
+            child: PdfTheme.table(
               headers: [
                 'القيمة',
                 'سعر البيع',
@@ -1112,11 +895,8 @@ class ExportService {
     required List<Product> products,
     Map<String, int>? soldQuantities,
   }) async {
-    final arabicFont = await PdfGoogleFonts.cairoRegular();
-    final arabicFontBold = await PdfGoogleFonts.cairoBold();
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
     final now = DateTime.now();
-
     final doc = pw.Document();
 
     // حساب الإحصائيات
@@ -1134,27 +914,16 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: arabicFont, bold: arabicFontBold),
+        theme: PdfTheme.create(),
         header: (context) => pw.Directionality(
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Text(
-                'تقرير جرد المخزون',
-                style:
-                    pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-                textDirection: pw.TextDirection.rtl,
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                'تاريخ التقرير: ${dateFormat.format(now)}',
-                style: const pw.TextStyle(fontSize: 12),
-                textDirection: pw.TextDirection.rtl,
+              PdfTheme.header(
+                title: 'تقرير جرد المخزون',
+                date: 'تاريخ التقرير: ${dateFormat.format(now)}',
               ),
               pw.SizedBox(height: 16),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
             ],
           ),
         ),
@@ -1162,21 +931,17 @@ class ExportService {
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
             children: [
-              pw.Divider(),
+              pw.Divider(color: PdfColors.grey300),
               pw.SizedBox(height: 8),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(
-                    'إجمالي المنتجات: ${products.length}',
-                    style: const pw.TextStyle(fontSize: 10),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
-                  pw.Text(
-                    'صفحة ${context.pageNumber} من ${context.pagesCount}',
-                    style: const pw.TextStyle(fontSize: 10),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
+                  pw.Text('إجمالي المنتجات: ${products.length}',
+                      style: PdfStyles.caption(),
+                      textDirection: pw.TextDirection.rtl),
+                  pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}',
+                      style: PdfStyles.caption(),
+                      textDirection: pw.TextDirection.rtl),
                 ],
               ),
             ],
@@ -1186,72 +951,20 @@ class ExportService {
           // ملخص الإحصائيات
           pw.Directionality(
             textDirection: pw.TextDirection.rtl,
-            child: pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey400),
-                borderRadius: pw.BorderRadius.circular(8),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-                children: [
-                  pw.Column(
-                    children: [
-                      pw.Text('عدد المنتجات',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text('${products.length}',
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('إجمالي الكميات',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text('$totalQuantity',
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('إجمالي المباع',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text('$totalSold',
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Text('قيمة المخزون',
-                          style: const pw.TextStyle(fontSize: 10),
-                          textDirection: pw.TextDirection.rtl),
-                      pw.Text(formatPrice(totalCostValue),
-                          style: pw.TextStyle(
-                              fontSize: 16, fontWeight: pw.FontWeight.bold),
-                          textDirection: pw.TextDirection.rtl),
-                    ],
-                  ),
-                ],
-              ),
+            child: PdfTheme.summaryBox(
+              items: [
+                MapEntry('عدد المنتجات', '${products.length}'),
+                MapEntry('إجمالي الكميات', '$totalQuantity'),
+                MapEntry('إجمالي المباع', '$totalSold'),
+                MapEntry('قيمة المخزون', formatPrice(totalCostValue)),
+              ],
             ),
           ),
           pw.SizedBox(height: 16),
           // جدول المنتجات
           pw.Directionality(
             textDirection: pw.TextDirection.rtl,
-            child: pw.TableHelper.fromTextArray(
-              context: context,
-              headerAlignment: pw.Alignment.center,
-              cellAlignment: pw.Alignment.center,
-              headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-              headerStyle:
-                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 9),
+            child: PdfTheme.table(
               headers: [
                 'القيمة',
                 'سعر البيع',
