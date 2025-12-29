@@ -118,8 +118,11 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
   }
 
   Future<String> _generateInvoiceNumber(String type) async {
+    // جلب البادئة المخصصة من الإعدادات
+    final customPrefix = await database.getSetting('invoice_prefix');
+
     final prefix = switch (type) {
-      'sale' => 'INV',
+      'sale' => customPrefix ?? 'INV',
       'purchase' => 'PUR',
       'sale_return' => 'SRT',
       'purchase_return' => 'PRT',

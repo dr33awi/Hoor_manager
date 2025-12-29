@@ -2,6 +2,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
@@ -17,6 +19,7 @@ class SuppliersScreen extends ConsumerStatefulWidget {
 
 class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
   final _supplierRepo = getIt<SupplierRepository>();
+  final _database = getIt<AppDatabase>();
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -241,91 +244,202 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
   void _showSupplierDetails(Supplier supplier) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30.r,
-                  backgroundColor: AppColors.suppliers.withOpacity(0.2),
-                  child: Icon(
-                    Icons.local_shipping,
-                    color: AppColors.suppliers,
-                    size: 28.sp,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 16.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2.r),
                   ),
                 ),
-                Gap(16.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        supplier.name,
-                        style: TextStyle(
-                          fontSize: 20.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (supplier.phone != null)
+              ),
+              // Supplier Info Header
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30.r,
+                    backgroundColor: AppColors.suppliers.withOpacity(0.2),
+                    child: Icon(
+                      Icons.local_shipping,
+                      color: AppColors.suppliers,
+                      size: 28.sp,
+                    ),
+                  ),
+                  Gap(16.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          supplier.phone!,
-                          style: TextStyle(color: AppColors.textSecondary),
+                          supplier.name,
+                          style: TextStyle(
+                            fontSize: 20.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                    ],
+                        if (supplier.phone != null)
+                          Text(
+                            supplier.phone!,
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            Gap(16.h),
-            if (supplier.email != null)
-              _DetailRow(
-                  icon: Icons.email, label: 'البريد', value: supplier.email!),
-            if (supplier.address != null)
-              _DetailRow(
-                  icon: Icons.location_on,
-                  label: 'العنوان',
-                  value: supplier.address!),
-            _DetailRow(
-              icon: Icons.account_balance_wallet,
-              label: 'المستحق',
-              value: '${supplier.balance.toStringAsFixed(2)} ل.س',
-              valueColor:
-                  supplier.balance >= 0 ? AppColors.success : AppColors.error,
-            ),
-            if (supplier.notes != null)
-              _DetailRow(
-                  icon: Icons.note, label: 'ملاحظات', value: supplier.notes!),
-            Gap(16.h),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
+                  IconButton(
+                    icon: const Icon(Icons.edit),
                     onPressed: () {
                       Navigator.pop(context);
                       _showSupplierDialog(supplier);
                     },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('تعديل'),
                   ),
-                ),
-                Gap(8.w),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      // Navigate to supplier purchases
-                    },
-                    icon: const Icon(Icons.receipt),
-                    label: const Text('المشتريات'),
-                  ),
-                ),
+                ],
+              ),
+              Gap(16.h),
+
+              // Supplier Summary
+              FutureBuilder<Map<String, double>>(
+                future: _database.getSupplierSummary(supplier.id),
+                builder: (context, snapshot) {
+                  final summary = snapshot.data ?? {};
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryItem(
+                          label: 'إجمالي المشتريات',
+                          value:
+                              '${(summary['totalPurchases'] ?? 0).toStringAsFixed(0)} ل.س',
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Gap(8.w),
+                      Expanded(
+                        child: _SummaryItem(
+                          label: 'المرتجعات',
+                          value:
+                              '${(summary['totalReturns'] ?? 0).toStringAsFixed(0)} ل.س',
+                          color: AppColors.warning,
+                        ),
+                      ),
+                      Gap(8.w),
+                      Expanded(
+                        child: _SummaryItem(
+                          label: 'عدد الفواتير',
+                          value:
+                              '${(summary['invoiceCount'] ?? 0).toStringAsFixed(0)}',
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              Gap(16.h),
+
+              // Contact Info
+              if (supplier.email != null || supplier.address != null) ...[
+                if (supplier.email != null)
+                  _DetailRow(
+                      icon: Icons.email,
+                      label: 'البريد',
+                      value: supplier.email!),
+                if (supplier.address != null)
+                  _DetailRow(
+                      icon: Icons.location_on,
+                      label: 'العنوان',
+                      value: supplier.address!),
+                Gap(8.h),
               ],
-            ),
-          ],
+
+              _DetailRow(
+                icon: Icons.account_balance_wallet,
+                label: 'المستحق',
+                value: '${supplier.balance.toStringAsFixed(0)} ل.س',
+                valueColor:
+                    supplier.balance >= 0 ? AppColors.success : AppColors.error,
+              ),
+
+              if (supplier.notes != null)
+                _DetailRow(
+                    icon: Icons.note, label: 'ملاحظات', value: supplier.notes!),
+
+              Gap(16.h),
+              Divider(),
+              Gap(8.h),
+
+              // Invoices Section
+              Text(
+                'فواتير المورد',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Gap(8.h),
+
+              // Invoices List
+              Expanded(
+                child: StreamBuilder<List<Invoice>>(
+                  stream: _database.watchInvoicesBySupplier(supplier.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final invoices = snapshot.data ?? [];
+
+                    if (invoices.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.receipt_long,
+                              size: 48.sp,
+                              color: Colors.grey,
+                            ),
+                            Gap(8.h),
+                            Text(
+                              'لا توجد فواتير',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: scrollController,
+                      itemCount: invoices.length,
+                      itemBuilder: (context, index) {
+                        final invoice = invoices[index];
+                        return _InvoiceCard(
+                          invoice: invoice,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/invoices/${invoice.id}');
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -448,6 +562,132 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _SummaryItem({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Gap(4.h),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.sp,
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InvoiceCard extends StatelessWidget {
+  final Invoice invoice;
+  final VoidCallback onTap;
+
+  const _InvoiceCard({
+    required this.invoice,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isReturn = invoice.type == 'purchase_return';
+    final typeLabel = isReturn ? 'مرتجع مشتريات' : 'فاتورة شراء';
+    final typeColor = isReturn ? AppColors.warning : AppColors.primary;
+
+    return Card(
+      margin: EdgeInsets.only(bottom: 8.h),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12.r),
+        child: Padding(
+          padding: EdgeInsets.all(12.w),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: typeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4.r),
+                ),
+                child: Text(
+                  typeLabel,
+                  style: TextStyle(
+                    fontSize: 10.sp,
+                    color: typeColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Gap(12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '#${invoice.invoiceNumber}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('yyyy/MM/dd').format(invoice.invoiceDate),
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${invoice.total.toStringAsFixed(0)} ل.س',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: typeColor,
+                ),
+              ),
+              Gap(8.w),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16.sp,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

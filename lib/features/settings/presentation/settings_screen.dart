@@ -25,6 +25,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _database = getIt<AppDatabase>();
 
   bool _autoBackup = true;
+  bool _autoPrint = false;
+  String _invoicePrefix = 'INV';
+  String _printSize = '80mm';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final autoBackup = await _database.getSetting('auto_backup');
+    final autoPrint = await _database.getSetting('auto_print');
+    final invoicePrefix = await _database.getSetting('invoice_prefix');
+    final printSize = await _database.getSetting('print_size');
+
+    if (mounted) {
+      setState(() {
+        _autoBackup = autoBackup == 'true';
+        _autoPrint = autoPrint == 'true';
+        _invoicePrefix = invoicePrefix ?? 'INV';
+        _printSize = printSize ?? '80mm';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,25 +158,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.numbers),
                   title: const Text('بادئة رقم الفاتورة'),
-                  subtitle: const Text('INV-'),
+                  subtitle: Text(_invoicePrefix),
                   trailing: const Icon(Icons.chevron_left),
-                  onTap: () => _showEditDialog('بادئة رقم الفاتورة', 'INV-'),
+                  onTap: () => _showInvoicePrefixDialog(),
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.print),
                   title: const Text('حجم ورق الطباعة'),
-                  subtitle: const Text('80mm'),
+                  subtitle: Text(_printSize),
                   trailing: const Icon(Icons.chevron_left),
-                  onTap: () {},
+                  onTap: () => _showPrintSizeDialog(),
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
                   secondary: const Icon(Icons.auto_awesome),
                   title: const Text('طباعة تلقائية'),
                   subtitle: const Text('طباعة الفاتورة بعد الحفظ'),
-                  value: false,
-                  onChanged: (value) {},
+                  value: _autoPrint,
+                  onChanged: (value) async {
+                    await _database.setSetting('auto_print', value.toString());
+                    setState(() => _autoPrint = value);
+                  },
                 ),
               ],
             ),
@@ -178,21 +206,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<DateTime?> _getLastBackupTime() async {
-    // TODO: Get from settings
-    return null;
+    return await _backupService.getLastBackupTime();
   }
 
-  void _showEditDialog(String title, String currentValue) {
-    final controller = TextEditingController(text: currentValue);
+  void _showInvoicePrefixDialog() {
+    final controller = TextEditingController(text: _invoicePrefix);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
+        title: const Text('بادئة رقم الفاتورة'),
         content: TextField(
           controller: controller,
-          decoration: InputDecoration(
-            labelText: title,
+          decoration: const InputDecoration(
+            labelText: 'البادئة',
+            hintText: 'مثال: INV, FAT',
           ),
         ),
         actions: [
@@ -201,13 +229,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final value = controller.text.trim().toUpperCase();
+              if (value.isNotEmpty) {
+                await _database.setSetting('invoice_prefix', value);
+                setState(() => _invoicePrefix = value);
+              }
               Navigator.pop(context);
-              // TODO: Save setting
             },
             child: const Text('حفظ'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showPrintSizeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حجم ورق الطباعة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<String>(
+              title: const Text('58mm (صغير)'),
+              value: '58mm',
+              groupValue: _printSize,
+              onChanged: (value) async {
+                await _database.setSetting('print_size', value!);
+                setState(() => _printSize = value);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('80mm (عادي)'),
+              value: '80mm',
+              groupValue: _printSize,
+              onChanged: (value) async {
+                await _database.setSetting('print_size', value!);
+                setState(() => _printSize = value);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('A4'),
+              value: 'A4',
+              groupValue: _printSize,
+              onChanged: (value) async {
+                await _database.setSetting('print_size', value!);
+                setState(() => _printSize = value);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -429,7 +505,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     try {
       final path = await _backupService.createLocalBackup();
+      await _backupService.saveLastBackupTime();
       Navigator.pop(context);
+      setState(() {}); // تحديث عرض وقت آخر نسخة
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -450,12 +528,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _restoreBackup() async {
+    // أولاً عرض قائمة النسخ الاحتياطية المتاحة
+    final backups = await _backupService.getLocalBackups();
+
+    if (backups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد نسخ احتياطية محفوظة'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final selectedBackup = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('اختر نسخة احتياطية'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: backups.length,
+            itemBuilder: (context, index) {
+              final backup = backups[index];
+              final fileName = backup.path.split('/').last.split('\\').last;
+              return ListTile(
+                leading: const Icon(Icons.backup),
+                title: Text(fileName),
+                onTap: () => Navigator.pop(context, backup.path),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedBackup == null) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('استعادة نسخة احتياطية'),
+        title: const Text('تأكيد الاستعادة'),
         content: const Text(
-          'سيتم استبدال جميع البيانات الحالية بالنسخة الاحتياطية.\n\nهل أنت متأكد؟',
+          'سيتم استبدال جميع البيانات الحالية بالنسخة الاحتياطية.\n\nهذا الإجراء لا يمكن التراجع عنه!\n\nهل أنت متأكد؟',
         ),
         actions: [
           TextButton(
@@ -473,12 +595,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (confirmed != true) return;
 
-    // TODO: Implement file picker and restore
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('اختر ملف النسخة الاحتياطية'),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('جاري استعادة النسخة الاحتياطية...'),
+          ],
+        ),
       ),
     );
+
+    try {
+      await _backupService.restoreFromLocalBackup(selectedBackup);
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تمت استعادة النسخة الاحتياطية بنجاح'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 }
 

@@ -365,21 +365,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               child: pw.Column(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
-                  pw.Text(
-                    productName,
-                    style: pw.TextStyle(
-                      font: arabicFontBold,
-                      fontSize: 14,
-                    ),
-                    textDirection: pw.TextDirection.rtl,
-                  ),
-                  pw.SizedBox(height: 8),
                   pw.BarcodeWidget(
                     barcode: barcodeType,
                     data: barcodeValue,
                     width: 150,
                     height: 50,
-                    drawText: true,
+                    drawText: false,
                   ),
                 ],
               ),

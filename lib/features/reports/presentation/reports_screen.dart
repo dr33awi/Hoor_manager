@@ -64,45 +64,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ),
           Gap(16.h),
 
-          // Quick Summary - Real-time updates
-          StreamBuilder<Map<String, double>>(
-            stream: _db.watchSalesSummary(_dateRange.start, _dateRange.end),
-            builder: (context, snapshot) {
-              final summary = snapshot.data ?? {};
-              return Row(
-                children: [
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'المبيعات',
-                      value: summary['totalSales'] ?? 0,
-                      icon: Icons.trending_up,
-                      color: AppColors.success,
-                    ),
-                  ),
-                  Gap(8.w),
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'المرتجعات',
-                      value: summary['totalReturns'] ?? 0,
-                      icon: Icons.shopping_cart,
-                      color: AppColors.purchases,
-                    ),
-                  ),
-                  Gap(8.w),
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'صافي المبيعات',
-                      value: summary['netSales'] ?? 0,
-                      icon: Icons.account_balance_wallet,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          Gap(24.h),
-
           // Report Categories
           Text(
             'التقارير المتاحة',

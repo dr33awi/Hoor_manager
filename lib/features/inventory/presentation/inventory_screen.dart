@@ -3,12 +3,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/inventory_repository.dart';
 import '../../../data/repositories/product_repository.dart';
+
+/// تنسيق السعر بالليرة السورية (بدون أصفار زائدة)
+String _formatSyrianPrice(double price) {
+  if (price == price.roundToDouble()) {
+    return price.toStringAsFixed(0);
+  }
+  String formatted = price.toStringAsFixed(2);
+  if (formatted.endsWith('0')) {
+    formatted = formatted.substring(0, formatted.length - 1);
+  }
+  if (formatted.endsWith('0')) {
+    formatted = formatted.substring(0, formatted.length - 1);
+  }
+  if (formatted.endsWith('.')) {
+    formatted = formatted.substring(0, formatted.length - 1);
+  }
+  return formatted;
+}
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -415,21 +436,41 @@ class _InventoryCountTab extends StatefulWidget {
 class _InventoryCountTabState extends State<_InventoryCountTab> {
   final Map<String, int> _countedQuantities = {};
   List<Product> _products = [];
+  Map<String, int> _soldQuantities = {};
   bool _isLoading = true;
+  bool _showSummary = true;
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _loadData();
   }
 
-  Future<void> _loadProducts() async {
+  Future<void> _loadData() async {
     final products = await widget.productRepo.getAllProducts();
+    final db = getIt<AppDatabase>();
+    final soldQuantities = await db.getProductSoldQuantities();
+
     setState(() {
       _products = products;
+      _soldQuantities = soldQuantities;
       _isLoading = false;
     });
   }
+
+  // حساب إحصائيات المخزون
+  int get _totalProducts => _products.length;
+  int get _totalQuantity => _products.fold(0, (sum, p) => sum + p.quantity);
+  int get _lowStockCount => _products
+      .where((p) => p.quantity > 0 && p.quantity <= p.minQuantity)
+      .length;
+  int get _outOfStockCount => _products.where((p) => p.quantity <= 0).length;
+  double get _totalCostValue =>
+      _products.fold(0.0, (sum, p) => sum + (p.purchasePrice * p.quantity));
+  double get _totalSaleValue =>
+      _products.fold(0.0, (sum, p) => sum + (p.salePrice * p.quantity));
+  int get _totalSoldQuantity =>
+      _soldQuantities.values.fold(0, (sum, qty) => sum + qty);
 
   @override
   Widget build(BuildContext context) {
@@ -439,30 +480,171 @@ class _InventoryCountTabState extends State<_InventoryCountTab> {
 
     return Column(
       children: [
+        // Header with toggle
         Container(
-          padding: EdgeInsets.all(16.w),
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
           color: AppColors.primary.withOpacity(0.1),
           child: Row(
             children: [
-              Icon(Icons.info, color: AppColors.primary),
+              Icon(Icons.inventory, color: AppColors.primary, size: 20.sp),
               Gap(8.w),
               Expanded(
                 child: Text(
-                  'أدخل الكمية الفعلية لكل منتج ثم اضغط "حفظ الجرد"',
-                  style: TextStyle(fontSize: 14.sp),
+                  'جرد المخزون',
+                  style:
+                      TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => setState(() => _showSummary = !_showSummary),
+                icon: Icon(
+                  _showSummary ? Icons.expand_less : Icons.expand_more,
+                  size: 18.sp,
+                ),
+                label: Text(_showSummary ? 'إخفاء الملخص' : 'عرض الملخص'),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w),
                 ),
               ),
             ],
           ),
         ),
+
+        // Summary Section (collapsible)
+        if (_showSummary) ...[
+          Container(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Stats Row 1
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        title: 'إجمالي المنتجات',
+                        value: '$_totalProducts',
+                        icon: Icons.inventory_2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    Gap(8.w),
+                    Expanded(
+                      child: _StatCard(
+                        title: 'إجمالي الكميات',
+                        value: '$_totalQuantity',
+                        icon: Icons.numbers,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                    Gap(8.w),
+                    Expanded(
+                      child: _StatCard(
+                        title: 'المباعة',
+                        value: '$_totalSoldQuantity',
+                        icon: Icons.shopping_cart,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ],
+                ),
+                Gap(8.h),
+                // Stats Row 2
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        title: 'نقص مخزون',
+                        value: '$_lowStockCount',
+                        icon: Icons.warning,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    Gap(8.w),
+                    Expanded(
+                      child: _StatCard(
+                        title: 'نفذ المخزون',
+                        value: '$_outOfStockCount',
+                        icon: Icons.error,
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ],
+                ),
+                Gap(12.h),
+                // Value Summary
+                Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(12.w),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('قيمة التكلفة:',
+                                style: TextStyle(fontSize: 13.sp)),
+                            Text(
+                              '${_formatSyrianPrice(_totalCostValue)} ل.س',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 13.sp),
+                            ),
+                          ],
+                        ),
+                        Gap(4.h),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('قيمة البيع:',
+                                style: TextStyle(fontSize: 13.sp)),
+                            Text(
+                              '${_formatSyrianPrice(_totalSaleValue)} ل.س',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.sp,
+                                  color: AppColors.success),
+                            ),
+                          ],
+                        ),
+                        Gap(4.h),
+                        Divider(),
+                        Gap(4.h),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('الربح المتوقع:',
+                                style: TextStyle(
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              '${_formatSyrianPrice(_totalSaleValue - _totalCostValue)} ل.س',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.sp,
+                                  color: AppColors.primary),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1),
+        ],
+
+        // Products List
         Expanded(
           child: ListView.builder(
             padding: EdgeInsets.all(16.w),
             itemCount: _products.length,
             itemBuilder: (context, index) {
               final product = _products[index];
-              return _InventoryCountItem(
+              final soldQty = _soldQuantities[product.id] ?? 0;
+              return _InventoryCountItemWithSales(
                 product: product,
+                soldQuantity: soldQty,
                 countedQuantity: _countedQuantities[product.id],
                 onCountChanged: (value) {
                   setState(() {
@@ -477,35 +659,242 @@ class _InventoryCountTabState extends State<_InventoryCountTab> {
             },
           ),
         ),
-        if (_countedQuantities.isNotEmpty)
-          Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
+        // Action buttons row
+        Container(
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // PDF Export Button
+              OutlinedButton.icon(
+                onPressed: _exportToPdf,
+                icon: const Icon(Icons.picture_as_pdf, size: 18),
+                label: const Text('تصدير PDF'),
+              ),
+              Gap(8.w),
+              if (_countedQuantities.isNotEmpty) ...[
                 Text(
                   '${_countedQuantities.length} منتج',
                   style: TextStyle(fontSize: 14.sp),
                 ),
-                const Spacer(),
+              ],
+              const Spacer(),
+              if (_countedQuantities.isNotEmpty)
                 ElevatedButton(
                   onPressed: _saveInventoryCount,
                   child: const Text('حفظ الجرد'),
                 ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _exportToPdf() async {
+    try {
+      // Load Arabic font from Google Fonts
+      final arabicFont = await PdfGoogleFonts.cairoRegular();
+      final arabicBoldFont = await PdfGoogleFonts.cairoBold();
+
+      final doc = pw.Document();
+      final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
+      final now = DateTime.now();
+
+      // Calculate totals
+      double totalValue = 0;
+      int totalQuantity = 0;
+      int totalSold = 0;
+      for (final product in _products) {
+        totalQuantity += product.quantity;
+        totalValue += product.quantity * product.purchasePrice;
+        totalSold += _soldQuantities[product.id] ?? 0;
+      }
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          textDirection: pw.TextDirection.rtl,
+          theme: pw.ThemeData.withFont(
+            base: arabicFont,
+            bold: arabicBoldFont,
+          ),
+          header: (context) => pw.Directionality(
+            textDirection: pw.TextDirection.rtl,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text(
+                  'تقرير جرد المخزون',
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                  textDirection: pw.TextDirection.rtl,
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'تاريخ التقرير: ${dateFormat.format(now)}',
+                  style: const pw.TextStyle(fontSize: 12),
+                  textDirection: pw.TextDirection.rtl,
+                ),
+                pw.SizedBox(height: 16),
+                pw.Divider(),
+                pw.SizedBox(height: 8),
               ],
             ),
           ),
-      ],
-    );
+          footer: (context) => pw.Directionality(
+            textDirection: pw.TextDirection.rtl,
+            child: pw.Column(
+              children: [
+                pw.Divider(),
+                pw.SizedBox(height: 8),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'إجمالي المنتجات: ${_products.length}',
+                      style: const pw.TextStyle(fontSize: 10),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                    pw.Text(
+                      'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                      style: const pw.TextStyle(fontSize: 10),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          build: (context) => [
+            pw.Directionality(
+              textDirection: pw.TextDirection.rtl,
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey400),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                  children: [
+                    pw.Column(
+                      children: [
+                        pw.Text('عدد المنتجات',
+                            style: const pw.TextStyle(fontSize: 10),
+                            textDirection: pw.TextDirection.rtl),
+                        pw.Text('${_products.length}',
+                            style: pw.TextStyle(
+                                fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ),
+                    pw.Column(
+                      children: [
+                        pw.Text('إجمالي الكميات',
+                            style: const pw.TextStyle(fontSize: 10),
+                            textDirection: pw.TextDirection.rtl),
+                        pw.Text('$totalQuantity',
+                            style: pw.TextStyle(
+                                fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ),
+                    pw.Column(
+                      children: [
+                        pw.Text('إجمالي المباع',
+                            style: const pw.TextStyle(fontSize: 10),
+                            textDirection: pw.TextDirection.rtl),
+                        pw.Text('$totalSold',
+                            style: pw.TextStyle(
+                                fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                      ],
+                    ),
+                    pw.Column(
+                      children: [
+                        pw.Text('قيمة المخزون',
+                            style: const pw.TextStyle(fontSize: 10),
+                            textDirection: pw.TextDirection.rtl),
+                        pw.Text('${_formatSyrianPrice(totalValue)} ل.س',
+                            style: pw.TextStyle(
+                                fontSize: 16, fontWeight: pw.FontWeight.bold),
+                            textDirection: pw.TextDirection.rtl),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 16),
+            // Products Table
+            pw.Directionality(
+              textDirection: pw.TextDirection.rtl,
+              child: pw.TableHelper.fromTextArray(
+                context: context,
+                headerAlignment: pw.Alignment.center,
+                cellAlignment: pw.Alignment.center,
+                headerDecoration: pw.BoxDecoration(
+                  color: PdfColors.grey300,
+                ),
+                headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 10,
+                ),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headers: [
+                  'القيمة',
+                  'سعر البيع',
+                  'سعر الشراء',
+                  'المباع',
+                  'الكمية',
+                  'الباركود',
+                  'اسم المنتج',
+                  '#',
+                ],
+                data: List.generate(_products.length, (index) {
+                  final product = _products[index];
+                  final value = product.quantity * product.purchasePrice;
+                  final soldQty = _soldQuantities[product.id] ?? 0;
+                  return [
+                    '${_formatSyrianPrice(value)}',
+                    '${_formatSyrianPrice(product.salePrice)}',
+                    '${_formatSyrianPrice(product.purchasePrice)}',
+                    '$soldQty',
+                    '${product.quantity}',
+                    product.barcode ?? '-',
+                    product.name,
+                    '${index + 1}',
+                  ];
+                }),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (format) => doc.save(),
+        name: 'inventory_report_${DateFormat('yyyyMMdd_HHmm').format(now)}.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء تصدير PDF: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _saveInventoryCount() async {
@@ -530,7 +919,7 @@ class _InventoryCountTabState extends State<_InventoryCountTab> {
           ),
         );
         setState(() => _countedQuantities.clear());
-        _loadProducts();
+        _loadData();
       }
     } catch (e) {
       if (mounted) {
@@ -806,5 +1195,281 @@ class _AddMovementSheetState extends State<_AddMovementSheet> {
         ),
       );
     }
+  }
+}
+
+/// بطاقة إحصائية صغيرة
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(10.w),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20.sp),
+            Gap(4.h),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10.sp,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// عنصر جرد مع عدد المبيعات
+class _InventoryCountItemWithSales extends StatelessWidget {
+  final Product product;
+  final int soldQuantity;
+  final int? countedQuantity;
+  final ValueChanged<int?> onCountChanged;
+
+  const _InventoryCountItemWithSales({
+    required this.product,
+    required this.soldQuantity,
+    required this.countedQuantity,
+    required this.onCountChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasChange =
+        countedQuantity != null && countedQuantity != product.quantity;
+    final difference =
+        countedQuantity != null ? countedQuantity! - product.quantity : 0;
+
+    final isLowStock =
+        product.quantity > 0 && product.quantity <= product.minQuantity;
+    final isOutOfStock = product.quantity <= 0;
+
+    return Card(
+      margin: EdgeInsets.only(bottom: 8.h),
+      color: hasChange
+          ? (difference > 0 ? AppColors.success : AppColors.error)
+              .withOpacity(0.05)
+          : isOutOfStock
+              ? AppColors.error.withOpacity(0.05)
+              : isLowStock
+                  ? AppColors.warning.withOpacity(0.05)
+                  : null,
+      child: Padding(
+        padding: EdgeInsets.all(12.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product Name and Status
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    product.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ),
+                if (isOutOfStock)
+                  Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                    child: Text(
+                      'نفذ',
+                      style: TextStyle(fontSize: 10.sp, color: AppColors.error),
+                    ),
+                  )
+                else if (isLowStock)
+                  Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                    child: Text(
+                      'نقص',
+                      style:
+                          TextStyle(fontSize: 10.sp, color: AppColors.warning),
+                    ),
+                  ),
+              ],
+            ),
+            Gap(8.h),
+            // Info Row
+            Row(
+              children: [
+                // Current Quantity
+                _InfoChip(
+                  icon: Icons.inventory,
+                  label: 'الكمية',
+                  value: '${product.quantity}',
+                  color: isOutOfStock
+                      ? AppColors.error
+                      : isLowStock
+                          ? AppColors.warning
+                          : AppColors.primary,
+                ),
+                Gap(8.w),
+                // Sold Quantity
+                _InfoChip(
+                  icon: Icons.shopping_cart,
+                  label: 'المباع',
+                  value: '$soldQuantity',
+                  color: AppColors.success,
+                ),
+                Gap(8.w),
+                // Min Quantity
+                _InfoChip(
+                  icon: Icons.warning_amber,
+                  label: 'الحد الأدنى',
+                  value: '${product.minQuantity}',
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
+            Gap(8.h),
+            // Price Row
+            Row(
+              children: [
+                Text(
+                  'شراء: ${_formatSyrianPrice(product.purchasePrice)} ل.س',
+                  style: TextStyle(
+                      fontSize: 11.sp, color: AppColors.textSecondary),
+                ),
+                Gap(12.w),
+                Text(
+                  'بيع: ${_formatSyrianPrice(product.salePrice)} ل.س',
+                  style: TextStyle(fontSize: 11.sp, color: AppColors.success),
+                ),
+              ],
+            ),
+            Gap(8.h),
+            // Count Input Row
+            Row(
+              children: [
+                if (hasChange) ...[
+                  Text(
+                    'الفرق: ${difference > 0 ? '+' : ''}$difference',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color:
+                          difference > 0 ? AppColors.success : AppColors.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Gap(12.w),
+                ],
+                const Spacer(),
+                SizedBox(
+                  width: 100.w,
+                  height: 36.h,
+                  child: TextField(
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14.sp),
+                    decoration: InputDecoration(
+                      hintText: '${product.quantity}',
+                      labelText: 'الجرد',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 0,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      onCountChanged(int.tryParse(value));
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// شريحة معلومات صغيرة
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12.sp, color: color),
+          Gap(4.w),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style:
+                    TextStyle(fontSize: 8.sp, color: AppColors.textSecondary),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

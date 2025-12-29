@@ -14,6 +14,25 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/product_repository.dart';
 import '../../../data/repositories/inventory_repository.dart';
 
+/// تنسيق السعر بالليرة السورية (بدون أصفار زائدة)
+String _formatSyrianPrice(double price) {
+  if (price == price.roundToDouble()) {
+    return price.toStringAsFixed(0);
+  }
+  // إزالة الأصفار الزائدة في نهاية الأرقام العشرية
+  String formatted = price.toStringAsFixed(2);
+  if (formatted.endsWith('0')) {
+    formatted = formatted.substring(0, formatted.length - 1);
+  }
+  if (formatted.endsWith('0')) {
+    formatted = formatted.substring(0, formatted.length - 1);
+  }
+  if (formatted.endsWith('.')) {
+    formatted = formatted.substring(0, formatted.length - 1);
+  }
+  return formatted;
+}
+
 class ProductDetailsScreen extends ConsumerStatefulWidget {
   final String productId;
 
@@ -255,16 +274,16 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                     Gap(12.h),
                     _InfoRow(
                       label: 'سعر الشراء',
-                      value: '${product.purchasePrice.toStringAsFixed(2)} ل.س',
+                      value: '${_formatSyrianPrice(product.purchasePrice)} ل.س',
                     ),
                     _InfoRow(
                       label: 'سعر البيع',
-                      value: '${product.salePrice.toStringAsFixed(2)} ل.س',
+                      value: '${_formatSyrianPrice(product.salePrice)} ل.س',
                     ),
                     _InfoRow(
                       label: 'هامش الربح',
                       value:
-                          '${(product.salePrice - product.purchasePrice).toStringAsFixed(2)} ل.س',
+                          '${_formatSyrianPrice(product.salePrice - product.purchasePrice)} ل.س',
                     ),
                   ],
                 ),
@@ -431,19 +450,12 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         build: (context) {
           return pw.Column(
             children: [
-              pw.Text(product.name, style: pw.TextStyle(fontSize: 12)),
-              pw.SizedBox(height: 8),
               pw.BarcodeWidget(
                 data: product.barcode!,
                 barcode: pw.Barcode.code128(),
                 width: 150,
                 height: 50,
               ),
-              pw.Text(product.barcode!, style: pw.TextStyle(fontSize: 8)),
-              pw.SizedBox(height: 4),
-              pw.Text('${product.salePrice.toStringAsFixed(2)} ل.س',
-                  style: pw.TextStyle(
-                      fontSize: 14, fontWeight: pw.FontWeight.bold)),
             ],
           );
         },

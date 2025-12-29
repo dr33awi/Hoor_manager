@@ -242,6 +242,90 @@ class AppDatabase extends _$AppDatabase {
     return (select(invoices)..where((i) => i.id.equals(id))).getSingleOrNull();
   }
 
+  // الحصول على فواتير العميل
+  Future<List<Invoice>> getInvoicesByCustomer(String customerId) {
+    return (select(invoices)
+          ..where((i) => i.customerId.equals(customerId))
+          ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]))
+        .get();
+  }
+
+  // مراقبة فواتير العميل (Real-time)
+  Stream<List<Invoice>> watchInvoicesByCustomer(String customerId) {
+    return (select(invoices)
+          ..where((i) => i.customerId.equals(customerId))
+          ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]))
+        .watch();
+  }
+
+  // الحصول على ملخص العميل (إجمالي المشتريات والمرتجعات)
+  Future<Map<String, double>> getCustomerSummary(String customerId) async {
+    final result = await customSelect(
+      '''
+      SELECT 
+        COALESCE(SUM(CASE WHEN type = 'sale' THEN total ELSE 0 END), 0) as total_sales,
+        COALESCE(SUM(CASE WHEN type = 'sale_return' THEN total ELSE 0 END), 0) as total_returns,
+        COUNT(*) as invoice_count
+      FROM invoices
+      WHERE customer_id = ?
+      ''',
+      variables: [Variable.withString(customerId)],
+      readsFrom: {invoices},
+    ).getSingleOrNull();
+
+    if (result == null) {
+      return {'totalSales': 0, 'totalReturns': 0, 'invoiceCount': 0};
+    }
+
+    return {
+      'totalSales': result.read<double>('total_sales'),
+      'totalReturns': result.read<double>('total_returns'),
+      'invoiceCount': result.read<int>('invoice_count').toDouble(),
+    };
+  }
+
+  // الحصول على فواتير المورد
+  Future<List<Invoice>> getInvoicesBySupplier(String supplierId) {
+    return (select(invoices)
+          ..where((i) => i.supplierId.equals(supplierId))
+          ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]))
+        .get();
+  }
+
+  // مراقبة فواتير المورد (Real-time)
+  Stream<List<Invoice>> watchInvoicesBySupplier(String supplierId) {
+    return (select(invoices)
+          ..where((i) => i.supplierId.equals(supplierId))
+          ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]))
+        .watch();
+  }
+
+  // الحصول على ملخص المورد (إجمالي المشتريات والمرتجعات)
+  Future<Map<String, double>> getSupplierSummary(String supplierId) async {
+    final result = await customSelect(
+      '''
+      SELECT 
+        COALESCE(SUM(CASE WHEN type = 'purchase' THEN total ELSE 0 END), 0) as total_purchases,
+        COALESCE(SUM(CASE WHEN type = 'purchase_return' THEN total ELSE 0 END), 0) as total_returns,
+        COUNT(*) as invoice_count
+      FROM invoices
+      WHERE supplier_id = ?
+      ''',
+      variables: [Variable.withString(supplierId)],
+      readsFrom: {invoices},
+    ).getSingleOrNull();
+
+    if (result == null) {
+      return {'totalPurchases': 0, 'totalReturns': 0, 'invoiceCount': 0};
+    }
+
+    return {
+      'totalPurchases': result.read<double>('total_purchases'),
+      'totalReturns': result.read<double>('total_returns'),
+      'invoiceCount': result.read<int>('invoice_count').toDouble(),
+    };
+  }
+
   Future<int> insertInvoice(InvoicesCompanion invoice) {
     return into(invoices).insert(invoice);
   }
@@ -275,6 +359,28 @@ class AppDatabase extends _$AppDatabase {
     await batch((batch) {
       batch.insertAll(invoiceItems, items);
     });
+  }
+
+  /// الحصول على إجمالي الكميات المباعة لكل منتج
+  Future<Map<String, int>> getProductSoldQuantities() async {
+    final result = await customSelect(
+      '''
+      SELECT ii.product_id, SUM(ii.quantity) as total_sold
+      FROM invoice_items ii
+      INNER JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.type = 'sale'
+      GROUP BY ii.product_id
+      ''',
+      readsFrom: {invoiceItems, invoices},
+    ).get();
+
+    final Map<String, int> soldQuantities = {};
+    for (final row in result) {
+      final productId = row.read<String>('product_id');
+      final totalSold = row.read<int>('total_sold');
+      soldQuantities[productId] = totalSold;
+    }
+    return soldQuantities;
   }
 
   // ==================== Inventory Movements ====================

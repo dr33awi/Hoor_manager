@@ -2,6 +2,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
@@ -17,6 +19,7 @@ class CustomersScreen extends ConsumerStatefulWidget {
 
 class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   final _customerRepo = getIt<CustomerRepository>();
+  final _database = getIt<AppDatabase>();
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -225,91 +228,201 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   void _showCustomerDetails(Customer customer) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30.r,
-                  backgroundColor: AppColors.customers.withOpacity(0.2),
-                  child: Text(
-                    customer.name.substring(0, 1).toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.customers,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(bottom: 16.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+              ),
+              // Customer Info Header
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30.r,
+                    backgroundColor: AppColors.customers.withOpacity(0.2),
+                    child: Text(
+                      customer.name.substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.customers,
+                      ),
                     ),
                   ),
-                ),
-                Gap(16.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        customer.name,
-                        style: TextStyle(
-                          fontSize: 20.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (customer.phone != null)
+                  Gap(16.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          customer.phone!,
-                          style: TextStyle(color: AppColors.textSecondary),
+                          customer.name,
+                          style: TextStyle(
+                            fontSize: 20.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                    ],
+                        if (customer.phone != null)
+                          Text(
+                            customer.phone!,
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            Gap(16.h),
-            if (customer.email != null)
-              _DetailRow(
-                  icon: Icons.email, label: 'البريد', value: customer.email!),
-            if (customer.address != null)
-              _DetailRow(
-                  icon: Icons.location_on,
-                  label: 'العنوان',
-                  value: customer.address!),
-            _DetailRow(
-              icon: Icons.account_balance_wallet,
-              label: 'الرصيد',
-              value: '${customer.balance.toStringAsFixed(2)} ل.س',
-              valueColor:
-                  customer.balance >= 0 ? AppColors.success : AppColors.error,
-            ),
-            Gap(16.h),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
+                  IconButton(
+                    icon: const Icon(Icons.edit),
                     onPressed: () {
                       Navigator.pop(context);
                       _showCustomerDialog(customer);
                     },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('تعديل'),
                   ),
-                ),
-                Gap(8.w),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      // Navigate to customer transactions
-                    },
-                    icon: const Icon(Icons.receipt),
-                    label: const Text('الفواتير'),
-                  ),
-                ),
+                ],
+              ),
+              Gap(16.h),
+
+              // Customer Summary
+              FutureBuilder<Map<String, double>>(
+                future: _database.getCustomerSummary(customer.id),
+                builder: (context, snapshot) {
+                  final summary = snapshot.data ?? {};
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryItem(
+                          label: 'إجمالي المشتريات',
+                          value:
+                              '${(summary['totalSales'] ?? 0).toStringAsFixed(0)} ل.س',
+                          color: AppColors.success,
+                        ),
+                      ),
+                      Gap(8.w),
+                      Expanded(
+                        child: _SummaryItem(
+                          label: 'المرتجعات',
+                          value:
+                              '${(summary['totalReturns'] ?? 0).toStringAsFixed(0)} ل.س',
+                          color: AppColors.warning,
+                        ),
+                      ),
+                      Gap(8.w),
+                      Expanded(
+                        child: _SummaryItem(
+                          label: 'عدد الفواتير',
+                          value:
+                              '${(summary['invoiceCount'] ?? 0).toStringAsFixed(0)}',
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              Gap(16.h),
+
+              // Contact Info
+              if (customer.email != null || customer.address != null) ...[
+                if (customer.email != null)
+                  _DetailRow(
+                      icon: Icons.email,
+                      label: 'البريد',
+                      value: customer.email!),
+                if (customer.address != null)
+                  _DetailRow(
+                      icon: Icons.location_on,
+                      label: 'العنوان',
+                      value: customer.address!),
+                Gap(8.h),
               ],
-            ),
-          ],
+
+              _DetailRow(
+                icon: Icons.account_balance_wallet,
+                label: 'الرصيد',
+                value: '${customer.balance.toStringAsFixed(0)} ل.س',
+                valueColor:
+                    customer.balance >= 0 ? AppColors.success : AppColors.error,
+              ),
+
+              Gap(16.h),
+              Divider(),
+              Gap(8.h),
+
+              // Invoices Section
+              Text(
+                'فواتير العميل',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Gap(8.h),
+
+              // Invoices List
+              Expanded(
+                child: StreamBuilder<List<Invoice>>(
+                  stream: _database.watchInvoicesByCustomer(customer.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final invoices = snapshot.data ?? [];
+
+                    if (invoices.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.receipt_long,
+                              size: 48.sp,
+                              color: Colors.grey,
+                            ),
+                            Gap(8.h),
+                            Text(
+                              'لا توجد فواتير',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: scrollController,
+                      itemCount: invoices.length,
+                      itemBuilder: (context, index) {
+                        final invoice = invoices[index];
+                        return _InvoiceCard(
+                          invoice: invoice,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/invoices/${invoice.id}');
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -435,6 +548,171 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _SummaryItem({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.sp,
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          Gap(4.h),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InvoiceCard extends StatelessWidget {
+  final Invoice invoice;
+  final VoidCallback onTap;
+
+  const _InvoiceCard({
+    required this.invoice,
+    required this.onTap,
+  });
+
+  String _getTypeLabel(String type) {
+    switch (type) {
+      case 'sale':
+        return 'مبيعات';
+      case 'sale_return':
+        return 'مرتجع';
+      case 'purchase':
+        return 'مشتريات';
+      case 'purchase_return':
+        return 'مرتجع مشتريات';
+      default:
+        return type;
+    }
+  }
+
+  Color _getTypeColor(String type) {
+    switch (type) {
+      case 'sale':
+        return AppColors.success;
+      case 'sale_return':
+        return AppColors.warning;
+      case 'purchase':
+        return AppColors.primary;
+      case 'purchase_return':
+        return AppColors.error;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 8.h),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12.r),
+        child: Padding(
+          padding: EdgeInsets.all(12.w),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: _getTypeColor(invoice.type).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4.r),
+                ),
+                child: Text(
+                  _getTypeLabel(invoice.type),
+                  style: TextStyle(
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.bold,
+                    color: _getTypeColor(invoice.type),
+                  ),
+                ),
+              ),
+              Gap(12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      invoice.invoiceNumber,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('dd/MM/yyyy - HH:mm')
+                          .format(invoice.createdAt),
+                      style: TextStyle(
+                        fontSize: 10.sp,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${invoice.total.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _getTypeColor(invoice.type),
+                    ),
+                  ),
+                  Text(
+                    'ل.س',
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              Gap(8.w),
+              Icon(
+                Icons.chevron_left,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
