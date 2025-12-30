@@ -377,24 +377,24 @@ class PdfTheme {
 }
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// Print Size - حجم الطباعة
+/// Pdf Print Size - حجم الطباعة لـ PDF
 /// ═══════════════════════════════════════════════════════════════════════════
-enum PrintSize {
+enum PdfPrintSize {
   a4,
   thermal80mm,
   thermal58mm;
 
   PdfPageFormat get pageFormat {
     switch (this) {
-      case PrintSize.a4:
+      case PdfPrintSize.a4:
         return PdfPageFormat.a4;
-      case PrintSize.thermal80mm:
+      case PdfPrintSize.thermal80mm:
         return PdfPageFormat(
           PdfSizes.thermalWidth80mm,
           double.infinity,
           marginAll: 10,
         );
-      case PrintSize.thermal58mm:
+      case PdfPrintSize.thermal58mm:
         return PdfPageFormat(
           PdfSizes.thermalWidth58mm,
           double.infinity,
@@ -405,11 +405,11 @@ enum PrintSize {
 
   String get label {
     switch (this) {
-      case PrintSize.a4:
+      case PdfPrintSize.a4:
         return 'A4';
-      case PrintSize.thermal80mm:
+      case PdfPrintSize.thermal80mm:
         return '80mm';
-      case PrintSize.thermal58mm:
+      case PdfPrintSize.thermal58mm:
         return '58mm';
     }
   }

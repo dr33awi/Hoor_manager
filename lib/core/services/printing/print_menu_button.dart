@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../services/export/invoice_pdf_generator.dart';
+import 'invoice_pdf_generator.dart';
 
 /// أنواع الطباعة المتاحة
 enum PrintType {

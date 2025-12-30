@@ -16,8 +16,11 @@ export 'services/backup_service.dart';
 export 'services/currency_service.dart';
 export 'services/network_utils.dart';
 
-// Export Services (الخدمات الموحدة الجديدة)
+// Export Services (خدمات التصدير)
 export 'services/export/export_services.dart';
+
+// Printing Services (خدمات الطباعة)
+export 'services/printing/printing_services.dart';
 
 // Mappers
 export 'mappers/entity_mappers.dart';

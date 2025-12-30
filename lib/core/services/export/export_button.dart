@@ -100,7 +100,7 @@ class ExportMenuButton extends StatelessWidget {
             value: ExportType.shareExcel,
             child: Row(
               children: [
-                Icon(Icons.share, color: Colors.green, size: 20.sp),
+                Icon(Icons.share, color: Colors.green.shade700, size: 20.sp),
                 SizedBox(width: 8.w),
                 const Text('مشاركة Excel'),
               ],
