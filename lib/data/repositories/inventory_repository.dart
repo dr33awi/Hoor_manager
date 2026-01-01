@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../database/app_database.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/accounting_exceptions.dart';
 import 'base_repository.dart';
 
 class InventoryRepository
@@ -56,7 +57,7 @@ class InventoryRepository
     ));
   }
 
-  /// Withdraw stock from a product
+  /// Withdraw stock from a product (مع التحقق من توفر الكمية)
   Future<void> withdrawStock({
     required String productId,
     required int quantity,
@@ -66,6 +67,16 @@ class InventoryRepository
   }) async {
     final product = await database.getProductById(productId);
     if (product == null) return;
+
+    // التحقق من توفر الكمية المطلوبة
+    if (product.quantity < quantity) {
+      throw NegativeStockException(
+        productId: productId,
+        productName: product.name,
+        currentQuantity: product.quantity,
+        requestedWithdraw: quantity,
+      );
+    }
 
     final newQuantity = product.quantity - quantity;
     await database.updateProductQuantity(productId, newQuantity);

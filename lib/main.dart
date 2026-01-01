@@ -1,29 +1,23 @@
+/// ═══════════════════════════════════════════════════════════════════════════
+/// Hoor Manager - Main Entry Point
+/// Modern Accounting & Sales Management System
+/// ═══════════════════════════════════════════════════════════════════════════
+library;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
-import 'core/theme/pdf_theme.dart';
-import 'core/services/sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive for local storage
-  await Hive.initFlutter();
-
-  // Initialize dependency injection
+  // Initialize dependencies
   await configureDependencies();
-
-  // Initialize PDF fonts
-  await PdfFonts.init();
-
-  // Initialize sync service
-  await getIt<SyncService>().initialize();
 
   runApp(
     const ProviderScope(
@@ -47,9 +41,13 @@ class HoorManagerApp extends ConsumerWidget {
         return MaterialApp.router(
           title: 'Hoor Manager',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+
+          // Theme Configuration
+          theme: HoorTheme.light,
+          darkTheme: HoorTheme.dark,
           themeMode: ThemeMode.light,
+
+          // RTL Support for Arabic
           locale: const Locale('ar'),
           supportedLocales: const [
             Locale('ar'),
@@ -60,6 +58,8 @@ class HoorManagerApp extends ConsumerWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
+
+          // Router Configuration
           routerConfig: router,
         );
       },

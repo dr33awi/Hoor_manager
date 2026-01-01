@@ -85,9 +85,11 @@ class ExcelExportService {
     );
     row++;
 
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-      ..value = TextCellValue(
-          'تاريخ التصدير: ${ExportFormatters.formatDateTime(DateTime.now())}');
+    sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value =
+        TextCellValue(
+            'تاريخ التصدير: ${ExportFormatters.formatDateTime(DateTime.now())}');
     row++;
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -157,8 +159,9 @@ class ExcelExportService {
       ];
 
       for (var j = 0; j < rowData.length; j++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
-          ..value = TextCellValue(rowData[j]);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
+            .value = TextCellValue(rowData[j]);
       }
       row++;
     }
@@ -283,8 +286,9 @@ class ExcelExportService {
       ];
 
       for (var j = 0; j < rowData.length; j++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
-          ..value = TextCellValue(rowData[j]);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
+            .value = TextCellValue(rowData[j]);
       }
       row++;
     }
@@ -418,8 +422,9 @@ class ExcelExportService {
       ];
 
       for (var j = 0; j < rowData.length; j++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
-          ..value = TextCellValue(rowData[j]);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
+            .value = TextCellValue(rowData[j]);
       }
       row++;
     }
@@ -512,8 +517,9 @@ class ExcelExportService {
       ];
 
       for (var j = 0; j < rowData.length; j++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
-          ..value = TextCellValue(rowData[j]);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
+            .value = TextCellValue(rowData[j]);
       }
       row++;
     }
@@ -560,24 +566,28 @@ class ExcelExportService {
     );
     row++;
 
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-      ..value = TextCellValue(
-          'تاريخ التصدير: ${ExportFormatters.formatDateTime(DateTime.now())}');
+    sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value =
+        TextCellValue(
+            'تاريخ التصدير: ${ExportFormatters.formatDateTime(DateTime.now())}');
     row++;
 
     // ملخص
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
       ..value = TextCellValue('عدد السندات:')
       ..cellStyle = _summaryLabelStyle();
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
-      ..value = IntCellValue(vouchers.length);
+    sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+        .value = IntCellValue(vouchers.length);
     row++;
 
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
       ..value = TextCellValue('المجموع:')
       ..cellStyle = _summaryLabelStyle();
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
-      ..value = TextCellValue(ExportFormatters.formatPrice(totalAmount));
+    sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+        .value = TextCellValue(ExportFormatters.formatPrice(totalAmount));
     row += 2;
 
     // رأس الجدول
@@ -610,8 +620,9 @@ class ExcelExportService {
       ];
 
       for (var j = 0; j < rowData.length; j++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
-          ..value = TextCellValue(rowData[j]);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: row))
+            .value = TextCellValue(rowData[j]);
       }
       row++;
     }

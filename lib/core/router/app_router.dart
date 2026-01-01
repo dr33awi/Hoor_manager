@@ -1,100 +1,138 @@
+/// ═══════════════════════════════════════════════════════════════════════════
+/// App Router - Modern Design System
+/// Navigation Configuration
+/// ═══════════════════════════════════════════════════════════════════════════
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/home/presentation/home_screen.dart';
-import '../../features/products/presentation/products_screen.dart';
-import '../../features/products/presentation/product_form_screen.dart';
-import '../../features/products/presentation/product_details_screen.dart';
-import '../../features/categories/presentation/categories_screen.dart';
-import '../../features/invoices/presentation/invoices_screen.dart';
-import '../../features/invoices/presentation/invoice_form_screen.dart';
-import '../../features/invoices/presentation/invoice_details_screen.dart';
-import '../../features/inventory/presentation/inventory_screen.dart';
-import '../../features/inventory/presentation/inventory_count_screen.dart';
-import '../../features/inventory/presentation/stock_transfer_screen.dart';
-import '../../features/inventory/presentation/warehouses_screen.dart';
-import '../../features/shifts/presentation/shifts_screen.dart';
-import '../../features/shifts/presentation/shift_details_screen.dart';
-import '../../features/cash/presentation/cash_screen.dart';
-import '../../features/vouchers/presentation/vouchers_screen.dart';
-import '../../features/reports/presentation/reports_screen.dart';
-import '../../features/reports/presentation/sales_report_screen.dart';
-import '../../features/reports/presentation/inventory_report_screen.dart';
-import '../../features/reports/presentation/receivables_report_screen.dart';
-import '../../features/reports/presentation/payables_report_screen.dart';
-import '../../features/reports/presentation/profit_loss_report_screen.dart';
-import '../../features/settings/presentation/settings_screen.dart';
-import '../../features/settings/presentation/print_settings_screen.dart';
-import '../../features/backup/presentation/backup_screen.dart';
-import '../../features/customers/presentation/customers_screen.dart';
-import '../../features/suppliers/presentation/suppliers_screen.dart';
-import '../../features/alerts/alerts_screen.dart';
+// Main Screens
+import '../../features/home/presentation/redesign/dashboard_screen.dart';
+import '../../features/products/presentation/redesign/products_screen_redesign.dart';
+import '../../features/invoices/presentation/redesign/invoices_screen_redesign.dart';
+import '../../features/customers/presentation/redesign/customers_screen_redesign.dart';
+import '../../features/suppliers/presentation/redesign/suppliers_screen_redesign.dart';
+import '../../features/reports/presentation/redesign/reports_screen_redesign.dart';
+import '../../features/settings/presentation/redesign/settings_screen_redesign.dart';
+import '../../features/shifts/presentation/redesign/shifts_screen_redesign.dart';
+import '../../features/cash/presentation/redesign/cash_screen_redesign.dart';
+import '../../features/vouchers/presentation/redesign/vouchers_screen_redesign.dart';
+import '../../features/categories/presentation/redesign/categories_screen_redesign.dart';
+import '../../features/inventory/presentation/redesign/inventory_screen_redesign.dart';
 
+// Detail Screens
+import '../../features/products/presentation/redesign/product_form_screen_redesign.dart';
+import '../../features/products/presentation/redesign/product_details_screen_redesign.dart';
+import '../../features/invoices/presentation/redesign/invoice_form_screen_redesign.dart';
+import '../../features/invoices/presentation/redesign/invoice_details_screen_redesign.dart';
+import '../../features/inventory/presentation/redesign/inventory_count_screen_redesign.dart';
+import '../../features/inventory/presentation/redesign/stock_transfer_screen_redesign.dart';
+import '../../features/inventory/presentation/redesign/warehouses_screen_redesign.dart';
+import '../../features/shifts/presentation/redesign/shift_details_screen_redesign.dart';
+import '../../features/reports/presentation/redesign/sales_report_screen_redesign.dart';
+import '../../features/reports/presentation/redesign/inventory_report_screen_redesign.dart';
+import '../../features/reports/presentation/redesign/receivables_report_screen_redesign.dart';
+import '../../features/reports/presentation/redesign/payables_report_screen_redesign.dart';
+import '../../features/reports/presentation/redesign/profit_loss_report_screen_redesign.dart';
+import '../../features/settings/presentation/redesign/print_settings_screen_redesign.dart';
+import '../../features/backup/presentation/redesign/backup_screen_redesign.dart';
+import '../../features/alerts/redesign/alerts_screen_redesign.dart';
+
+/// Provider for the app router
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
+    debugLogDiagnostics: true,
     routes: [
-      // Home
+      // ═══════════════════════════════════════════════════════════════════
+      // Dashboard (Home)
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/',
         name: 'home',
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => const DashboardScreen(),
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Products
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/products',
         name: 'products',
-        builder: (context, state) => const ProductsScreen(),
+        builder: (context, state) => const ProductsScreenRedesign(),
         routes: [
           GoRoute(
             path: 'add',
             name: 'product-add',
-            builder: (context, state) => const ProductFormScreen(),
+            builder: (context, state) => const ProductFormScreenRedesign(),
           ),
           GoRoute(
             path: 'edit/:id',
             name: 'product-edit',
-            builder: (context, state) => ProductFormScreen(
+            builder: (context, state) => ProductFormScreenRedesign(
               productId: state.pathParameters['id'],
             ),
           ),
           GoRoute(
             path: ':id',
             name: 'product-details',
-            builder: (context, state) => ProductDetailsScreen(
+            builder: (context, state) => ProductDetailsScreenRedesign(
               productId: state.pathParameters['id']!,
             ),
           ),
         ],
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Categories
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/categories',
         name: 'categories',
-        builder: (context, state) => const CategoriesScreen(),
+        builder: (context, state) => const CategoriesScreenRedesign(),
       ),
 
-      // Invoices
+      // ═══════════════════════════════════════════════════════════════════
+      // Invoices - Sales
+      // ═══════════════════════════════════════════════════════════════════
+      GoRoute(
+        path: '/sales',
+        name: 'sales',
+        builder: (context, state) => const InvoicesScreenRedesign(type: 'sale'),
+      ),
+
+      // ═══════════════════════════════════════════════════════════════════
+      // Invoices - Purchases
+      // ═══════════════════════════════════════════════════════════════════
+      GoRoute(
+        path: '/purchases',
+        name: 'purchases',
+        builder: (context, state) =>
+            const InvoicesScreenRedesign(type: 'purchase'),
+      ),
+
+      // ═══════════════════════════════════════════════════════════════════
+      // Invoices (Generic route)
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/invoices',
         name: 'invoices',
-        builder: (context, state) => InvoicesScreen(
+        builder: (context, state) => InvoicesScreenRedesign(
           type: state.uri.queryParameters['type'],
         ),
         routes: [
           GoRoute(
             path: 'new/:type',
             name: 'invoice-new',
-            builder: (context, state) => InvoiceFormScreen(
+            builder: (context, state) => InvoiceFormScreenRedesign(
               type: state.pathParameters['type']!,
             ),
           ),
           GoRoute(
             path: 'edit/:id/:type',
             name: 'invoice-edit',
-            builder: (context, state) => InvoiceFormScreen(
+            builder: (context, state) => InvoiceFormScreenRedesign(
               type: state.pathParameters['type']!,
               invoiceId: state.pathParameters['id'],
             ),
@@ -102,146 +140,167 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'details/:id',
             name: 'invoice-details',
-            builder: (context, state) => InvoiceDetailsScreen(
+            builder: (context, state) => InvoiceDetailsScreenRedesign(
               invoiceId: state.pathParameters['id']!,
             ),
           ),
         ],
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Inventory
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/inventory',
         name: 'inventory',
-        builder: (context, state) => const InventoryScreen(),
+        builder: (context, state) => const InventoryScreenRedesign(),
         routes: [
           GoRoute(
             path: 'count',
             name: 'inventory-count',
-            builder: (context, state) => const InventoryCountScreen(),
+            builder: (context, state) => const InventoryCountScreenRedesign(),
           ),
           GoRoute(
             path: 'transfer',
             name: 'stock-transfer',
-            builder: (context, state) => const StockTransferScreen(),
+            builder: (context, state) => const StockTransferScreenRedesign(),
           ),
           GoRoute(
             path: 'transfer/new',
             name: 'new-stock-transfer',
-            builder: (context, state) => const NewStockTransferScreen(),
+            builder: (context, state) => const NewStockTransferScreenRedesign(),
           ),
           GoRoute(
             path: 'warehouses',
             name: 'warehouses',
-            builder: (context, state) => const WarehousesScreen(),
+            builder: (context, state) => const WarehousesScreenRedesign(),
           ),
         ],
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Shifts
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/shifts',
         name: 'shifts',
-        builder: (context, state) => const ShiftsScreen(),
+        builder: (context, state) => const ShiftsScreenRedesign(),
         routes: [
           GoRoute(
             path: ':id',
             name: 'shift-details',
-            builder: (context, state) => ShiftDetailsScreen(
+            builder: (context, state) => ShiftDetailsScreenRedesign(
               shiftId: state.pathParameters['id']!,
             ),
           ),
         ],
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Cash
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/cash',
         name: 'cash',
-        builder: (context, state) => const CashScreen(),
+        builder: (context, state) => const CashScreenRedesign(),
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Vouchers
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/vouchers',
         name: 'vouchers',
-        builder: (context, state) => const VouchersScreen(),
+        builder: (context, state) => const VouchersScreenRedesign(),
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Reports
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/reports',
         name: 'reports',
-        builder: (context, state) => const ReportsScreen(),
+        builder: (context, state) => const ReportsScreenRedesign(),
         routes: [
           GoRoute(
             path: 'sales',
             name: 'sales-report',
-            builder: (context, state) => const SalesReportScreen(),
+            builder: (context, state) => const SalesReportScreenRedesign(),
           ),
           GoRoute(
             path: 'inventory',
             name: 'inventory-report',
-            builder: (context, state) => const InventoryReportScreen(),
+            builder: (context, state) => const InventoryReportScreenRedesign(),
           ),
           GoRoute(
             path: 'receivables',
             name: 'receivables-report',
-            builder: (context, state) => const ReceivablesReportScreen(),
+            builder: (context, state) =>
+                const ReceivablesReportScreenRedesign(),
           ),
           GoRoute(
             path: 'payables',
             name: 'payables-report',
-            builder: (context, state) => const PayablesReportScreen(),
+            builder: (context, state) => const PayablesReportScreenRedesign(),
           ),
           GoRoute(
             path: 'profit-loss',
             name: 'profit-loss-report',
-            builder: (context, state) => const ProfitLossReportScreen(),
+            builder: (context, state) => const ProfitLossReportScreenRedesign(),
           ),
         ],
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Customers
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/customers',
         name: 'customers',
-        builder: (context, state) => const CustomersScreen(),
+        builder: (context, state) => const CustomersScreenRedesign(),
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Suppliers
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/suppliers',
         name: 'suppliers',
-        builder: (context, state) => const SuppliersScreen(),
+        builder: (context, state) => const SuppliersScreenRedesign(),
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Settings
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/settings',
         name: 'settings',
-        builder: (context, state) => const SettingsScreen(),
+        builder: (context, state) => const SettingsScreenRedesign(),
         routes: [
           GoRoute(
             path: 'print',
             name: 'print-settings',
-            builder: (context, state) => const PrintSettingsScreen(),
+            builder: (context, state) => const PrintSettingsScreenRedesign(),
           ),
         ],
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Backup
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/backup',
         name: 'backup',
-        builder: (context, state) => const BackupScreen(),
+        builder: (context, state) => const BackupScreenRedesign(),
       ),
 
+      // ═══════════════════════════════════════════════════════════════════
       // Alerts
+      // ═══════════════════════════════════════════════════════════════════
       GoRoute(
         path: '/alerts',
         name: 'alerts',
-        builder: (context, state) => const AlertsScreen(),
+        builder: (context, state) => const AlertsScreenRedesign(),
       ),
     ],
   );

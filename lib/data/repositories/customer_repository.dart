@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../database/app_database.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/accounting_exceptions.dart';
 import 'base_repository.dart';
 
 class CustomerRepository extends BaseRepository<Customer, CustomersCompanion> {
@@ -88,8 +89,19 @@ class CustomerRepository extends BaseRepository<Customer, CustomersCompanion> {
     );
   }
 
-  /// حذف عميل
+  /// حذف عميل (يمنع الحذف إذا كان لديه رصيد)
   Future<void> deleteCustomer(String id) async {
+    // التحقق من رصيد العميل قبل الحذف
+    final customer = await database.getCustomerById(id);
+    if (customer != null && customer.balance != 0) {
+      throw NonZeroBalanceException(
+        entityType: 'customer',
+        entityId: id,
+        entityName: customer.name,
+        balance: customer.balance,
+      );
+    }
+
     await database.deleteCustomer(id);
 
     // حذف من Cloud أيضاً

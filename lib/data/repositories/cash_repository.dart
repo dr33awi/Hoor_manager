@@ -140,7 +140,63 @@ class CashRepository
     _syncCashMovementToFirestore(id);
   }
 
-  /// Get cash summary for a shift
+  /// Record sale return cash movement (مرتجع مبيعات - يخصم من الصندوق)
+  Future<void> recordSaleReturn({
+    required String shiftId,
+    required double amount,
+    required String invoiceId,
+    required String invoiceNumber,
+    String paymentMethod = 'cash',
+  }) async {
+    final id = generateId();
+    final currencyService = getIt<CurrencyService>();
+    await database.insertCashMovement(CashMovementsCompanion(
+      id: Value(id),
+      shiftId: Value(shiftId),
+      type: const Value('sale_return'), // نوع مخصص للمرتجعات
+      amount: Value(amount),
+      description: Value('مرتجع مبيعات - فاتورة: $invoiceNumber'),
+      referenceId: Value(invoiceId),
+      referenceType: const Value('invoice'),
+      paymentMethod: Value(paymentMethod),
+      exchangeRate: Value(currencyService.exchangeRate),
+      syncStatus: const Value('pending'),
+      createdAt: Value(DateTime.now()),
+    ));
+
+    // Sync immediately to Firestore
+    _syncCashMovementToFirestore(id);
+  }
+
+  /// Record purchase return cash movement (مرتجع مشتريات - يضاف للصندوق)
+  Future<void> recordPurchaseReturn({
+    required String shiftId,
+    required double amount,
+    required String invoiceId,
+    required String invoiceNumber,
+    String paymentMethod = 'cash',
+  }) async {
+    final id = generateId();
+    final currencyService = getIt<CurrencyService>();
+    await database.insertCashMovement(CashMovementsCompanion(
+      id: Value(id),
+      shiftId: Value(shiftId),
+      type: const Value('purchase_return'), // نوع مخصص للمرتجعات
+      amount: Value(amount),
+      description: Value('مرتجع مشتريات - فاتورة: $invoiceNumber'),
+      referenceId: Value(invoiceId),
+      referenceType: const Value('invoice'),
+      paymentMethod: Value(paymentMethod),
+      exchangeRate: Value(currencyService.exchangeRate),
+      syncStatus: const Value('pending'),
+      createdAt: Value(DateTime.now()),
+    ));
+
+    // Sync immediately to Firestore
+    _syncCashMovementToFirestore(id);
+  }
+
+  /// Get cash summary for a shift (يشمل جميع أنواع الحركات)
   Future<Map<String, double>> getShiftCashSummary(String shiftId) async {
     final movements = await database.getCashMovementsByShift(shiftId);
 
@@ -148,20 +204,44 @@ class CashRepository
     double totalExpense = 0;
     double totalSales = 0;
     double totalPurchases = 0;
+    double totalVoucherReceipts = 0;
+    double totalVoucherPayments = 0;
+    double totalSaleReturns = 0;
+    double totalPurchaseReturns = 0;
 
     for (final movement in movements) {
       switch (movement.type) {
+        // الإيرادات
         case 'income':
           totalIncome += movement.amount;
-          break;
-        case 'expense':
-          totalExpense += movement.amount;
           break;
         case 'sale':
           totalSales += movement.amount;
           break;
+        case 'voucher_receipt':
+          totalVoucherReceipts += movement.amount;
+          totalIncome += movement.amount;
+          break;
+        case 'purchase_return':
+          totalPurchaseReturns += movement.amount;
+          totalIncome += movement.amount;
+          break;
+
+        // المصروفات
+        case 'expense':
+          totalExpense += movement.amount;
+          break;
         case 'purchase':
           totalPurchases += movement.amount;
+          break;
+        case 'voucher_payment':
+          totalVoucherPayments += movement.amount;
+          totalExpense += movement.amount;
+          break;
+        case 'sale_return':
+        case 'return':
+          totalSaleReturns += movement.amount;
+          totalExpense += movement.amount;
           break;
       }
     }
@@ -171,31 +251,59 @@ class CashRepository
       'totalExpense': totalExpense,
       'totalSales': totalSales,
       'totalPurchases': totalPurchases,
-      'netCash': totalIncome + totalSales - totalExpense - totalPurchases,
+      'totalVoucherReceipts': totalVoucherReceipts,
+      'totalVoucherPayments': totalVoucherPayments,
+      'totalSaleReturns': totalSaleReturns,
+      'totalPurchaseReturns': totalPurchaseReturns,
+      'netCash': totalSales + totalIncome - totalPurchases - totalExpense,
     };
   }
 
-  /// Watch cash summary for a shift (real-time updates)
+  /// Watch cash summary for a shift (real-time updates) - يشمل جميع أنواع الحركات
   Stream<Map<String, double>> watchShiftCashSummary(String shiftId) {
     return database.watchCashMovementsByShift(shiftId).map((movements) {
       double totalIncome = 0;
       double totalExpense = 0;
       double totalSales = 0;
       double totalPurchases = 0;
+      double totalVoucherReceipts = 0;
+      double totalVoucherPayments = 0;
+      double totalSaleReturns = 0;
+      double totalPurchaseReturns = 0;
 
       for (final movement in movements) {
         switch (movement.type) {
+          // الإيرادات
           case 'income':
             totalIncome += movement.amount;
-            break;
-          case 'expense':
-            totalExpense += movement.amount;
             break;
           case 'sale':
             totalSales += movement.amount;
             break;
+          case 'voucher_receipt':
+            totalVoucherReceipts += movement.amount;
+            totalIncome += movement.amount;
+            break;
+          case 'purchase_return':
+            totalPurchaseReturns += movement.amount;
+            totalIncome += movement.amount;
+            break;
+
+          // المصروفات
+          case 'expense':
+            totalExpense += movement.amount;
+            break;
           case 'purchase':
             totalPurchases += movement.amount;
+            break;
+          case 'voucher_payment':
+            totalVoucherPayments += movement.amount;
+            totalExpense += movement.amount;
+            break;
+          case 'sale_return':
+          case 'return':
+            totalSaleReturns += movement.amount;
+            totalExpense += movement.amount;
             break;
         }
       }
@@ -205,7 +313,11 @@ class CashRepository
         'totalExpense': totalExpense,
         'totalSales': totalSales,
         'totalPurchases': totalPurchases,
-        'netCash': totalIncome + totalSales - totalExpense - totalPurchases,
+        'totalVoucherReceipts': totalVoucherReceipts,
+        'totalVoucherPayments': totalVoucherPayments,
+        'totalSaleReturns': totalSaleReturns,
+        'totalPurchaseReturns': totalPurchaseReturns,
+        'netCash': totalSales + totalIncome - totalPurchases - totalExpense,
       };
     });
   }

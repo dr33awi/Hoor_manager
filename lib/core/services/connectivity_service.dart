@@ -177,7 +177,7 @@ class ConnectivityService extends ChangeNotifier {
       if (_offlineDuration > 0) {
         final minutes = _offlineDuration ~/ 60;
         final seconds = _offlineDuration % 60;
-        return 'غير متصل منذ ${minutes > 0 ? "$minutes د " : ""}${seconds} ث';
+        return 'غير متصل منذ ${minutes > 0 ? "$minutes د " : ""}$seconds ث';
       }
       return 'غير متصل';
     }

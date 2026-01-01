@@ -92,17 +92,10 @@ class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
     String? imageUrl,
     bool? isActive,
   }) async {
-    print('updateProduct called with id: $id');
-    print(
-        'New values - name: $name, purchasePrice: $purchasePrice, salePrice: $salePrice');
-
     final existing = await database.getProductById(id);
     if (existing == null) {
-      print('Error: Product not found with id: $id');
       return;
     }
-
-    print('Existing product found: ${existing.name}');
 
     final updatedProduct = ProductsCompanion(
       id: Value(id),
@@ -125,7 +118,6 @@ class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
     );
 
     final result = await database.updateProduct(updatedProduct);
-    print('Update result: $result');
 
     // مزامنة مع Firestore
     if (result) {
@@ -133,10 +125,9 @@ class ProductRepository extends BaseRepository<Product, ProductsCompanion> {
         final updated = await database.getProductById(id);
         if (updated != null) {
           await collection.doc(id).set(toFirestore(updated));
-          print('Product synced to Firestore');
         }
       } catch (e) {
-        print('Error syncing to Firestore: $e');
+        debugPrint('Error syncing to Firestore: $e');
       }
     }
   }

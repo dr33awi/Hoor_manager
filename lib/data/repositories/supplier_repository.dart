@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../database/app_database.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/accounting_exceptions.dart';
 import 'base_repository.dart';
 
 class SupplierRepository extends BaseRepository<Supplier, SuppliersCompanion> {
@@ -88,8 +89,19 @@ class SupplierRepository extends BaseRepository<Supplier, SuppliersCompanion> {
     );
   }
 
-  /// حذف مورد
+  /// حذف مورد (يمنع الحذف إذا كان لديه رصيد)
   Future<void> deleteSupplier(String id) async {
+    // التحقق من رصيد المورد قبل الحذف
+    final supplier = await database.getSupplierById(id);
+    if (supplier != null && supplier.balance != 0) {
+      throw NonZeroBalanceException(
+        entityType: 'supplier',
+        entityId: id,
+        entityName: supplier.name,
+        balance: supplier.balance,
+      );
+    }
+
     await database.deleteSupplier(id);
 
     // حذف من Cloud أيضاً

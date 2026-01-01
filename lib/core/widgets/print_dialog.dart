@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../di/injection.dart';
 import '../services/print_settings_service.dart';
 import '../services/printing/invoice_pdf_generator.dart';
+import '../theme/redesign/design_tokens.dart';
+import '../theme/redesign/typography.dart';
 
 /// نتيجة ديالوج الطباعة
 enum PrintDialogResult {
@@ -34,16 +36,19 @@ class PrintDialog {
     required String title,
     Color? color,
   }) async {
-    final themeColor = color ?? Colors.purple;
+    final themeColor = color ?? HoorColors.primary;
     final printOptions = await _printSettingsService.getPrintOptions();
     InvoicePrintSize selectedSize = printOptions.size;
+
+    if (!context.mounted) return null;
 
     final result = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
+          backgroundColor: HoorColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.r),
+            borderRadius: BorderRadius.circular(HoorRadius.xl.r),
           ),
           title: Row(
             children: [
@@ -52,7 +57,7 @@ class PrintDialog {
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(fontSize: 18.sp),
+                  style: HoorTypography.titleMedium,
                 ),
               ),
             ],
@@ -65,10 +70,8 @@ class PrintDialog {
                 alignment: Alignment.centerRight,
                 child: Text(
                   'اختر مقاس الورق',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
+                  style: HoorTypography.labelMedium.copyWith(
+                    color: HoorColors.textSecondary,
                   ),
                 ),
               ),
@@ -112,60 +115,93 @@ class PrintDialog {
                 icon: Icon(Icons.settings, size: 18.sp),
                 label: const Text('إعدادات متقدمة'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey[700],
-                  side: BorderSide(color: Colors.grey[400]!),
+                  foregroundColor: HoorColors.textSecondary,
+                  side: BorderSide(color: HoorColors.border),
                   padding:
                       EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                  textStyle: HoorTypography.labelMedium,
                 ),
               ),
             ],
           ),
+          actionsPadding:
+              EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            IconButton(
-              onPressed: () async {
-                if (selectedSize != printOptions.size) {
-                  await _printSettingsService.updateSetting(
-                      defaultSize: selectedSize);
-                }
-                if (context.mounted) Navigator.pop(context, 'share');
-              },
-              icon: const Icon(Icons.share, size: 20),
-              tooltip: 'مشاركة PDF',
-              color: Colors.green,
-            ),
-            OutlinedButton.icon(
-              onPressed: () async {
-                if (selectedSize != printOptions.size) {
-                  await _printSettingsService.updateSetting(
-                      defaultSize: selectedSize);
-                }
-                if (context.mounted) Navigator.pop(context, 'preview');
-              },
-              icon: const Icon(Icons.preview, size: 18),
-              label: const Text('معاينة'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.orange,
-                side: const BorderSide(color: Colors.orange),
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                if (selectedSize != printOptions.size) {
-                  await _printSettingsService.updateSetting(
-                      defaultSize: selectedSize);
-                }
-                if (context.mounted) Navigator.pop(context, 'print');
-              },
-              icon: const Icon(Icons.print, size: 18),
-              label: const Text('طباعة'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeColor,
-                foregroundColor: Colors.white,
-              ),
+            Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          if (selectedSize != printOptions.size) {
+                            await _printSettingsService.updateSetting(
+                                defaultSize: selectedSize);
+                          }
+                          if (context.mounted) {
+                            Navigator.pop(context, 'preview');
+                          }
+                        },
+                        icon: const Icon(Icons.preview, size: 18),
+                        label: const Text('معاينة'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: HoorColors.suppliers,
+                          side: const BorderSide(color: HoorColors.suppliers),
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
+                          textStyle: HoorTypography.labelMedium,
+                        ),
+                      ),
+                    ),
+                    Gap(12.w),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          if (selectedSize != printOptions.size) {
+                            await _printSettingsService.updateSetting(
+                                defaultSize: selectedSize);
+                          }
+                          if (context.mounted) Navigator.pop(context, 'print');
+                        },
+                        icon: const Icon(Icons.print, size: 18),
+                        label: const Text('طباعة'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeColor,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
+                          textStyle: HoorTypography.labelMedium,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Gap(12.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'إلغاء',
+                        style: HoorTypography.labelMedium.copyWith(
+                          color: HoorColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () async {
+                        if (selectedSize != printOptions.size) {
+                          await _printSettingsService.updateSetting(
+                              defaultSize: selectedSize);
+                        }
+                        if (context.mounted) Navigator.pop(context, 'share');
+                      },
+                      icon: const Icon(Icons.share, size: 20),
+                      tooltip: 'مشاركة PDF',
+                      color: HoorColors.income,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
@@ -204,21 +240,23 @@ class PrintSizeOption extends StatelessWidget {
     required this.icon,
     required this.isSelected,
     required this.onTap,
-    this.color = Colors.purple,
+    this.color = HoorColors.primary,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12.r),
+      borderRadius: BorderRadius.circular(HoorRadius.lg.r),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.grey[50],
-          borderRadius: BorderRadius.circular(12.r),
+          color: isSelected
+              ? color.withValues(alpha: 0.1)
+              : HoorColors.surfaceMuted,
+          borderRadius: BorderRadius.circular(HoorRadius.lg.r),
           border: Border.all(
-            color: isSelected ? color : Colors.grey[300]!,
+            color: isSelected ? color : HoorColors.border,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -227,12 +265,14 @@ class PrintSizeOption extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(8.w),
               decoration: BoxDecoration(
-                color: isSelected ? color.withOpacity(0.2) : Colors.grey[200],
-                borderRadius: BorderRadius.circular(8.r),
+                color: isSelected
+                    ? color.withValues(alpha: 0.2)
+                    : HoorColors.border,
+                borderRadius: BorderRadius.circular(HoorRadius.md.r),
               ),
               child: Icon(
                 icon,
-                color: isSelected ? color : Colors.grey[600],
+                color: isSelected ? color : HoorColors.textSecondary,
                 size: 20.sp,
               ),
             ),
@@ -243,17 +283,15 @@ class PrintSizeOption extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 14.sp,
+                    style: HoorTypography.labelMedium.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? color : Colors.black87,
+                      color: isSelected ? color : HoorColors.textPrimary,
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 11.sp,
-                      color: Colors.grey[600],
+                    style: HoorTypography.bodySmall.copyWith(
+                      color: HoorColors.textSecondary,
                     ),
                   ),
                 ],

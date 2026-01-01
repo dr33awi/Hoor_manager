@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/redesign/design_tokens.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
 /// Invoice Types - توحيد أنواع الفواتير وطرق الدفع
@@ -79,7 +79,7 @@ class InvoiceTypeConfig {
     label: 'فاتورة',
     shortLabel: 'فاتورة',
     icon: Icons.receipt_outlined,
-    color: AppColors.secondary,
+    color: HoorColors.accent,
     pdfColor: PdfColors.grey700,
   );
 
@@ -89,7 +89,7 @@ class InvoiceTypeConfig {
       label: 'فاتورة مبيعات',
       shortLabel: 'مبيعات',
       icon: Icons.shopping_cart_outlined,
-      color: AppColors.success,
+      color: HoorColors.success,
       pdfColor: PdfColors.green700,
     ),
     InvoiceType.purchase: const InvoiceTypeConfig(
@@ -97,7 +97,7 @@ class InvoiceTypeConfig {
       label: 'فاتورة مشتريات',
       shortLabel: 'مشتريات',
       icon: Icons.inventory_2_outlined,
-      color: AppColors.info,
+      color: HoorColors.info,
       pdfColor: PdfColors.blue700,
     ),
     InvoiceType.saleReturn: const InvoiceTypeConfig(
@@ -105,7 +105,7 @@ class InvoiceTypeConfig {
       label: 'مرتجع مبيعات',
       shortLabel: 'مرتجع مبيعات',
       icon: Icons.assignment_return_outlined,
-      color: AppColors.warning,
+      color: HoorColors.warning,
       pdfColor: PdfColors.orange700,
     ),
     InvoiceType.purchaseReturn: const InvoiceTypeConfig(
@@ -113,7 +113,7 @@ class InvoiceTypeConfig {
       label: 'مرتجع مشتريات',
       shortLabel: 'مرتجع مشتريات',
       icon: Icons.assignment_returned_outlined,
-      color: AppColors.lowStock,
+      color: HoorColors.warning,
       pdfColor: PdfColors.amber700,
     ),
   };
@@ -227,7 +227,7 @@ class InvoiceStatusConfig {
   static const _defaultConfig = InvoiceStatusConfig(
     status: InvoiceStatus.completed,
     label: 'مكتملة',
-    color: AppColors.success,
+    color: HoorColors.success,
     icon: Icons.check_circle_outlined,
   );
 
@@ -235,19 +235,19 @@ class InvoiceStatusConfig {
     InvoiceStatus.pending: const InvoiceStatusConfig(
       status: InvoiceStatus.pending,
       label: 'معلقة',
-      color: AppColors.warning,
+      color: HoorColors.warning,
       icon: Icons.pending_outlined,
     ),
     InvoiceStatus.completed: const InvoiceStatusConfig(
       status: InvoiceStatus.completed,
       label: 'مكتملة',
-      color: AppColors.success,
+      color: HoorColors.success,
       icon: Icons.check_circle_outlined,
     ),
     InvoiceStatus.cancelled: const InvoiceStatusConfig(
       status: InvoiceStatus.cancelled,
       label: 'ملغية',
-      color: AppColors.error,
+      color: HoorColors.error,
       icon: Icons.cancel_outlined,
     ),
   };

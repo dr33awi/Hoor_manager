@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../database/app_database.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/accounting_exceptions.dart';
 import '../../core/services/currency_service.dart';
 import '../../core/di/injection.dart';
 import 'base_repository.dart';
@@ -15,6 +16,8 @@ import 'inventory_repository.dart';
 
 class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
   StreamSubscription? _invoiceFirestoreSubscription;
+
+  // Repositories للتكامل
 
   // Repositories للتكامل
   CashRepository? _cashRepo;
@@ -70,6 +73,7 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
       database.getInvoiceItems(invoiceId);
 
   /// Create a complete invoice with items
+  /// يُلقي [InsufficientStockException] إذا كانت الكمية غير كافية
   Future<String> createInvoice({
     required String type,
     String? customerId,
@@ -82,7 +86,15 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
     String? notes,
     String? shiftId,
     DateTime? invoiceDate,
+    bool validateStock = true, // للتحقق من المخزون
   }) async {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // التحقق من كفاية المخزون قبل البيع
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (validateStock && (type == 'sale' || type == 'purchase_return')) {
+      await _validateStockAvailability(items, warehouseId);
+    }
+
     final id = generateId();
     final now = DateTime.now();
     final invoiceNumber = await _generateInvoiceNumber(type);
@@ -213,22 +225,22 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
           );
           break;
         case 'sale_return':
-          // مرتجع البيع = خصم من الصندوق
-          await cashRepo.addExpense(
+          // مرتجع البيع = خصم من الصندوق (استخدام الدالة المخصصة)
+          await cashRepo.recordSaleReturn(
             shiftId: shiftId,
             amount: amount,
-            description: 'مرتجع مبيعات - فاتورة: $invoiceNumber',
-            category: 'sale_return',
+            invoiceId: invoiceId,
+            invoiceNumber: invoiceNumber,
             paymentMethod: paymentMethod,
           );
           break;
         case 'purchase_return':
-          // مرتجع الشراء = إضافة للصندوق
-          await cashRepo.addIncome(
+          // مرتجع الشراء = إضافة للصندوق (استخدام الدالة المخصصة)
+          await cashRepo.recordPurchaseReturn(
             shiftId: shiftId,
             amount: amount,
-            description: 'مرتجع مشتريات - فاتورة: $invoiceNumber',
-            category: 'purchase_return',
+            invoiceId: invoiceId,
+            invoiceNumber: invoiceNumber,
             paymentMethod: paymentMethod,
           );
           break;
@@ -239,6 +251,8 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
   }
 
   /// تحديث رصيد العميل/المورد
+  /// [isAdjustment] إذا كان تعديل على فاتورة موجودة
+  /// [isIncrease] إذا كان التعديل زيادة أو نقصان
   Future<void> _updateCustomerSupplierBalance({
     required String type,
     String? customerId,
@@ -246,26 +260,38 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
     required double total,
     required double paidAmount,
     required String paymentMethod,
+    bool isAdjustment = false,
+    bool isIncrease = true,
   }) async {
     try {
       // حساب المبلغ المتبقي (الدين)
       final remainingAmount = total - paidAmount;
 
+      // في حالة التعديل، نستخدم المبلغ مباشرة
+      double amountToUpdate;
+      if (isAdjustment) {
+        amountToUpdate = isIncrease ? total : -total;
+      } else {
+        amountToUpdate = remainingAmount > 0 ? remainingAmount : total;
+      }
+
       switch (type) {
         case 'sale':
           // فاتورة بيع آجلة = زيادة رصيد العميل (دين على العميل)
           if (customerId != null &&
-              (paymentMethod == 'credit' || remainingAmount > 0)) {
-            await customerRepo.updateBalance(
-                customerId, remainingAmount > 0 ? remainingAmount : total);
+              (paymentMethod == 'credit' ||
+                  remainingAmount > 0 ||
+                  isAdjustment)) {
+            await customerRepo.updateBalance(customerId, amountToUpdate);
           }
           break;
         case 'purchase':
           // فاتورة شراء آجلة = زيادة رصيد المورد (دين للمورد)
           if (supplierId != null &&
-              (paymentMethod == 'credit' || remainingAmount > 0)) {
-            await supplierRepo.updateBalance(
-                supplierId, remainingAmount > 0 ? remainingAmount : total);
+              (paymentMethod == 'credit' ||
+                  remainingAmount > 0 ||
+                  isAdjustment)) {
+            await supplierRepo.updateBalance(supplierId, amountToUpdate);
           }
           break;
         case 'sale_return':
@@ -283,6 +309,44 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
       }
     } catch (e) {
       debugPrint('Error updating customer/supplier balance: $e');
+    }
+  }
+
+  /// ═══════════════════════════════════════════════════════════════════════════
+  /// التحقق من كفاية المخزون قبل البيع
+  /// ═══════════════════════════════════════════════════════════════════════════
+  Future<void> _validateStockAvailability(
+    List<Map<String, dynamic>> items,
+    String? warehouseId,
+  ) async {
+    for (final item in items) {
+      final productId = item['productId'] as String;
+      final requestedQty = item['quantity'] as int;
+      final productName = item['productName'] as String? ?? 'منتج';
+
+      int availableQty;
+
+      if (warehouseId != null) {
+        // التحقق من مخزون المستودع
+        final stock = await database.getWarehouseStockByProductAndWarehouse(
+          productId,
+          warehouseId,
+        );
+        availableQty = stock?.quantity ?? 0;
+      } else {
+        // التحقق من المخزون الإجمالي
+        final product = await database.getProductById(productId);
+        availableQty = product?.quantity ?? 0;
+      }
+
+      if (availableQty < requestedQty) {
+        throw InsufficientStockException(
+          productId: productId,
+          productName: productName,
+          requested: requestedQty,
+          available: availableQty,
+        );
+      }
     }
   }
 
@@ -459,9 +523,29 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
         warehouseId: oldInvoice.warehouseId,
         invoiceId: invoiceId,
         invoiceNumber: oldInvoice.invoiceNumber);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // تحديث فرق الأرصدة عند تعديل الفاتورة
+    // ═══════════════════════════════════════════════════════════════════════════
+    final oldTotal = oldInvoice.total;
+    final newTotal = total;
+    final balanceDifference = newTotal - oldTotal;
+
+    if (balanceDifference != 0) {
+      await _updateCustomerSupplierBalance(
+        type: oldInvoice.type,
+        customerId: customerId ?? oldInvoice.customerId,
+        supplierId: supplierId ?? oldInvoice.supplierId,
+        total: balanceDifference.abs(),
+        paidAmount: 0,
+        paymentMethod: paymentMethod,
+        isAdjustment: true,
+        isIncrease: balanceDifference > 0,
+      );
+    }
   }
 
-  /// حذف فاتورة مع عكس تأثيرها على المخزون
+  /// حذف فاتورة مع عكس جميع تأثيراتها (المخزون + الصندوق + الأرصدة)
   Future<void> deleteInvoiceWithReverse(String invoiceId) async {
     // جلب الفاتورة
     final invoice = await database.getInvoiceById(invoiceId);
@@ -472,8 +556,36 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
     // جلب عناصر الفاتورة
     final items = await database.getInvoiceItems(invoiceId);
 
-    // عكس تأثير المخزون
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 1. عكس تأثير المخزون
+    // ═══════════════════════════════════════════════════════════════════════════
     await _reverseInventory(invoice.type, items);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 2. عكس تأثير رصيد العميل/المورد
+    // ═══════════════════════════════════════════════════════════════════════════
+    await _reverseCustomerSupplierBalance(
+      type: invoice.type,
+      customerId: invoice.customerId,
+      supplierId: invoice.supplierId,
+      total: invoice.total,
+      paidAmount: invoice.paidAmount,
+      paymentMethod: invoice.paymentMethod,
+    );
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 3. عكس حركة الصندوق (إذا كانت الفاتورة مرتبطة بوردية)
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (invoice.shiftId != null && invoice.paymentMethod != 'credit') {
+      await _reverseCashMovement(
+        type: invoice.type,
+        amount: invoice.total,
+        invoiceId: invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        shiftId: invoice.shiftId!,
+        paymentMethod: invoice.paymentMethod,
+      );
+    }
 
     // حذف العناصر
     await database.deleteInvoiceItems(invoiceId);
@@ -486,6 +598,122 @@ class InvoiceRepository extends BaseRepository<Invoice, InvoicesCompanion> {
       await collection.doc(invoiceId).delete();
     } catch (e) {
       debugPrint('Error deleting invoice from Firestore: $e');
+    }
+  }
+
+  /// عكس تأثير رصيد العميل/المورد عند حذف الفاتورة
+  Future<void> _reverseCustomerSupplierBalance({
+    required String type,
+    String? customerId,
+    String? supplierId,
+    required double total,
+    required double paidAmount,
+    required String paymentMethod,
+  }) async {
+    try {
+      // حساب المبلغ المتبقي (الدين) الذي كان على الفاتورة
+      final remainingAmount = total - paidAmount;
+
+      switch (type) {
+        case 'sale':
+          // فاتورة بيع آجلة كانت زيادة في رصيد العميل، العكس = خصم
+          if (customerId != null &&
+              (paymentMethod == 'credit' || remainingAmount > 0)) {
+            final amountToReverse =
+                remainingAmount > 0 ? remainingAmount : total;
+            await customerRepo.updateBalance(customerId, -amountToReverse);
+            debugPrint(
+                'عكس رصيد العميل $customerId بمقدار -$amountToReverse (حذف فاتورة بيع)');
+          }
+          break;
+        case 'purchase':
+          // فاتورة شراء آجلة كانت زيادة في رصيد المورد، العكس = خصم
+          if (supplierId != null &&
+              (paymentMethod == 'credit' || remainingAmount > 0)) {
+            final amountToReverse =
+                remainingAmount > 0 ? remainingAmount : total;
+            await supplierRepo.updateBalance(supplierId, -amountToReverse);
+            debugPrint(
+                'عكس رصيد المورد $supplierId بمقدار -$amountToReverse (حذف فاتورة شراء)');
+          }
+          break;
+        case 'sale_return':
+          // مرتجع بيع كان خصم من رصيد العميل، العكس = زيادة
+          if (customerId != null) {
+            await customerRepo.updateBalance(customerId, total);
+            debugPrint(
+                'عكس رصيد العميل $customerId بمقدار +$total (حذف مرتجع بيع)');
+          }
+          break;
+        case 'purchase_return':
+          // مرتجع شراء كان خصم من رصيد المورد، العكس = زيادة
+          if (supplierId != null) {
+            await supplierRepo.updateBalance(supplierId, total);
+            debugPrint(
+                'عكس رصيد المورد $supplierId بمقدار +$total (حذف مرتجع شراء)');
+          }
+          break;
+      }
+    } catch (e) {
+      debugPrint('Error reversing customer/supplier balance: $e');
+    }
+  }
+
+  /// عكس حركة الصندوق عند حذف الفاتورة
+  Future<void> _reverseCashMovement({
+    required String type,
+    required double amount,
+    required String invoiceId,
+    required String invoiceNumber,
+    required String shiftId,
+    required String paymentMethod,
+  }) async {
+    try {
+      switch (type) {
+        case 'sale':
+          // البيع كان إضافة للصندوق، العكس = مصروف
+          await cashRepo.addExpense(
+            shiftId: shiftId,
+            amount: amount,
+            description: 'إلغاء فاتورة بيع: $invoiceNumber',
+            category: 'invoice_deletion',
+            paymentMethod: paymentMethod,
+          );
+          break;
+        case 'purchase':
+          // الشراء كان خصم من الصندوق، العكس = إيراد
+          await cashRepo.addIncome(
+            shiftId: shiftId,
+            amount: amount,
+            description: 'إلغاء فاتورة شراء: $invoiceNumber',
+            category: 'invoice_deletion',
+            paymentMethod: paymentMethod,
+          );
+          break;
+        case 'sale_return':
+          // مرتجع البيع كان خصم (مصروف)، العكس = إيراد
+          await cashRepo.addIncome(
+            shiftId: shiftId,
+            amount: amount,
+            description: 'إلغاء مرتجع مبيعات: $invoiceNumber',
+            category: 'invoice_deletion',
+            paymentMethod: paymentMethod,
+          );
+          break;
+        case 'purchase_return':
+          // مرتجع الشراء كان إضافة (إيراد)، العكس = مصروف
+          await cashRepo.addExpense(
+            shiftId: shiftId,
+            amount: amount,
+            description: 'إلغاء مرتجع مشتريات: $invoiceNumber',
+            category: 'invoice_deletion',
+            paymentMethod: paymentMethod,
+          );
+          break;
+      }
+      debugPrint('تم عكس حركة الصندوق للفاتورة $invoiceNumber');
+    } catch (e) {
+      debugPrint('Error reversing cash movement: $e');
     }
   }
 

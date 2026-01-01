@@ -165,8 +165,7 @@ abstract class BaseSyncableRepository<T, C> implements SyncableRepository {
 
   /// توليد ID فريد
   String generateId() {
-    return DateTime.now().millisecondsSinceEpoch.toString() +
-        '_${(1000 + (DateTime.now().microsecond % 9000)).toString()}';
+    return '${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000)).toString()}';
   }
 }
 

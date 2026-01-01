@@ -67,12 +67,10 @@ class VoucherRepository extends BaseRepository<Voucher, VouchersCompanion> {
   SupplierRepository? _supplierRepo;
 
   VoucherRepository({
-    required AppDatabase database,
-    required FirebaseFirestore firestore,
+    required super.database,
+    required super.firestore,
     required this.currencyService,
   }) : super(
-          database: database,
-          firestore: firestore,
           collectionName: AppConstants.vouchersCollection,
         );
 
@@ -286,7 +284,41 @@ class VoucherRepository extends BaseRepository<Voucher, VouchersCompanion> {
     }
   }
 
-  /// تحديث سند
+  /// عكس تأثير السند على رصيد العميل/المورد
+  Future<void> _reverseCustomerSupplierBalance({
+    required String voucherType,
+    required double amount,
+    String? customerId,
+    String? supplierId,
+  }) async {
+    try {
+      switch (VoucherTypeExtension.fromString(voucherType)) {
+        case VoucherType.receipt:
+          // سند قبض كان خصم من العميل، العكس = زيادة
+          if (customerId != null) {
+            await customerRepo.updateBalance(customerId, amount);
+            debugPrint(
+                'عكس رصيد العميل $customerId بمقدار +$amount (حذف سند قبض)');
+          }
+          break;
+        case VoucherType.payment:
+          // سند دفع كان خصم من المورد، العكس = زيادة
+          if (supplierId != null) {
+            await supplierRepo.updateBalance(supplierId, amount);
+            debugPrint(
+                'عكس رصيد المورد $supplierId بمقدار +$amount (حذف سند دفع)');
+          }
+          break;
+        case VoucherType.expense:
+          // سند المصاريف لا يؤثر على العملاء/الموردين
+          break;
+      }
+    } catch (e) {
+      debugPrint('Error reversing voucher balance: $e');
+    }
+  }
+
+  /// تحديث سند مع معالجة فرق الأرصدة
   Future<void> updateVoucher({
     required String id,
     double? amount,
@@ -296,6 +328,36 @@ class VoucherRepository extends BaseRepository<Voucher, VouchersCompanion> {
   }) async {
     final voucher = await getVoucherById(id);
     if (voucher == null) return;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // معالجة فرق الرصيد إذا تغير المبلغ
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (amount != null && amount != voucher.amount) {
+      final difference = amount - voucher.amount;
+
+      // تحديث الفرق في الرصيد
+      switch (VoucherTypeExtension.fromString(voucher.type)) {
+        case VoucherType.receipt:
+          // سند قبض: الزيادة = خصم إضافي من العميل
+          if (voucher.customerId != null) {
+            await customerRepo.updateBalance(voucher.customerId!, -difference);
+            debugPrint(
+                'تحديث رصيد العميل ${voucher.customerId} بمقدار ${-difference} (تعديل سند قبض)');
+          }
+          break;
+        case VoucherType.payment:
+          // سند دفع: الزيادة = خصم إضافي من المورد
+          if (voucher.supplierId != null) {
+            await supplierRepo.updateBalance(voucher.supplierId!, -difference);
+            debugPrint(
+                'تحديث رصيد المورد ${voucher.supplierId} بمقدار ${-difference} (تعديل سند دفع)');
+          }
+          break;
+        case VoucherType.expense:
+          // سند المصاريف لا يؤثر على الأرصدة
+          break;
+      }
+    }
 
     await database.updateVoucher(VouchersCompanion(
       id: Value(id),
@@ -317,8 +379,23 @@ class VoucherRepository extends BaseRepository<Voucher, VouchersCompanion> {
     _syncVoucherToFirestore(id);
   }
 
-  /// حذف سند
+  /// حذف سند مع عكس تأثيره على الأرصدة
   Future<void> deleteVoucher(String id) async {
+    // جلب السند قبل الحذف
+    final voucher = await getVoucherById(id);
+
+    if (voucher != null) {
+      // ═══════════════════════════════════════════════════════════════════════════
+      // عكس تأثير الرصيد قبل الحذف
+      // ═══════════════════════════════════════════════════════════════════════════
+      await _reverseCustomerSupplierBalance(
+        voucherType: voucher.type,
+        amount: voucher.amount,
+        customerId: voucher.customerId,
+        supplierId: voucher.supplierId,
+      );
+    }
+
     await database.deleteVoucher(id);
     // Delete from Firestore
     try {

@@ -92,33 +92,83 @@ class ShiftRepository extends BaseRepository<Shift, ShiftsCompanion> {
       throw Exception('الوردية مغلقة بالفعل');
     }
 
-    // Calculate expected balance
+    // Calculate expected balance (يشمل جميع أنواع الحركات)
     final movements = await database.getCashMovementsByShift(shiftId);
     double expectedBalance = shift.openingBalance;
     double totalSales = 0;
     double totalReturns = 0;
     double totalExpenses = 0;
     double totalIncome = 0;
+    // ignore: unused_local_variable
+    double totalVoucherReceipts = 0;
+    // ignore: unused_local_variable
+    double totalVoucherPayments = 0;
+    // ignore: unused_local_variable
+    double totalPurchases = 0;
 
     for (final movement in movements) {
       switch (movement.type) {
+        // ═══════════════════════════════════════════════════════════════════════════
+        // الإيرادات (تضاف للرصيد)
+        // ═══════════════════════════════════════════════════════════════════════════
         case 'sale':
+          expectedBalance += movement.amount;
+          totalSales += movement.amount;
+          break;
         case 'income':
           expectedBalance += movement.amount;
-          if (movement.type == 'sale') {
-            totalSales += movement.amount;
-          } else {
-            totalIncome += movement.amount;
-          }
+          totalIncome += movement.amount;
           break;
+        case 'voucher_receipt':
+          // سند قبض = إيراد (يضاف للصندوق)
+          expectedBalance += movement.amount;
+          totalVoucherReceipts += movement.amount;
+          totalIncome += movement.amount;
+          break;
+        case 'purchase_return':
+          // مرتجع مشتريات = إيراد (يعود للصندوق)
+          expectedBalance += movement.amount;
+          totalIncome += movement.amount;
+          break;
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // المصروفات (تخصم من الرصيد)
+        // ═══════════════════════════════════════════════════════════════════════════
         case 'purchase':
+          expectedBalance -= movement.amount;
+          totalPurchases += movement.amount;
+          totalExpenses += movement.amount;
+          break;
         case 'expense':
           expectedBalance -= movement.amount;
           totalExpenses += movement.amount;
           break;
+        case 'voucher_payment':
+          // سند دفع = مصروف (يخصم من الصندوق)
+          expectedBalance -= movement.amount;
+          totalVoucherPayments += movement.amount;
+          totalExpenses += movement.amount;
+          break;
+        case 'sale_return':
         case 'return':
+          // مرتجع مبيعات = مصروف (يرد للعميل)
           expectedBalance -= movement.amount;
           totalReturns += movement.amount;
+          break;
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // حالات أخرى (لا تؤثر على الحساب)
+        // ═══════════════════════════════════════════════════════════════════════════
+        case 'opening':
+        case 'closing':
+          // رصيد افتتاحي/إغلاق - لا يؤثر على الحساب
+          break;
+        default:
+          // أي نوع غير معروف - نفترض أنه مصروف للأمان
+          if (movement.amount > 0) {
+            expectedBalance -= movement.amount;
+            totalExpenses += movement.amount;
+          }
           break;
       }
     }

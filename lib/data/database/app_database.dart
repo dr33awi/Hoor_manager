@@ -206,7 +206,6 @@ class AppDatabase extends _$AppDatabase {
       updatedAt: Value(DateTime.now()),
     ));
 
-    print('Update product $productId: $rowsAffected rows affected');
     return rowsAffected > 0;
   }
 

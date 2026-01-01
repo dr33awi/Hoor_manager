@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../data/database/app_database.dart';
 import '../constants/invoice_types.dart';
-import '../theme/app_colors.dart';
+import '../theme/redesign/design_tokens.dart';
+import '../theme/redesign/typography.dart';
 import '../di/injection.dart';
 import '../services/currency_service.dart';
 
@@ -77,12 +78,12 @@ final Map<String, InvoiceTypeInfo> invoiceTypes = {
       icon: config.icon,
       color: config.color,
     ),
-  'default': InvoiceTypeInfo(
+  'default': const InvoiceTypeInfo(
     type: 'default',
     label: 'فاتورة',
     shortLabel: 'فاتورة',
     icon: Icons.receipt_outlined,
-    color: AppColors.secondary,
+    color: HoorColors.textSecondary,
   ),
 };
 
@@ -96,12 +97,12 @@ final Map<String, PaymentMethodInfo> paymentMethods = {
       icon: config.icon,
     ),
   // إضافة bank_transfer للتوافق
-  'bank_transfer': PaymentMethodInfo(
+  'bank_transfer': const PaymentMethodInfo(
     method: 'bank_transfer',
     label: 'تحويل بنكي',
     icon: Icons.account_balance_outlined,
   ),
-  'default': PaymentMethodInfo(
+  'default': const PaymentMethodInfo(
     method: 'default',
     label: 'غير محدد',
     icon: Icons.payment_outlined,
@@ -230,17 +231,17 @@ class InvoiceTypeBadge extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: info.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6.r),
+        color: info.color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(HoorRadius.sm.r),
         border: Border.all(
-          color: info.color.withOpacity(0.3),
-          width: 0.5,
+          color: info.color.withValues(alpha: 0.3),
+          width: 0.5.w,
         ),
       ),
       child: Text(
         useShortLabel ? info.shortLabel : info.label,
-        style: TextStyle(
-          fontSize: fontSize ?? 11.sp,
+        style: HoorTypography.labelSmall.copyWith(
+          fontSize: fontSize,
           color: info.color,
           fontWeight: FontWeight.w600,
         ),
@@ -273,15 +274,15 @@ class PaymentMethodBadge extends StatelessWidget {
           Icon(
             info.icon,
             size: 14.sp,
-            color: AppColors.textHint,
+            color: HoorColors.textTertiary,
           ),
           Gap(4.w),
         ],
         Text(
           info.label,
-          style: TextStyle(
-            fontSize: fontSize ?? 11.sp,
-            color: AppColors.textSecondary,
+          style: HoorTypography.labelSmall.copyWith(
+            fontSize: fontSize,
+            color: HoorColors.textSecondary,
           ),
         ),
       ],
@@ -308,8 +309,8 @@ class InvoiceTypeIcon extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(10.w),
       decoration: BoxDecoration(
-        color: info.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10.r),
+        color: info.color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(HoorRadius.md.r),
       ),
       child: Icon(
         info.icon,
@@ -368,67 +369,68 @@ class InvoiceCard extends StatelessWidget {
   Widget _buildFullCard(InvoiceTypeInfo typeInfo, DateFormat dateFormat) {
     return GestureDetector(
       onTap: onTap,
-      child: Card(
-        margin: EdgeInsets.only(bottom: 8.h),
-        elevation: 1,
-        shadowColor: Colors.black.withOpacity(0.1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.r),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 12.h),
+        decoration: BoxDecoration(
+          color: HoorColors.surface,
+          borderRadius: HoorRadius.cardRadius,
+          border: Border.all(color: HoorColors.border),
+          boxShadow: HoorShadows.sm,
         ),
         child: Padding(
-          padding: EdgeInsets.all(12.w),
+          padding: EdgeInsets.all(16.w),
           child: Row(
             children: [
               // أيقونة النوع
-              InvoiceTypeIcon(type: invoice.type),
-              Gap(12.w),
+              Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: typeInfo.color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  typeInfo.icon,
+                  color: typeInfo.color,
+                  size: 24.sp,
+                ),
+              ),
+              Gap(16.w),
 
               // معلومات الفاتورة
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // الصف الأول: رقم الفاتورة + شارة النوع
+                    // الصف الأول: رقم الفاتورة + التاريخ
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text(
-                            invoice.invoiceNumber,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        Text(
+                          invoice.invoiceNumber,
+                          style: HoorTypography.titleMedium.copyWith(
+                            color: HoorColors.primary,
                           ),
                         ),
-                        InvoiceTypeBadge(
-                          type: invoice.type,
-                          useShortLabel: true,
+                        Text(
+                          dateFormat.format(invoice.invoiceDate),
+                          style: HoorTypography.bodySmall.copyWith(
+                            color: HoorColors.textTertiary,
+                          ),
                         ),
                       ],
                     ),
-                    Gap(4.h),
-
-                    // التاريخ
-                    Text(
-                      dateFormat.format(invoice.invoiceDate),
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
+                    Gap(8.h),
 
                     // اسم العميل/المورد
                     if (showCustomerName && customerName != null) ...[
-                      Gap(2.h),
                       _buildPersonRow(Icons.person_outline, customerName!),
+                      Gap(4.h),
                     ],
                     if (showSupplierName && supplierName != null) ...[
-                      Gap(2.h),
                       _buildPersonRow(
                           Icons.local_shipping_outlined, supplierName!),
+                      Gap(4.h),
                     ],
-
-                    Gap(6.h),
 
                     // الصف الأخير: المبلغ + طريقة الدفع
                     Row(
@@ -439,47 +441,38 @@ class InvoiceCard extends StatelessWidget {
                           children: [
                             Text(
                               formatAmount(invoice.total),
-                              style: TextStyle(
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.bold,
-                                color: typeInfo.color,
+                              style: HoorTypography.titleLarge.copyWith(
+                                color: HoorColors.primary,
                               ),
                             ),
+                            // USD Display
                             Row(
                               children: [
                                 Text(
                                   _invoiceToUsd(invoice, invoice.total),
-                                  style: TextStyle(
-                                    fontSize: 11.sp,
-                                    color: Colors.green.shade600,
+                                  style: HoorTypography.bodySmall.copyWith(
+                                    color: HoorColors.textSecondary,
                                   ),
                                 ),
                                 if (invoice.exchangeRate != null) ...[
                                   Gap(4.w),
                                   Text(
                                     '(${NumberFormat('#,###').format(invoice.exchangeRate)})',
-                                    style: TextStyle(
-                                      fontSize: 9.sp,
-                                      color: Colors.blue.shade600,
-                                    ),
+                                    style: HoorTypography.caption,
                                   ),
                                 ],
                               ],
                             ),
                           ],
                         ),
-                        PaymentMethodBadge(method: invoice.paymentMethod),
+                        PaymentMethodBadge(
+                          method: invoice.paymentMethod,
+                          fontSize: 12.sp,
+                        ),
                       ],
                     ),
                   ],
                 ),
-              ),
-
-              Gap(8.w),
-              Icon(
-                Icons.chevron_left,
-                color: AppColors.textHint,
-                size: 20.sp,
               ),
             ],
           ),
@@ -493,9 +486,11 @@ class InvoiceCard extends StatelessWidget {
       onTap: onTap,
       child: Card(
         margin: EdgeInsets.only(bottom: 8.h),
-        elevation: 0.5,
+        elevation: 0,
+        color: HoorColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10.r),
+          borderRadius: BorderRadius.circular(HoorRadius.md.r),
+          side: const BorderSide(color: HoorColors.border),
         ),
         child: Padding(
           padding: EdgeInsets.all(10.w),
@@ -516,17 +511,13 @@ class InvoiceCard extends StatelessWidget {
                   children: [
                     Text(
                       invoice.invoiceNumber,
-                      style: TextStyle(
+                      style: HoorTypography.labelMedium.copyWith(
                         fontWeight: FontWeight.bold,
-                        fontSize: 12.sp,
                       ),
                     ),
                     Text(
                       dateFormat.format(invoice.invoiceDate),
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        color: AppColors.textSecondary,
-                      ),
+                      style: HoorTypography.caption,
                     ),
                   ],
                 ),
@@ -535,9 +526,8 @@ class InvoiceCard extends StatelessWidget {
               // المبلغ
               Text(
                 formatAmount(invoice.total),
-                style: TextStyle(
+                style: HoorTypography.labelMedium.copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 13.sp,
                   color: typeInfo.color,
                 ),
               ),
@@ -545,7 +535,7 @@ class InvoiceCard extends StatelessWidget {
               Icon(
                 Icons.arrow_forward_ios,
                 size: 14.sp,
-                color: AppColors.textHint,
+                color: HoorColors.textTertiary,
               ),
             ],
           ),
@@ -557,14 +547,13 @@ class InvoiceCard extends StatelessWidget {
   Widget _buildPersonRow(IconData icon, String name) {
     return Row(
       children: [
-        Icon(icon, size: 14.sp, color: AppColors.textHint),
+        Icon(icon, size: 14.sp, color: HoorColors.textTertiary),
         Gap(4.w),
         Expanded(
           child: Text(
             name,
-            style: TextStyle(
-              fontSize: 11.sp,
-              color: AppColors.textSecondary,
+            style: HoorTypography.bodySmall.copyWith(
+              color: HoorColors.textSecondary,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -603,16 +592,15 @@ class InfoRow extends StatelessWidget {
             width: labelWidth ?? 100.w,
             child: Text(
               '$label:',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 14.sp,
+              style: HoorTypography.bodyMedium.copyWith(
+                color: HoorColors.textSecondary,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontSize: 14.sp),
+              style: HoorTypography.bodyMedium,
             ),
           ),
         ],
@@ -649,19 +637,19 @@ class SummaryRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: isTotal ? 18.sp : 14.sp,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
+            style: isTotal
+                ? HoorTypography.titleMedium
+                : HoorTypography.bodyMedium,
           ),
           Text(
             '${isNegative ? '-' : ''}${formatAmount(value)}',
-            style: TextStyle(
-              fontSize: isTotal ? 18.sp : 14.sp,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            style: (isTotal
+                    ? HoorTypography.titleMedium
+                    : HoorTypography.bodyMedium)
+                .copyWith(
               color: isNegative
-                  ? AppColors.error
-                  : (isTotal ? AppColors.primary : null),
+                  ? HoorColors.error
+                  : (isTotal ? HoorColors.primary : null),
             ),
           ),
         ],

@@ -5,7 +5,7 @@
 export 'constants/invoice_types.dart';
 
 // Theme
-export 'theme/app_colors.dart';
+
 export 'theme/app_theme.dart';
 export 'theme/pdf_theme.dart';
 
