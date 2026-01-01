@@ -3,7 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../core/di/injection.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/theme/redesign/design_tokens.dart';
+import '../../core/theme/pro/design_tokens.dart';
 
 class SyncStatusWidget extends StatelessWidget {
   const SyncStatusWidget({super.key});
@@ -27,8 +27,8 @@ class SyncStatusWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: syncService.isOnline
-                      ? HoorColors.success
-                      : HoorColors.error,
+                      ? AppColors.success
+                      : AppColors.error,
                 ),
               ),
               SizedBox(width: 4.w),

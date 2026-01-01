@@ -1,74 +1,157 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../design_tokens.dart';
 import '../typography.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// HoorLoading - Loading State Components
-/// Professional loading indicators and overlays
+/// HoorLoading - Premium Animated Loading State Components
+/// Modern loading indicators with smooth animations
 /// ═══════════════════════════════════════════════════════════════════════════
 
-class HoorLoading extends StatelessWidget {
+class HoorLoading extends StatefulWidget {
   final HoorLoadingSize size;
   final Color? color;
   final String? message;
+  final HoorLoadingStyle style;
 
   const HoorLoading({
     super.key,
     this.size = HoorLoadingSize.medium,
     this.color,
     this.message,
+    this.style = HoorLoadingStyle.circular,
   });
 
   @override
+  State<HoorLoading> createState() => _HoorLoadingState();
+}
+
+class _HoorLoadingState extends State<HoorLoading>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _rotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
+
+    _rotationAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.linear),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final effectiveColor = color ?? HoorColors.primary;
+    final effectiveColor = widget.color ?? HoorColors.primary;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        SizedBox(
-          width: _getSize(),
-          height: _getSize(),
-          child: CircularProgressIndicator(
-            strokeWidth: _getStrokeWidth(),
-            valueColor: AlwaysStoppedAnimation(effectiveColor),
-          ),
-        ),
-        if (message != null) ...[
-          SizedBox(height: HoorSpacing.md),
-          Text(
-            message!,
-            style: HoorTypography.bodyMedium.copyWith(
-              color: HoorColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
+        widget.style == HoorLoadingStyle.gradient
+            ? _buildGradientLoader(effectiveColor)
+            : _buildCircularLoader(effectiveColor),
+        if (widget.message != null) ...[
+          SizedBox(height: HoorSpacing.lg),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: HoorDurations.normal,
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Text(
+                  widget.message!,
+                  style: HoorTypography.bodyMedium.copyWith(
+                    color: HoorColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            },
           ),
         ],
       ],
     );
   }
 
+  Widget _buildCircularLoader(Color color) {
+    return SizedBox(
+      width: _getSize(),
+      height: _getSize(),
+      child: CircularProgressIndicator(
+        strokeWidth: _getStrokeWidth(),
+        valueColor: AlwaysStoppedAnimation(color),
+        strokeCap: StrokeCap.round,
+      ),
+    );
+  }
+
+  Widget _buildGradientLoader(Color color) {
+    return AnimatedBuilder(
+      animation: _rotationAnimation,
+      builder: (context, child) {
+        return Transform.rotate(
+          angle: _rotationAnimation.value,
+          child: Container(
+            width: _getSize(),
+            height: _getSize(),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(
+                colors: [
+                  color.withValues(alpha: 0.0),
+                  color.withValues(alpha: 0.2),
+                  color.withValues(alpha: 0.5),
+                  color,
+                ],
+                stops: const [0.0, 0.25, 0.5, 1.0],
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(_getStrokeWidth() * 1.5),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: HoorColors.surface,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   double _getSize() {
-    switch (size) {
+    switch (widget.size) {
       case HoorLoadingSize.small:
-        return 20.w;
+        return 24.w;
       case HoorLoadingSize.medium:
-        return 36.w;
+        return 40.w;
       case HoorLoadingSize.large:
-        return 48.w;
+        return 56.w;
     }
   }
 
   double _getStrokeWidth() {
-    switch (size) {
+    switch (widget.size) {
       case HoorLoadingSize.small:
-        return 2.w;
+        return 2.5.w;
       case HoorLoadingSize.medium:
-        return 3.w;
+        return 3.5.w;
       case HoorLoadingSize.large:
-        return 4.w;
+        return 4.5.w;
     }
   }
 }
@@ -79,8 +162,13 @@ enum HoorLoadingSize {
   large,
 }
 
+enum HoorLoadingStyle {
+  circular,
+  gradient,
+}
+
 /// ═══════════════════════════════════════════════════════════════════════════
-/// Full Screen Loading Overlay
+/// Full Screen Loading Overlay - Premium Animated
 /// ═══════════════════════════════════════════════════════════════════════════
 
 class HoorLoadingOverlay extends StatelessWidget {
@@ -88,6 +176,7 @@ class HoorLoadingOverlay extends StatelessWidget {
   final Widget child;
   final String? message;
   final Color? backgroundColor;
+  final bool enableBlur;
 
   const HoorLoadingOverlay({
     super.key,
@@ -95,6 +184,7 @@ class HoorLoadingOverlay extends StatelessWidget {
     required this.child,
     this.message,
     this.backgroundColor,
+    this.enableBlur = false,
   });
 
   @override
@@ -102,28 +192,54 @@ class HoorLoadingOverlay extends StatelessWidget {
     return Stack(
       children: [
         child,
-        if (isLoading)
-          Positioned.fill(
-            child: Container(
-              color: backgroundColor ?? Colors.white.withValues(alpha: 0.8),
-              child: Center(
-                child: HoorLoading(
-                  size: HoorLoadingSize.large,
-                  message: message,
-                ),
-              ),
-            ),
-          ),
+        AnimatedSwitcher(
+          duration: HoorDurations.normal,
+          child: isLoading
+              ? Container(
+                  key: const ValueKey('loading'),
+                  color: backgroundColor ??
+                      (enableBlur
+                          ? Colors.black.withValues(alpha: 0.3)
+                          : HoorColors.surface.withValues(alpha: 0.9)),
+                  child: Center(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.8, end: 1.0),
+                      duration: HoorDurations.normal,
+                      curve: Curves.easeOutBack,
+                      builder: (context, value, child) {
+                        return Transform.scale(
+                          scale: value,
+                          child: Container(
+                            padding: EdgeInsets.all(HoorSpacing.xl),
+                            decoration: BoxDecoration(
+                              color: HoorColors.surface,
+                              borderRadius:
+                                  BorderRadius.circular(HoorRadius.xl),
+                              boxShadow: HoorShadows.lg,
+                            ),
+                            child: HoorLoading(
+                              size: HoorLoadingSize.large,
+                              message: message,
+                              style: HoorLoadingStyle.gradient,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(key: ValueKey('empty')),
+        ),
       ],
     );
   }
 }
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// Button Loading State
+/// Button Loading State - Animated
 /// ═══════════════════════════════════════════════════════════════════════════
 
-class HoorLoadingButton extends StatelessWidget {
+class HoorLoadingButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool isLoading;
@@ -144,40 +260,123 @@ class HoorLoadingButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final bgColor = backgroundColor ?? HoorColors.primary;
-    final fgColor = foregroundColor ?? HoorColors.textOnPrimary;
+  State<HoorLoadingButton> createState() => _HoorLoadingButtonState();
+}
 
-    return SizedBox(
-      width: isFullWidth ? double.infinity : null,
-      height: 48.h,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bgColor,
-          foregroundColor: fgColor,
-          disabledBackgroundColor: bgColor.withValues(alpha: 0.7),
-          disabledForegroundColor: fgColor.withValues(alpha: 0.7),
-        ),
-        child: isLoading
-            ? SizedBox(
-                width: 20.w,
-                height: 20.w,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.w,
-                  valueColor: AlwaysStoppedAnimation(fgColor),
-                ),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: HoorIconSize.md),
-                    SizedBox(width: HoorSpacing.xs),
-                  ],
-                  Text(label),
-                ],
+class _HoorLoadingButtonState extends State<HoorLoadingButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.96).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    if (!widget.isLoading && widget.onPressed != null) {
+      setState(() => _isPressed = true);
+      _controller.forward();
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    setState(() => _isPressed = false);
+    _controller.reverse();
+    if (!widget.isLoading) {
+      widget.onPressed?.call();
+    }
+  }
+
+  void _onTapCancel() {
+    setState(() => _isPressed = false);
+    _controller.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = widget.backgroundColor ?? HoorColors.primary;
+    final fgColor = widget.foregroundColor ?? HoorColors.textOnPrimary;
+
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: HoorDurations.fast,
+              width: widget.isFullWidth ? double.infinity : null,
+              height: 52.h,
+              padding: EdgeInsets.symmetric(horizontal: HoorSpacing.xl),
+              decoration: BoxDecoration(
+                color: widget.isLoading
+                    ? bgColor.withValues(alpha: 0.85)
+                    : _isPressed
+                        ? bgColor.withValues(alpha: 0.9)
+                        : bgColor,
+                borderRadius: BorderRadius.circular(HoorRadius.lg),
+                boxShadow: widget.isLoading || _isPressed
+                    ? []
+                    : HoorShadows.colored(bgColor, opacity: 0.3),
               ),
+              child: Center(
+                child: AnimatedSwitcher(
+                  duration: HoorDurations.fast,
+                  child: widget.isLoading
+                      ? SizedBox(
+                          key: const ValueKey('loading'),
+                          width: 24.w,
+                          height: 24.w,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5.w,
+                            valueColor: AlwaysStoppedAnimation(fgColor),
+                            strokeCap: StrokeCap.round,
+                          ),
+                        )
+                      : Row(
+                          key: const ValueKey('content'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.icon != null) ...[
+                              Icon(
+                                widget.icon,
+                                color: fgColor,
+                                size: HoorIconSize.md,
+                              ),
+                              SizedBox(width: HoorSpacing.sm),
+                            ],
+                            Text(
+                              widget.label,
+                              style: HoorTypography.titleSmall.copyWith(
+                                color: fgColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

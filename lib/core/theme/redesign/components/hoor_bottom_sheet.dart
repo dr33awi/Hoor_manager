@@ -4,7 +4,7 @@ import '../design_tokens.dart';
 import '../typography.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// HoorBottomSheet - Professional Bottom Sheet Components
+/// HoorBottomSheet - Premium Animated Bottom Sheet Components
 /// ═══════════════════════════════════════════════════════════════════════════
 
 class HoorBottomSheet extends StatelessWidget {
@@ -14,6 +14,7 @@ class HoorBottomSheet extends StatelessWidget {
   final bool showHandle;
   final bool showCloseButton;
   final double? maxHeight;
+  final bool enableGlassmorphism;
 
   const HoorBottomSheet({
     super.key,
@@ -23,6 +24,7 @@ class HoorBottomSheet extends StatelessWidget {
     this.showHandle = true,
     this.showCloseButton = false,
     this.maxHeight,
+    this.enableGlassmorphism = false,
   });
 
   static Future<T?> show<T>(
@@ -36,6 +38,7 @@ class HoorBottomSheet extends StatelessWidget {
     bool isDismissible = true,
     bool enableDrag = true,
     bool isScrollControlled = true,
+    bool enableGlassmorphism = false,
   }) {
     return showModalBottomSheet<T>(
       context: context,
@@ -43,12 +46,18 @@ class HoorBottomSheet extends StatelessWidget {
       enableDrag: enableDrag,
       isScrollControlled: isScrollControlled,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      transitionAnimationController: AnimationController(
+        vsync: Navigator.of(context),
+        duration: HoorDurations.normal,
+      ),
       builder: (context) => HoorBottomSheet(
         title: title,
         actions: actions,
         showHandle: showHandle,
         showCloseButton: showCloseButton,
         maxHeight: maxHeight,
+        enableGlassmorphism: enableGlassmorphism,
         child: child,
       ),
     );
@@ -62,10 +71,22 @@ class HoorBottomSheet extends StatelessWidget {
     return Container(
       constraints: BoxConstraints(maxHeight: effectiveMaxHeight),
       decoration: BoxDecoration(
-        color: HoorColors.surface,
+        color: enableGlassmorphism
+            ? HoorColors.glassBackground
+            : HoorColors.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(HoorRadius.xxl),
         ),
+        border: enableGlassmorphism
+            ? Border.all(color: HoorColors.glassBorder)
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -73,12 +94,12 @@ class HoorBottomSheet extends StatelessWidget {
           // Handle
           if (showHandle)
             Container(
-              margin: EdgeInsets.only(top: HoorSpacing.sm.h),
-              width: 40.w,
-              height: 4.h,
+              margin: EdgeInsets.only(top: HoorSpacing.md.h),
+              width: 48.w,
+              height: 5.h,
               decoration: BoxDecoration(
-                color: HoorColors.border,
-                borderRadius: BorderRadius.circular(2.r),
+                color: HoorColors.textTertiary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(HoorRadius.full),
               ),
             ),
 
@@ -86,10 +107,10 @@ class HoorBottomSheet extends StatelessWidget {
           if (title != null || showCloseButton)
             Padding(
               padding: EdgeInsets.fromLTRB(
+                HoorSpacing.xl.w,
+                HoorSpacing.lg.h,
                 HoorSpacing.lg.w,
-                HoorSpacing.md.h,
-                HoorSpacing.lg.w,
-                0,
+                HoorSpacing.sm.h,
               ),
               child: Row(
                 children: [
@@ -97,15 +118,23 @@ class HoorBottomSheet extends StatelessWidget {
                     Expanded(
                       child: Text(
                         title!,
-                        style: HoorTypography.titleLarge,
+                        style: HoorTypography.headlineSmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   if (showCloseButton)
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                      iconSize: HoorIconSize.md,
-                      color: HoorColors.textSecondary,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: HoorColors.surfaceMuted,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                        iconSize: HoorIconSize.md,
+                        color: HoorColors.textSecondary,
+                      ),
                     ),
                 ],
               ),
@@ -117,8 +146,18 @@ class HoorBottomSheet extends StatelessWidget {
           // Actions
           if (actions != null && actions!.isNotEmpty)
             SafeArea(
-              child: Padding(
+              child: Container(
                 padding: EdgeInsets.all(HoorSpacing.lg.w),
+                decoration: BoxDecoration(
+                  color: enableGlassmorphism
+                      ? Colors.transparent
+                      : HoorColors.surface,
+                  border: Border(
+                    top: BorderSide(
+                      color: HoorColors.border.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
                 child: Row(
                   children: actions!.map((action) {
                     final index = actions!.indexOf(action);
@@ -126,7 +165,7 @@ class HoorBottomSheet extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.only(
                           right: index < actions!.length - 1
-                              ? HoorSpacing.sm.w
+                              ? HoorSpacing.md.w
                               : 0,
                         ),
                         child: action,
@@ -272,44 +311,53 @@ class HoorActionSheet extends StatelessWidget {
   }
 }
 
-class _ActionItem extends StatelessWidget {
+class _ActionItem extends StatefulWidget {
   final HoorActionSheetItem action;
 
   const _ActionItem({required this.action});
 
   @override
-  Widget build(BuildContext context) {
-    final color = action.isDestructive
-        ? HoorColors.error
-        : action.color ?? HoorColors.textPrimary;
+  State<_ActionItem> createState() => _ActionItemState();
+}
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).pop(action.value);
-          action.onTap?.call();
-        },
-        child: Padding(
-          padding: EdgeInsets.all(HoorSpacing.md.w),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (action.icon != null) ...[
-                Icon(action.icon, color: color, size: HoorIconSize.md),
-                SizedBox(width: HoorSpacing.sm.w),
-              ],
-              Text(
-                action.label,
-                style: HoorTypography.titleMedium.copyWith(
-                  color: color,
-                  fontWeight: action.isDestructive
-                      ? FontWeight.w600
-                      : FontWeight.normal,
-                ),
-              ),
+class _ActionItemState extends State<_ActionItem> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.action.isDestructive
+        ? HoorColors.error
+        : widget.action.color ?? HoorColors.textPrimary;
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: () {
+        Navigator.of(context).pop(widget.action.value);
+        widget.action.onTap?.call();
+      },
+      child: AnimatedContainer(
+        duration: HoorDurations.fast,
+        color: _isPressed ? HoorColors.surfaceMuted : Colors.transparent,
+        padding: EdgeInsets.all(HoorSpacing.lg.w),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (widget.action.icon != null) ...[
+              Icon(widget.action.icon, color: color, size: HoorIconSize.md),
+              SizedBox(width: HoorSpacing.sm.w),
             ],
-          ),
+            Text(
+              widget.action.label,
+              style: HoorTypography.titleMedium.copyWith(
+                color: color,
+                fontWeight: widget.action.isDestructive
+                    ? FontWeight.w600
+                    : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );

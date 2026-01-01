@@ -5,11 +5,11 @@ import '../design_tokens.dart';
 import '../typography.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// HoorInput - Professional Input Components
-/// Clean, accessible form inputs with validation support
+/// HoorInput - Professional Animated Input Components
+/// Clean, accessible form inputs with modern animations
 /// ═══════════════════════════════════════════════════════════════════════════
 
-class HoorTextField extends StatelessWidget {
+class HoorTextField extends StatefulWidget {
   final String? label;
   final String? hint;
   final String? helperText;
@@ -38,6 +38,8 @@ class HoorTextField extends StatelessWidget {
   final AutovalidateMode? autovalidateMode;
   final TextAlign textAlign;
   final TextDirection? textDirection;
+  final Color? fillColor;
+  final bool showBorder;
 
   const HoorTextField({
     super.key,
@@ -69,53 +71,148 @@ class HoorTextField extends StatelessWidget {
     this.autovalidateMode,
     this.textAlign = TextAlign.start,
     this.textDirection,
+    this.fillColor,
+    this.showBorder = true,
   });
 
   @override
+  State<HoorTextField> createState() => _HoorTextFieldState();
+}
+
+class _HoorTextFieldState extends State<HoorTextField> {
+  late FocusNode _focusNode;
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() => _isFocused = _focusNode.hasFocus);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final hasError = widget.errorText != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (label != null) ...[
-          Text(
-            label!,
+        if (widget.label != null) ...[
+          AnimatedDefaultTextStyle(
+            duration: HoorDurations.fast,
             style: HoorTypography.labelMedium.copyWith(
-              color: HoorColors.textPrimary,
+              color: hasError
+                  ? HoorColors.error
+                  : _isFocused
+                      ? HoorColors.primary
+                      : HoorColors.textPrimary,
+              fontWeight: _isFocused ? FontWeight.w600 : FontWeight.w500,
             ),
+            child: Text(widget.label!),
           ),
           SizedBox(height: HoorSpacing.xs),
         ],
-        TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          keyboardType: keyboardType,
-          textInputAction: textInputAction,
-          obscureText: obscureText,
-          readOnly: readOnly,
-          enabled: enabled,
-          autofocus: autofocus,
-          maxLines: maxLines,
-          minLines: minLines,
-          maxLength: maxLength,
-          onChanged: onChanged,
-          onFieldSubmitted: onSubmitted,
-          onTap: onTap,
-          validator: validator,
-          inputFormatters: inputFormatters,
-          autovalidateMode: autovalidateMode,
-          textAlign: textAlign,
-          textDirection: textDirection,
-          style: HoorTypography.bodyMedium,
-          decoration: InputDecoration(
-            hintText: hint,
-            helperText: helperText,
-            errorText: errorText,
-            prefixIcon: prefixIcon != null
-                ? Icon(prefixIcon, size: HoorIconSize.md)
-                : prefix,
-            suffixIcon: _buildSuffix(),
-            counterText: '',
+        AnimatedContainer(
+          duration: HoorDurations.fast,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(HoorRadius.lg),
+            boxShadow: _isFocused && !hasError
+                ? [
+                    BoxShadow(
+                      color: HoorColors.primary.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: TextFormField(
+            controller: widget.controller,
+            focusNode: _focusNode,
+            keyboardType: widget.keyboardType,
+            textInputAction: widget.textInputAction,
+            obscureText: widget.obscureText,
+            readOnly: widget.readOnly,
+            enabled: widget.enabled,
+            autofocus: widget.autofocus,
+            maxLines: widget.maxLines,
+            minLines: widget.minLines,
+            maxLength: widget.maxLength,
+            onChanged: widget.onChanged,
+            onFieldSubmitted: widget.onSubmitted,
+            onTap: widget.onTap,
+            validator: widget.validator,
+            inputFormatters: widget.inputFormatters,
+            autovalidateMode: widget.autovalidateMode,
+            textAlign: widget.textAlign,
+            textDirection: widget.textDirection,
+            style: HoorTypography.bodyMedium,
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              helperText: widget.helperText,
+              errorText: widget.errorText,
+              filled: true,
+              fillColor: widget.fillColor ??
+                  (_isFocused ? HoorColors.surface : HoorColors.surfaceMuted),
+              prefixIcon: widget.prefixIcon != null
+                  ? AnimatedContainer(
+                      duration: HoorDurations.fast,
+                      child: Icon(
+                        widget.prefixIcon,
+                        size: HoorIconSize.md,
+                        color: _isFocused
+                            ? HoorColors.primary
+                            : HoorColors.textSecondary,
+                      ),
+                    )
+                  : widget.prefix,
+              suffixIcon: _buildSuffix(),
+              counterText: '',
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: HoorSpacing.lg,
+                vertical: HoorSpacing.md,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HoorRadius.lg),
+                borderSide: widget.showBorder
+                    ? BorderSide(color: HoorColors.border)
+                    : BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HoorRadius.lg),
+                borderSide: widget.showBorder
+                    ? BorderSide(color: HoorColors.border)
+                    : BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HoorRadius.lg),
+                borderSide: BorderSide(
+                  color: HoorColors.primary,
+                  width: 2,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HoorRadius.lg),
+                borderSide: BorderSide(color: HoorColors.error),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HoorRadius.lg),
+                borderSide: BorderSide(color: HoorColors.error, width: 2),
+              ),
+            ),
           ),
         ),
       ],
@@ -123,12 +220,16 @@ class HoorTextField extends StatelessWidget {
   }
 
   Widget? _buildSuffix() {
-    if (suffix != null) return suffix;
-    if (suffixIcon == null) return null;
+    if (widget.suffix != null) return widget.suffix;
+    if (widget.suffixIcon == null) return null;
 
     return IconButton(
-      icon: Icon(suffixIcon, size: HoorIconSize.md),
-      onPressed: onSuffixTap,
+      icon: Icon(
+        widget.suffixIcon,
+        size: HoorIconSize.md,
+        color: _isFocused ? HoorColors.primary : HoorColors.textSecondary,
+      ),
+      onPressed: widget.onSuffixTap,
       padding: EdgeInsets.zero,
       constraints: BoxConstraints(
         minWidth: 40.w,
@@ -229,6 +330,7 @@ class HoorSearchInput extends StatefulWidget {
   final bool autofocus;
   final bool showFilterButton;
   final VoidCallback? onFilterTap;
+  final FocusNode? focusNode;
 
   const HoorSearchInput({
     super.key,
@@ -240,6 +342,7 @@ class HoorSearchInput extends StatefulWidget {
     this.autofocus = false,
     this.showFilterButton = false,
     this.onFilterTap,
+    this.focusNode,
   });
 
   @override
@@ -300,6 +403,7 @@ class _HoorSearchInputState extends State<HoorSearchInput> {
           Expanded(
             child: TextField(
               controller: _controller,
+              focusNode: widget.focusNode,
               autofocus: widget.autofocus,
               style: HoorTypography.bodyMedium,
               decoration: InputDecoration(

@@ -140,6 +140,48 @@ class HoorColors {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Modern Gradients - 2026 Trends
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static const LinearGradient premiumGradient = LinearGradient(
+    colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient sunsetGradient = LinearGradient(
+    colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient oceanGradient = LinearGradient(
+    colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient forestGradient = LinearGradient(
+    colors: [Color(0xFF11998E), Color(0xFF38EF7D)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient royalGradient = LinearGradient(
+    colors: [Color(0xFF12334E), Color(0xFF3D5A80)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Glassmorphism Colors
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static Color glassWhite = Colors.white.withValues(alpha: 0.15);
+  static Color glassBorder = Colors.white.withValues(alpha: 0.2);
+  static Color glassBackground = Colors.white.withValues(alpha: 0.08);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -241,6 +283,46 @@ class HoorShadows {
           color: color.withValues(alpha: opacity),
           blurRadius: 16.r,
           offset: Offset(0, 6.h),
+        ),
+      ];
+
+  /// Soft shadow for floating elements
+  static List<BoxShadow> get soft => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 8.r,
+          spreadRadius: 0,
+          offset: Offset(0, 2.h),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.02),
+          blurRadius: 24.r,
+          spreadRadius: 0,
+          offset: Offset(0, 8.h),
+        ),
+      ];
+
+  /// Glow effect for highlighted elements
+  static List<BoxShadow> glow(Color color) => [
+        BoxShadow(
+          color: color.withValues(alpha: 0.4),
+          blurRadius: 20.r,
+          spreadRadius: -4,
+          offset: Offset(0, 4.h),
+        ),
+      ];
+
+  /// Neumorphism shadow - modern 3D effect
+  static List<BoxShadow> get neumorphism => [
+        BoxShadow(
+          color: Colors.white.withValues(alpha: 0.8),
+          blurRadius: 12.r,
+          offset: Offset(-6.w, -6.h),
+        ),
+        BoxShadow(
+          color: HoorColors.primary.withValues(alpha: 0.15),
+          blurRadius: 12.r,
+          offset: Offset(6.w, 6.h),
         ),
       ];
 }

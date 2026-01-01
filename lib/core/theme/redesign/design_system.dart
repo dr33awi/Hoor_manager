@@ -33,3 +33,6 @@ export 'components/hoor_chart_card.dart';
 export 'components/hoor_loading.dart';
 export 'components/hoor_dialog.dart';
 export 'components/hoor_bottom_sheet.dart';
+
+// Modern Animated Components
+export 'components/hoor_animated_card.dart';

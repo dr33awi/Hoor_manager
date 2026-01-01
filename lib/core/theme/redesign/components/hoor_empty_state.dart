@@ -4,8 +4,8 @@ import '../design_tokens.dart';
 import '../typography.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// HoorEmptyState - Empty State Components
-/// Professional placeholders for empty lists and error states
+/// HoorEmptyState - Animated Empty State Components
+/// Professional placeholders with smooth entrance animations
 /// ═══════════════════════════════════════════════════════════════════════════
 
 enum EmptyStateType {
@@ -17,7 +17,7 @@ enum EmptyStateType {
   comingSoon,
 }
 
-class HoorEmptyState extends StatelessWidget {
+class HoorEmptyState extends StatefulWidget {
   final EmptyStateType type;
   final String? title;
   final String? message;
@@ -27,6 +27,7 @@ class HoorEmptyState extends StatelessWidget {
   final Widget? customIllustration;
   final double? iconSize;
   final bool compact;
+  final bool enableAnimation;
 
   const HoorEmptyState({
     super.key,
@@ -39,123 +40,228 @@ class HoorEmptyState extends StatelessWidget {
     this.customIllustration,
     this.iconSize,
     this.compact = false,
+    this.enableAnimation = true,
   });
 
   @override
+  State<HoorEmptyState> createState() => _HoorEmptyStateState();
+}
+
+class _HoorEmptyStateState extends State<HoorEmptyState>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late AnimationController _bounceController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _bounceAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _bounceController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
+    );
+    _bounceAnimation = Tween<double>(begin: 0.0, end: 8.0).animate(
+      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut),
+    );
+
+    if (widget.enableAnimation) {
+      _fadeController.forward();
+      _bounceController.repeat(reverse: true);
+    } else {
+      _fadeController.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _bounceController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (compact) {
+    if (widget.compact) {
       return _buildCompact();
     }
     return _buildFull();
   }
 
   Widget _buildFull() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(HoorSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return AnimatedBuilder(
+      animation: Listenable.merge([_fadeAnimation, _bounceAnimation]),
+      builder: (context, child) {
+        return FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(HoorSpacing.xl),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Transform.translate(
+                      offset: Offset(0, -_bounceAnimation.value),
+                      child: _buildIllustration(),
+                    ),
+                    SizedBox(height: HoorSpacing.xl),
+                    Text(
+                      widget.title ?? _getDefaultTitle(),
+                      style: HoorTypography.headlineSmall.copyWith(
+                        color: HoorColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: HoorSpacing.sm),
+                    Text(
+                      widget.message ?? _getDefaultMessage(),
+                      style: HoorTypography.bodyMedium.copyWith(
+                        color: HoorColors.textSecondary,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (widget.actionLabel != null &&
+                        widget.onAction != null) ...[
+                      SizedBox(height: HoorSpacing.xl),
+                      _AnimatedActionButton(
+                        label: widget.actionLabel!,
+                        onPressed: widget.onAction!,
+                        color: _getIconColor(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCompact() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Container(
+        padding: EdgeInsets.all(HoorSpacing.lg),
+        margin: EdgeInsets.symmetric(horizontal: HoorSpacing.md),
+        decoration: BoxDecoration(
+          color: HoorColors.surfaceMuted.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(HoorRadius.lg),
+          border: Border.all(color: HoorColors.border),
+        ),
+        child: Row(
           children: [
-            _buildIllustration(),
-            SizedBox(height: HoorSpacing.xl),
-            Text(
-              title ?? _getDefaultTitle(),
-              style: HoorTypography.headlineSmall.copyWith(
-                color: HoorColors.textPrimary,
+            _buildSmallIcon(),
+            SizedBox(width: HoorSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.title ?? _getDefaultTitle(),
+                    style: HoorTypography.titleSmall.copyWith(
+                      color: HoorColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: HoorSpacing.xxs),
+                  Text(
+                    widget.message ?? _getDefaultMessage(),
+                    style: HoorTypography.bodySmall.copyWith(
+                      color: HoorColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-            SizedBox(height: HoorSpacing.sm),
-            Text(
-              message ?? _getDefaultMessage(),
-              style: HoorTypography.bodyMedium.copyWith(
-                color: HoorColors.textSecondary,
+            if (widget.actionLabel != null && widget.onAction != null)
+              TextButton(
+                onPressed: widget.onAction,
+                child: Text(widget.actionLabel!),
               ),
-              textAlign: TextAlign.center,
-            ),
-            if (actionLabel != null && onAction != null) ...[
-              SizedBox(height: HoorSpacing.xl),
-              ElevatedButton(
-                onPressed: onAction,
-                child: Text(actionLabel!),
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCompact() {
-    return Padding(
-      padding: EdgeInsets.all(HoorSpacing.lg),
-      child: Row(
-        children: [
-          _buildSmallIcon(),
-          SizedBox(width: HoorSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title ?? _getDefaultTitle(),
-                  style: HoorTypography.titleSmall.copyWith(
-                    color: HoorColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: HoorSpacing.xxs),
-                Text(
-                  message ?? _getDefaultMessage(),
-                  style: HoorTypography.bodySmall.copyWith(
-                    color: HoorColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (actionLabel != null && onAction != null)
-            TextButton(
-              onPressed: onAction,
-              child: Text(actionLabel!),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildIllustration() {
-    if (customIllustration != null) {
-      return customIllustration!;
+    if (widget.customIllustration != null) {
+      return widget.customIllustration!;
     }
 
-    final effectiveIcon = icon ?? _getDefaultIcon();
-    final effectiveSize = iconSize ?? 80.0;
+    final effectiveIcon = widget.icon ?? _getDefaultIcon();
+    final effectiveSize = widget.iconSize ?? 80.0;
     final color = _getIconColor();
 
     return Container(
-      width: effectiveSize * 1.5,
-      height: effectiveSize * 1.5,
+      width: effectiveSize * 1.6,
+      height: effectiveSize * 1.6,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        gradient: RadialGradient(
+          colors: [
+            color.withValues(alpha: 0.15),
+            color.withValues(alpha: 0.05),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.6, 1.0],
+        ),
         shape: BoxShape.circle,
       ),
-      child: Icon(
-        effectiveIcon,
-        size: effectiveSize.sp,
-        color: color,
+      child: Center(
+        child: Container(
+          width: effectiveSize * 1.2,
+          height: effectiveSize * 1.2,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            effectiveIcon,
+            size: effectiveSize.sp,
+            color: color,
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildSmallIcon() {
-    final effectiveIcon = icon ?? _getDefaultIcon();
+    final effectiveIcon = widget.icon ?? _getDefaultIcon();
     final color = _getIconColor();
 
     return Container(
       padding: EdgeInsets.all(HoorSpacing.sm),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        gradient: LinearGradient(
+          colors: [
+            color.withValues(alpha: 0.15),
+            color.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(HoorRadius.md),
       ),
       child: Icon(
@@ -167,7 +273,7 @@ class HoorEmptyState extends StatelessWidget {
   }
 
   IconData _getDefaultIcon() {
-    switch (type) {
+    switch (widget.type) {
       case EmptyStateType.noData:
         return Icons.inbox_rounded;
       case EmptyStateType.noResults:
@@ -184,7 +290,7 @@ class HoorEmptyState extends StatelessWidget {
   }
 
   String _getDefaultTitle() {
-    switch (type) {
+    switch (widget.type) {
       case EmptyStateType.noData:
         return 'لا توجد بيانات';
       case EmptyStateType.noResults:
@@ -201,7 +307,7 @@ class HoorEmptyState extends StatelessWidget {
   }
 
   String _getDefaultMessage() {
-    switch (type) {
+    switch (widget.type) {
       case EmptyStateType.noData:
         return 'لم يتم إضافة أي عناصر بعد';
       case EmptyStateType.noResults:
@@ -218,7 +324,7 @@ class HoorEmptyState extends StatelessWidget {
   }
 
   Color _getIconColor() {
-    switch (type) {
+    switch (widget.type) {
       case EmptyStateType.noData:
       case EmptyStateType.noResults:
       case EmptyStateType.comingSoon:
@@ -230,6 +336,102 @@ class HoorEmptyState extends StatelessWidget {
       case EmptyStateType.noPermission:
         return HoorColors.primary;
     }
+  }
+}
+
+/// Animated Action Button for Empty State
+class _AnimatedActionButton extends StatefulWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final Color color;
+
+  const _AnimatedActionButton({
+    required this.label,
+    required this.onPressed,
+    required this.color,
+  });
+
+  @override
+  State<_AnimatedActionButton> createState() => _AnimatedActionButtonState();
+}
+
+class _AnimatedActionButtonState extends State<_AnimatedActionButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        _controller.forward();
+      },
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+        widget.onPressed();
+      },
+      onTapCancel: () {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: HoorDurations.fast,
+              padding: EdgeInsets.symmetric(
+                horizontal: HoorSpacing.xl,
+                vertical: HoorSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: _isPressed
+                    ? widget.color.withValues(alpha: 0.85)
+                    : widget.color,
+                borderRadius: BorderRadius.circular(HoorRadius.full),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        widget.color.withValues(alpha: _isPressed ? 0.2 : 0.3),
+                    blurRadius: _isPressed ? 8 : 16,
+                    offset: Offset(0, _isPressed ? 4 : 8),
+                  ),
+                ],
+              ),
+              child: Text(
+                widget.label,
+                style: HoorTypography.titleSmall.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 

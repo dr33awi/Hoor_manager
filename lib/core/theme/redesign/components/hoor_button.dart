@@ -4,8 +4,8 @@ import '../design_tokens.dart';
 import '../typography.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// HoorButton - Professional Button Components
-/// Modern, accessible buttons with multiple variants
+/// HoorButton - Professional Animated Button Components
+/// Modern, accessible buttons with smooth animations and multiple variants
 /// ═══════════════════════════════════════════════════════════════════════════
 
 enum HoorButtonVariant {
@@ -26,6 +26,9 @@ enum HoorButtonVariant {
 
   /// Success action
   success,
+
+  /// Gradient button
+  gradient,
 }
 
 enum HoorButtonSize {
@@ -34,7 +37,7 @@ enum HoorButtonSize {
   large,
 }
 
-class HoorButton extends StatelessWidget {
+class HoorButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final HoorButtonVariant variant;
@@ -44,6 +47,7 @@ class HoorButton extends StatelessWidget {
   final bool isLoading;
   final bool isFullWidth;
   final bool isDisabled;
+  final Gradient? gradient;
 
   const HoorButton({
     super.key,
@@ -56,91 +60,144 @@ class HoorButton extends StatelessWidget {
     this.isLoading = false,
     this.isFullWidth = false,
     this.isDisabled = false,
+    this.gradient,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isEnabled = !isDisabled && !isLoading && onPressed != null;
+  State<HoorButton> createState() => _HoorButtonState();
+}
 
-    return SizedBox(
-      width: isFullWidth ? double.infinity : null,
-      height: _getHeight(),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isEnabled ? onPressed : null,
-          borderRadius: HoorRadius.buttonRadius,
-          child: AnimatedContainer(
-            duration: HoorDurations.fast,
-            padding: _getPadding(),
-            decoration: _getDecoration(isEnabled),
-            child: Row(
-              mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isLoading) ...[
-                  SizedBox(
-                    width: _getIconSize(),
-                    height: _getIconSize(),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.w,
-                      valueColor:
-                          AlwaysStoppedAnimation(_getTextColor(isEnabled)),
+class _HoorButtonState extends State<HoorButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.96).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    if (_isEnabled) {
+      setState(() => _isPressed = true);
+      _controller.forward();
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    setState(() => _isPressed = false);
+    _controller.reverse();
+  }
+
+  void _onTapCancel() {
+    setState(() => _isPressed = false);
+    _controller.reverse();
+  }
+
+  bool get _isEnabled =>
+      !widget.isDisabled && !widget.isLoading && widget.onPressed != null;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      onTap: _isEnabled ? widget.onPressed : null,
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: HoorDurations.fast,
+              width: widget.isFullWidth ? double.infinity : null,
+              height: _getHeight(),
+              padding: _getPadding(),
+              decoration: _getDecoration(),
+              child: Row(
+                mainAxisSize:
+                    widget.isFullWidth ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (widget.isLoading) ...[
+                    SizedBox(
+                      width: _getIconSize(),
+                      height: _getIconSize(),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.w,
+                        valueColor:
+                            AlwaysStoppedAnimation(_getTextColor(_isEnabled)),
+                      ),
                     ),
+                    SizedBox(width: HoorSpacing.sm.w),
+                  ] else if (widget.leadingIcon != null) ...[
+                    Icon(
+                      widget.leadingIcon,
+                      size: _getIconSize(),
+                      color: _getTextColor(_isEnabled),
+                    ),
+                    SizedBox(width: HoorSpacing.sm.w),
+                  ],
+                  Text(
+                    widget.label,
+                    style: _getTextStyle(_isEnabled),
                   ),
-                  SizedBox(width: HoorSpacing.sm.w),
-                ] else if (leadingIcon != null) ...[
-                  Icon(
-                    leadingIcon,
-                    size: _getIconSize(),
-                    color: _getTextColor(isEnabled),
-                  ),
-                  SizedBox(width: HoorSpacing.sm.w),
+                  if (widget.trailingIcon != null && !widget.isLoading) ...[
+                    SizedBox(width: HoorSpacing.sm.w),
+                    Icon(
+                      widget.trailingIcon,
+                      size: _getIconSize(),
+                      color: _getTextColor(_isEnabled),
+                    ),
+                  ],
                 ],
-                Text(
-                  label,
-                  style: _getTextStyle(isEnabled),
-                ),
-                if (trailingIcon != null && !isLoading) ...[
-                  SizedBox(width: HoorSpacing.sm.w),
-                  Icon(
-                    trailingIcon,
-                    size: _getIconSize(),
-                    color: _getTextColor(isEnabled),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
   double _getHeight() {
-    switch (size) {
+    switch (widget.size) {
       case HoorButtonSize.small:
         return 36.h;
       case HoorButtonSize.medium:
-        return 44.h;
+        return 48.h;
       case HoorButtonSize.large:
-        return 52.h;
+        return 56.h;
     }
   }
 
   EdgeInsets _getPadding() {
-    switch (size) {
+    switch (widget.size) {
       case HoorButtonSize.small:
         return EdgeInsets.symmetric(horizontal: HoorSpacing.md.w);
       case HoorButtonSize.medium:
-        return EdgeInsets.symmetric(horizontal: HoorSpacing.lg.w);
-      case HoorButtonSize.large:
         return EdgeInsets.symmetric(horizontal: HoorSpacing.xl.w);
+      case HoorButtonSize.large:
+        return EdgeInsets.symmetric(horizontal: HoorSpacing.xxl.w);
     }
   }
 
   double _getIconSize() {
-    switch (size) {
+    switch (widget.size) {
       case HoorButtonSize.small:
         return HoorIconSize.sm;
       case HoorButtonSize.medium:
@@ -150,48 +207,97 @@ class HoorButton extends StatelessWidget {
     }
   }
 
-  BoxDecoration _getDecoration(bool isEnabled) {
-    final opacity = isEnabled ? 1.0 : 0.5;
+  BoxDecoration _getDecoration() {
+    final opacity = _isEnabled ? 1.0 : 0.5;
+    final borderRadius = BorderRadius.circular(
+      widget.size == HoorButtonSize.large ? HoorRadius.lg : HoorRadius.md,
+    );
 
-    switch (variant) {
+    switch (widget.variant) {
       case HoorButtonVariant.primary:
         return BoxDecoration(
           color: HoorColors.primary.withValues(alpha: opacity),
-          borderRadius: HoorRadius.buttonRadius,
+          borderRadius: borderRadius,
+          boxShadow: _isPressed
+              ? []
+              : [
+                  BoxShadow(
+                    color: HoorColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         );
 
       case HoorButtonVariant.secondary:
         return BoxDecoration(
           color: HoorColors.accent.withValues(alpha: opacity),
-          borderRadius: HoorRadius.buttonRadius,
+          borderRadius: borderRadius,
         );
 
       case HoorButtonVariant.outline:
         return BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: HoorRadius.buttonRadius,
+          color: _isPressed
+              ? HoorColors.primary.withValues(alpha: 0.05)
+              : Colors.transparent,
+          borderRadius: borderRadius,
           border: Border.all(
-            color: HoorColors.border.withValues(alpha: opacity),
+            color: HoorColors.primary.withValues(alpha: opacity),
             width: 1.5.w,
           ),
         );
 
       case HoorButtonVariant.ghost:
         return BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: HoorRadius.buttonRadius,
+          color: _isPressed
+              ? HoorColors.primary.withValues(alpha: 0.05)
+              : Colors.transparent,
+          borderRadius: borderRadius,
         );
 
       case HoorButtonVariant.destructive:
         return BoxDecoration(
           color: HoorColors.error.withValues(alpha: opacity),
-          borderRadius: HoorRadius.buttonRadius,
+          borderRadius: borderRadius,
+          boxShadow: _isPressed
+              ? []
+              : [
+                  BoxShadow(
+                    color: HoorColors.error.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         );
 
       case HoorButtonVariant.success:
         return BoxDecoration(
           color: HoorColors.success.withValues(alpha: opacity),
-          borderRadius: HoorRadius.buttonRadius,
+          borderRadius: borderRadius,
+          boxShadow: _isPressed
+              ? []
+              : [
+                  BoxShadow(
+                    color: HoorColors.success.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+        );
+
+      case HoorButtonVariant.gradient:
+        return BoxDecoration(
+          gradient: widget.gradient ?? HoorColors.premiumGradient,
+          borderRadius: borderRadius,
+          boxShadow: _isPressed
+              ? []
+              : [
+                  BoxShadow(
+                    color: HoorColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
         );
     }
   }
@@ -199,11 +305,12 @@ class HoorButton extends StatelessWidget {
   Color _getTextColor(bool isEnabled) {
     final opacity = isEnabled ? 1.0 : 0.6;
 
-    switch (variant) {
+    switch (widget.variant) {
       case HoorButtonVariant.primary:
       case HoorButtonVariant.destructive:
       case HoorButtonVariant.success:
-        return HoorColors.textOnPrimary.withValues(alpha: opacity);
+      case HoorButtonVariant.gradient:
+        return Colors.white.withValues(alpha: opacity);
 
       case HoorButtonVariant.secondary:
         return HoorColors.primary.withValues(alpha: opacity);
@@ -215,9 +322,9 @@ class HoorButton extends StatelessWidget {
   }
 
   TextStyle _getTextStyle(bool isEnabled) {
-    final baseStyle = size == HoorButtonSize.small
+    final baseStyle = widget.size == HoorButtonSize.small
         ? HoorTypography.buttonSmall
-        : size == HoorButtonSize.large
+        : widget.size == HoorButtonSize.large
             ? HoorTypography.buttonLarge
             : HoorTypography.buttonMedium;
 
@@ -365,6 +472,12 @@ class HoorIconButton extends StatelessWidget {
           color: HoorColors.success.withValues(alpha: opacity),
           shape: BoxShape.circle,
         );
+
+      case HoorButtonVariant.gradient:
+        return BoxDecoration(
+          gradient: HoorColors.premiumGradient,
+          shape: BoxShape.circle,
+        );
     }
   }
 
@@ -387,6 +500,9 @@ class HoorIconButton extends StatelessWidget {
       case HoorButtonVariant.outline:
       case HoorButtonVariant.ghost:
         return HoorColors.textSecondary.withValues(alpha: opacity);
+
+      case HoorButtonVariant.gradient:
+        return HoorColors.textOnPrimary.withValues(alpha: opacity);
     }
   }
 }

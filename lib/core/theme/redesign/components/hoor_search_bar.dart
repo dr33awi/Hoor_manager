@@ -5,11 +5,11 @@ import '../typography.dart';
 import 'hoor_input.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// HoorSearchBar - Professional Search Components
-/// Modern search bars with filters and suggestions
+/// HoorSearchBar - Premium Animated Search Components
+/// Modern search bars with smooth animations and filters
 /// ═══════════════════════════════════════════════════════════════════════════
 
-class HoorSearchBar extends StatelessWidget {
+class HoorSearchBar extends StatefulWidget {
   final String? hint;
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
@@ -19,6 +19,7 @@ class HoorSearchBar extends StatelessWidget {
   final bool autofocus;
   final bool showFilterButton;
   final int? filterCount;
+  final bool enableGlassmorphism;
 
   const HoorSearchBar({
     super.key,
@@ -31,19 +32,204 @@ class HoorSearchBar extends StatelessWidget {
     this.autofocus = false,
     this.showFilterButton = false,
     this.filterCount,
+    this.enableGlassmorphism = false,
   });
 
   @override
+  State<HoorSearchBar> createState() => _HoorSearchBarState();
+}
+
+class _HoorSearchBarState extends State<HoorSearchBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isFocused = false;
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: HoorDurations.fast,
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() => _isFocused = _focusNode.hasFocus);
+    if (_focusNode.hasFocus) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return HoorSearchInput(
-      hint: hint ?? 'بحث...',
-      controller: controller,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-      onClear: onClear,
-      autofocus: autofocus,
-      showFilterButton: showFilterButton,
-      onFilterTap: onFilterTap,
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: AnimatedContainer(
+            duration: HoorDurations.fast,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(HoorRadius.xl),
+              boxShadow: _isFocused
+                  ? [
+                      BoxShadow(
+                        color: HoorColors.primary.withValues(alpha: 0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: HoorSearchInput(
+                    hint: widget.hint ?? 'بحث...',
+                    controller: widget.controller,
+                    onChanged: widget.onChanged,
+                    onSubmitted: widget.onSubmitted,
+                    onClear: widget.onClear,
+                    autofocus: widget.autofocus,
+                    showFilterButton: widget.showFilterButton,
+                    onFilterTap: widget.onFilterTap,
+                    focusNode: _focusNode,
+                  ),
+                ),
+                if (widget.showFilterButton &&
+                    widget.filterCount != null &&
+                    widget.filterCount! > 0) ...[
+                  SizedBox(width: HoorSpacing.sm),
+                  _AnimatedFilterButton(
+                    count: widget.filterCount!,
+                    onTap: widget.onFilterTap,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Animated Filter Button
+class _AnimatedFilterButton extends StatefulWidget {
+  final int count;
+  final VoidCallback? onTap;
+
+  const _AnimatedFilterButton({
+    required this.count,
+    this.onTap,
+  });
+
+  @override
+  State<_AnimatedFilterButton> createState() => _AnimatedFilterButtonState();
+}
+
+class _AnimatedFilterButtonState extends State<_AnimatedFilterButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        _controller.forward();
+      },
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+        widget.onTap?.call();
+      },
+      onTapCancel: () {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: HoorDurations.fast,
+              padding: EdgeInsets.all(HoorSpacing.sm),
+              decoration: BoxDecoration(
+                gradient: HoorColors.premiumGradient,
+                borderRadius: BorderRadius.circular(HoorRadius.md),
+                boxShadow: _isPressed
+                    ? []
+                    : HoorShadows.colored(HoorColors.primary, opacity: 0.3),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.filter_list_rounded,
+                    color: Colors.white,
+                    size: HoorIconSize.sm,
+                  ),
+                  SizedBox(width: 4.w),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: HoorSpacing.xs,
+                      vertical: 2.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(HoorRadius.full),
+                    ),
+                    child: Text(
+                      widget.count.toString(),
+                      style: HoorTypography.labelSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

@@ -1,0 +1,533 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Shifts Screen Pro - Professional Design System
+// Shift Management Interface with Real Data
+// ═══════════════════════════════════════════════════════════════════════════
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
+import '../../core/theme/pro/design_tokens.dart';
+import '../../core/providers/app_providers.dart';
+import '../../data/database/app_database.dart';
+
+class ShiftsScreenPro extends ConsumerWidget {
+  const ShiftsScreenPro({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shiftsAsync = ref.watch(shiftsStreamProvider);
+    final openShiftAsync = ref.watch(openShiftStreamProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: shiftsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Text('خطأ: $error', style: AppTypography.bodyMedium),
+          ),
+          data: (shifts) {
+            final openShift = openShiftAsync.asData?.value;
+            return Column(
+              children: [
+                _buildHeader(context, shifts.length),
+                if (openShift != null)
+                  _buildOpenShiftBanner(context, ref, openShift),
+                _buildStatsSummary(shifts),
+                Expanded(child: _buildShiftsList(shifts)),
+              ],
+            );
+          },
+        ),
+      ),
+      floatingActionButton: openShiftAsync.asData?.value == null
+          ? FloatingActionButton.extended(
+              onPressed: () => _openNewShift(context, ref),
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: Text(
+                'فتح وردية',
+                style: AppTypography.labelLarge.copyWith(color: Colors.white),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, int totalShifts) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => context.go('/'),
+            icon: Icon(
+              Icons.arrow_back_ios_rounded,
+              size: AppIconSize.sm,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'الورديات',
+                  style: AppTypography.headlineSmall.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '$totalShifts وردية',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOpenShiftBanner(
+      BuildContext context, WidgetRef ref, Shift shift) {
+    final dateFormat = DateFormat('yyyy/MM/dd HH:mm', 'ar');
+
+    return Container(
+      margin: EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.success.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.success.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48.w,
+            height: 48.h,
+            decoration: BoxDecoration(
+              color: AppColors.success.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(
+              Icons.access_time_rounded,
+              color: AppColors.success,
+              size: AppIconSize.md,
+            ),
+          ),
+          SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'وردية مفتوحة #${shift.shiftNumber}',
+                  style: AppTypography.titleSmall.copyWith(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'منذ ${dateFormat.format(shift.openedAt)}',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _closeShift(context, ref, shift),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('إغلاق'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSummary(List<Shift> shifts) {
+    final totalSales = shifts.fold<double>(0.0, (sum, s) => sum + s.totalSales);
+    final totalExpenses =
+        shifts.fold<double>(0.0, (sum, s) => sum + s.totalExpenses);
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatCard(
+              label: 'إجمالي المبيعات',
+              amount: totalSales,
+              icon: Icons.trending_up_rounded,
+              color: AppColors.success,
+            ),
+          ),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: _StatCard(
+              label: 'إجمالي المصاريف',
+              amount: totalExpenses,
+              icon: Icons.trending_down_rounded,
+              color: AppColors.error,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShiftsList(List<Shift> shifts) {
+    if (shifts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.access_time_rounded,
+              size: 80.sp,
+              color: AppColors.textTertiary,
+            ),
+            SizedBox(height: AppSpacing.lg),
+            Text(
+              'لا يوجد ورديات',
+              style: AppTypography.headlineMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Sort by date descending
+    final sortedShifts = List<Shift>.from(shifts)
+      ..sort((a, b) => b.openedAt.compareTo(a.openedAt));
+
+    return ListView.builder(
+      padding: EdgeInsets.all(AppSpacing.md),
+      itemCount: sortedShifts.length,
+      itemBuilder: (context, index) {
+        final shift = sortedShifts[index];
+        return _ShiftCard(shift: shift);
+      },
+    );
+  }
+
+  void _openNewShift(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('فتح وردية جديدة'),
+        content: const Text('هل تريد فتح وردية جديدة؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final shiftRepo = ref.read(shiftRepositoryProvider);
+                await shiftRepo.openShift(
+                    openingBalance: 0); // Default opening balance
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم فتح الوردية بنجاح')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ: $e')),
+                );
+              }
+            },
+            child: const Text('فتح'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _closeShift(BuildContext context, WidgetRef ref, Shift shift) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إغلاق الوردية'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                'رصيد الافتتاح: ${shift.openingBalance.toStringAsFixed(0)} ر.س'),
+            Text('المبيعات: ${shift.totalSales.toStringAsFixed(0)} ر.س'),
+            Text('المصاريف: ${shift.totalExpenses.toStringAsFixed(0)} ر.س'),
+            const Divider(),
+            const Text('هل تريد إغلاق الوردية؟'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final shiftRepo = ref.read(shiftRepositoryProvider);
+                // Calculate expected closing balance
+                final closingBalance = shift.openingBalance +
+                    shift.totalSales -
+                    shift.totalExpenses;
+                await shiftRepo.closeShift(
+                  shiftId: shift.id,
+                  closingBalance: closingBalance,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم إغلاق الوردية بنجاح')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ: $e')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('إغلاق'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.label,
+    required this.amount,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: AppIconSize.md),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTypography.labelSmall.copyWith(color: color),
+                ),
+                Text(
+                  '${amount.toStringAsFixed(0)} ر.س',
+                  style: AppTypography.titleSmall.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'JetBrains Mono',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShiftCard extends StatelessWidget {
+  final Shift shift;
+
+  const _ShiftCard({required this.shift});
+
+  @override
+  Widget build(BuildContext context) {
+    final dateFormat = DateFormat('yyyy/MM/dd HH:mm', 'ar');
+    final isOpen = shift.status == 'open';
+    final statusColor = isOpen ? AppColors.success : AppColors.textSecondary;
+
+    return Card(
+      margin: EdgeInsets.only(bottom: AppSpacing.sm),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: AppColors.border),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40.w,
+                  height: 40.h,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Icon(
+                    isOpen
+                        ? Icons.access_time_rounded
+                        : Icons.check_circle_rounded,
+                    color: statusColor,
+                    size: AppIconSize.sm,
+                  ),
+                ),
+                SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '#${shift.shiftNumber}',
+                            style: AppTypography.titleSmall.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'JetBrains Mono',
+                            ),
+                          ),
+                          SizedBox(width: AppSpacing.sm),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs + 2,
+                              vertical: 2.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: Text(
+                              isOpen ? 'مفتوحة' : 'مغلقة',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        dateFormat.format(shift.openedAt),
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: _InfoItem(
+                    label: 'الافتتاح',
+                    value: '${shift.openingBalance.toStringAsFixed(0)} ر.س',
+                  ),
+                ),
+                Expanded(
+                  child: _InfoItem(
+                    label: 'المبيعات',
+                    value: '${shift.totalSales.toStringAsFixed(0)} ر.س',
+                    color: AppColors.success,
+                  ),
+                ),
+                Expanded(
+                  child: _InfoItem(
+                    label: 'المصاريف',
+                    value: '${shift.totalExpenses.toStringAsFixed(0)} ر.س',
+                    color: AppColors.error,
+                  ),
+                ),
+                if (!isOpen && shift.closingBalance != null)
+                  Expanded(
+                    child: _InfoItem(
+                      label: 'الإغلاق',
+                      value: '${shift.closingBalance!.toStringAsFixed(0)} ر.س',
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? color;
+
+  const _InfoItem({
+    required this.label,
+    required this.value,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
+        Text(
+          value,
+          style: AppTypography.labelMedium.copyWith(
+            color: color ?? AppColors.textPrimary,
+            fontFamily: 'JetBrains Mono',
+          ),
+        ),
+      ],
+    );
+  }
+}

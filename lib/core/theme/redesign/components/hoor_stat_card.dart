@@ -4,13 +4,13 @@ import '../design_tokens.dart';
 import '../typography.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// HoorStatCard - Financial Statistics Cards
-/// Professional KPI and metric display components
+/// HoorStatCard - Modern Animated Statistics Cards
+/// Professional KPI and metric display with smooth animations
 /// ═══════════════════════════════════════════════════════════════════════════
 
 enum StatTrend { up, down, neutral }
 
-class HoorStatCard extends StatelessWidget {
+class HoorStatCard extends StatefulWidget {
   final String title;
   final String value;
   final String? subtitle;
@@ -20,6 +20,7 @@ class HoorStatCard extends StatelessWidget {
   final String? trendValue;
   final VoidCallback? onTap;
   final bool isCompact;
+  final bool enableGradient;
 
   const HoorStatCard({
     super.key,
@@ -32,55 +33,143 @@ class HoorStatCard extends StatelessWidget {
     this.trendValue,
     this.onTap,
     this.isCompact = false,
+    this.enableGradient = false,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final effectiveColor = color ?? HoorColors.primary;
+  State<HoorStatCard> createState() => _HoorStatCardState();
+}
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: HoorRadius.cardRadius,
-        child: Container(
-          padding: EdgeInsets.all(isCompact ? HoorSpacing.sm : HoorSpacing.md),
-          decoration: BoxDecoration(
-            color: HoorColors.surface,
-            borderRadius: HoorRadius.cardRadius,
-            border: Border.all(color: HoorColors.border),
-          ),
-          child: isCompact
-              ? _buildCompact(effectiveColor)
-              : _buildFull(effectiveColor),
-        ),
+class _HoorStatCardState extends State<HoorStatCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    if (widget.onTap != null) {
+      setState(() => _isPressed = true);
+      _controller.forward();
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    setState(() => _isPressed = false);
+    _controller.reverse();
+  }
+
+  void _onTapCancel() {
+    setState(() => _isPressed = false);
+    _controller.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = widget.color ?? HoorColors.primary;
+
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: HoorDurations.fast,
+              padding: EdgeInsets.all(
+                  widget.isCompact ? HoorSpacing.md : HoorSpacing.lg),
+              decoration: BoxDecoration(
+                gradient: widget.enableGradient
+                    ? LinearGradient(
+                        colors: [
+                          effectiveColor,
+                          effectiveColor.withValues(alpha: 0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: widget.enableGradient ? null : HoorColors.surface,
+                borderRadius: BorderRadius.circular(HoorRadius.xl),
+                border: widget.enableGradient
+                    ? null
+                    : Border.all(
+                        color: _isPressed
+                            ? effectiveColor.withValues(alpha: 0.3)
+                            : HoorColors.border,
+                      ),
+                boxShadow: _isPressed
+                    ? []
+                    : widget.enableGradient
+                        ? HoorShadows.colored(effectiveColor, opacity: 0.3)
+                        : HoorShadows.xs,
+              ),
+              child: widget.isCompact
+                  ? _buildCompact(effectiveColor)
+                  : _buildFull(effectiveColor),
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildCompact(Color color) {
+    final textColor =
+        widget.enableGradient ? Colors.white : HoorColors.textPrimary;
+    final secondaryTextColor = widget.enableGradient
+        ? Colors.white.withValues(alpha: 0.8)
+        : HoorColors.textSecondary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
-            if (icon != null) ...[
+            if (widget.icon != null) ...[
               Container(
                 padding: EdgeInsets.all(HoorSpacing.xs),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(HoorRadius.sm),
+                  color: widget.enableGradient
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(HoorRadius.md),
                 ),
-                child: Icon(icon, color: color, size: HoorIconSize.sm),
+                child: Icon(
+                  widget.icon,
+                  color: widget.enableGradient ? Colors.white : color,
+                  size: HoorIconSize.sm,
+                ),
               ),
               SizedBox(width: HoorSpacing.xs),
             ],
             Expanded(
               child: Text(
-                title,
+                widget.title,
                 style: HoorTypography.labelSmall.copyWith(
-                  color: HoorColors.textSecondary,
+                  color: secondaryTextColor,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -88,15 +177,16 @@ class HoorStatCard extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(height: HoorSpacing.xs),
+        SizedBox(height: HoorSpacing.sm),
         Text(
-          value,
-          style: HoorTypography.numericSmall.copyWith(
-            color: HoorColors.textPrimary,
+          widget.value,
+          style: HoorTypography.headlineSmall.copyWith(
+            color: textColor,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        if (trend != null && trendValue != null) ...[
-          SizedBox(height: HoorSpacing.xxs),
+        if (widget.trend != null && widget.trendValue != null) ...[
+          SizedBox(height: HoorSpacing.xs),
           _buildTrend(),
         ],
       ],
@@ -104,45 +194,61 @@ class HoorStatCard extends StatelessWidget {
   }
 
   Widget _buildFull(Color color) {
+    final textColor =
+        widget.enableGradient ? Colors.white : HoorColors.textPrimary;
+    final secondaryTextColor = widget.enableGradient
+        ? Colors.white.withValues(alpha: 0.8)
+        : HoorColors.textSecondary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
-            if (icon != null)
+            if (widget.icon != null)
               Container(
                 padding: EdgeInsets.all(HoorSpacing.sm),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(HoorRadius.md),
+                  color: widget.enableGradient
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(HoorRadius.lg),
                 ),
-                child: Icon(icon, color: color, size: HoorIconSize.md),
+                child: Icon(
+                  widget.icon,
+                  color: widget.enableGradient ? Colors.white : color,
+                  size: HoorIconSize.lg,
+                ),
               ),
             const Spacer(),
-            if (trend != null && trendValue != null) _buildTrend(),
+            if (widget.trend != null && widget.trendValue != null)
+              _buildTrend(),
           ],
         ),
-        SizedBox(height: HoorSpacing.md),
+        SizedBox(height: HoorSpacing.lg),
         Text(
-          value,
-          style: HoorTypography.numericMedium.copyWith(
-            color: HoorColors.textPrimary,
+          widget.value,
+          style: HoorTypography.displaySmall.copyWith(
+            color: textColor,
+            fontWeight: FontWeight.bold,
           ),
         ),
         SizedBox(height: HoorSpacing.xxs),
         Text(
-          title,
-          style: HoorTypography.bodySmall.copyWith(
-            color: HoorColors.textSecondary,
+          widget.title,
+          style: HoorTypography.bodyMedium.copyWith(
+            color: secondaryTextColor,
           ),
         ),
-        if (subtitle != null) ...[
+        if (widget.subtitle != null) ...[
           SizedBox(height: HoorSpacing.xxs),
           Text(
-            subtitle!,
+            widget.subtitle!,
             style: HoorTypography.caption.copyWith(
-              color: HoorColors.textTertiary,
+              color: widget.enableGradient
+                  ? Colors.white.withValues(alpha: 0.6)
+                  : HoorColors.textTertiary,
             ),
           ),
         ],
@@ -151,14 +257,14 @@ class HoorStatCard extends StatelessWidget {
   }
 
   Widget _buildTrend() {
-    final trendColor = switch (trend) {
+    final trendColor = switch (widget.trend) {
       StatTrend.up => HoorColors.income,
       StatTrend.down => HoorColors.expense,
       StatTrend.neutral => HoorColors.textTertiary,
       null => HoorColors.textTertiary,
     };
 
-    final trendIcon = switch (trend) {
+    final trendIcon = switch (widget.trend) {
       StatTrend.up => Icons.trending_up_rounded,
       StatTrend.down => Icons.trending_down_rounded,
       StatTrend.neutral => Icons.trending_flat_rounded,
@@ -167,22 +273,28 @@ class HoorStatCard extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: HoorSpacing.xs,
-        vertical: HoorSpacing.xxxs,
+        horizontal: HoorSpacing.sm,
+        vertical: HoorSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: trendColor.withValues(alpha: 0.1),
+        color: widget.enableGradient
+            ? Colors.white.withValues(alpha: 0.2)
+            : trendColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(HoorRadius.full),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(trendIcon, color: trendColor, size: HoorIconSize.xs),
-          SizedBox(width: 2.w),
+          Icon(
+            trendIcon,
+            color: widget.enableGradient ? Colors.white : trendColor,
+            size: HoorIconSize.xs,
+          ),
+          SizedBox(width: 4.w),
           Text(
-            trendValue!,
+            widget.trendValue!,
             style: HoorTypography.labelSmall.copyWith(
-              color: trendColor,
+              color: widget.enableGradient ? Colors.white : trendColor,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -193,10 +305,10 @@ class HoorStatCard extends StatelessWidget {
 }
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// Large Hero Stat Card
+/// Large Hero Stat Card - Premium Animated Version
 /// ═══════════════════════════════════════════════════════════════════════════
 
-class HoorHeroStatCard extends StatelessWidget {
+class HoorHeroStatCard extends StatefulWidget {
   final String title;
   final String value;
   final String? subtitle;
@@ -205,6 +317,7 @@ class HoorHeroStatCard extends StatelessWidget {
   final bool useGradient;
   final Widget? action;
   final VoidCallback? onTap;
+  final bool enableShimmer;
 
   const HoorHeroStatCard({
     super.key,
@@ -216,97 +329,235 @@ class HoorHeroStatCard extends StatelessWidget {
     this.useGradient = true,
     this.action,
     this.onTap,
+    this.enableShimmer = false,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final effectiveColor = color ?? HoorColors.primary;
+  State<HoorHeroStatCard> createState() => _HoorHeroStatCardState();
+}
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: HoorRadius.cardRadius,
-        child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(HoorSpacing.lg),
-          decoration: BoxDecoration(
-            gradient: useGradient
-                ? LinearGradient(
-                    colors: [
-                      effectiveColor,
-                      effectiveColor.withValues(alpha: 0.85)
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: useGradient ? null : effectiveColor,
-            borderRadius: HoorRadius.cardRadius,
-            boxShadow: HoorShadows.colored(effectiveColor, opacity: 0.3),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+class _HoorHeroStatCardState extends State<HoorHeroStatCard>
+    with TickerProviderStateMixin {
+  late AnimationController _scaleController;
+  late AnimationController _shimmerController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _shimmerAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutCubic),
+    );
+
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+    _shimmerAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
+    );
+
+    if (widget.enableShimmer) {
+      _shimmerController.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    if (widget.onTap != null) {
+      setState(() => _isPressed = true);
+      _scaleController.forward();
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    setState(() => _isPressed = false);
+    _scaleController.reverse();
+  }
+
+  void _onTapCancel() {
+    setState(() => _isPressed = false);
+    _scaleController.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = widget.color ?? HoorColors.primary;
+
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: HoorDurations.fast,
+              width: double.infinity,
+              padding: EdgeInsets.all(HoorSpacing.xl),
+              decoration: BoxDecoration(
+                gradient: widget.useGradient
+                    ? LinearGradient(
+                        colors: [
+                          effectiveColor,
+                          effectiveColor.withValues(alpha: 0.75),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: widget.useGradient ? null : effectiveColor,
+                borderRadius: BorderRadius.circular(HoorRadius.xxl),
+                boxShadow: _isPressed
+                    ? HoorShadows.colored(effectiveColor, opacity: 0.15)
+                    : HoorShadows.colored(effectiveColor, opacity: 0.4),
+              ),
+              child: Stack(
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(HoorSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(HoorRadius.md),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: Colors.white,
-                      size: HoorIconSize.lg,
+                  // Decorative background pattern
+                  Positioned(
+                    top: -20.h,
+                    right: -20.w,
+                    child: Container(
+                      width: 100.w,
+                      height: 100.h,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  if (action != null) action!,
+                  Positioned(
+                    bottom: -30.h,
+                    left: -30.w,
+                    child: Container(
+                      width: 80.w,
+                      height: 80.h,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.03),
+                      ),
+                    ),
+                  ),
+                  // Content
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(HoorSpacing.md),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius:
+                                  BorderRadius.circular(HoorRadius.lg),
+                            ),
+                            child: Icon(
+                              widget.icon,
+                              color: Colors.white,
+                              size: HoorIconSize.xl,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (widget.action != null) widget.action!,
+                        ],
+                      ),
+                      SizedBox(height: HoorSpacing.xl),
+                      widget.enableShimmer
+                          ? AnimatedBuilder(
+                              animation: _shimmerAnimation,
+                              builder: (context, child) {
+                                return ShaderMask(
+                                  shaderCallback: (bounds) {
+                                    return LinearGradient(
+                                      colors: [
+                                        Colors.white,
+                                        Colors.white.withValues(alpha: 0.5),
+                                        Colors.white,
+                                      ],
+                                      stops: [
+                                        (_shimmerAnimation.value - 0.3)
+                                            .clamp(0.0, 1.0),
+                                        _shimmerAnimation.value.clamp(0.0, 1.0),
+                                        (_shimmerAnimation.value + 0.3)
+                                            .clamp(0.0, 1.0),
+                                      ],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ).createShader(bounds);
+                                  },
+                                  child: Text(
+                                    widget.value,
+                                    style:
+                                        HoorTypography.displayMedium.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          : Text(
+                              widget.value,
+                              style: HoorTypography.displayMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                      SizedBox(height: HoorSpacing.xs),
+                      Text(
+                        widget.title,
+                        style: HoorTypography.titleMedium.copyWith(
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                      if (widget.subtitle != null) ...[
+                        SizedBox(height: HoorSpacing.xxs),
+                        Text(
+                          widget.subtitle!,
+                          style: HoorTypography.bodySmall.copyWith(
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
-              SizedBox(height: HoorSpacing.lg),
-              Text(
-                value,
-                style: HoorTypography.numericLarge.copyWith(
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(height: HoorSpacing.xxs),
-              Text(
-                title,
-                style: HoorTypography.titleMedium.copyWith(
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-              ),
-              if (subtitle != null) ...[
-                SizedBox(height: HoorSpacing.xxs),
-                Text(
-                  subtitle!,
-                  style: HoorTypography.bodySmall.copyWith(
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 /// ═══════════════════════════════════════════════════════════════════════════
-/// Financial Balance Card
+/// Financial Balance Card - Premium Animated Version
 /// ═══════════════════════════════════════════════════════════════════════════
 
-class HoorBalanceCard extends StatelessWidget {
+class HoorBalanceCard extends StatefulWidget {
   final String balance;
   final String? income;
   final String? expense;
   final String? period;
   final VoidCallback? onTap;
+  final bool enablePulse;
 
   const HoorBalanceCard({
     super.key,
@@ -315,110 +566,258 @@ class HoorBalanceCard extends StatelessWidget {
     this.expense,
     this.period,
     this.onTap,
+    this.enablePulse = false,
   });
 
   @override
+  State<HoorBalanceCard> createState() => _HoorBalanceCardState();
+}
+
+class _HoorBalanceCardState extends State<HoorBalanceCard>
+    with TickerProviderStateMixin {
+  late AnimationController _scaleController;
+  late AnimationController _pulseController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _pulseAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutCubic),
+    );
+
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    if (widget.enablePulse) {
+      _pulseController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    if (widget.onTap != null) {
+      setState(() => _isPressed = true);
+      _scaleController.forward();
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    setState(() => _isPressed = false);
+    _scaleController.reverse();
+  }
+
+  void _onTapCancel() {
+    setState(() => _isPressed = false);
+    _scaleController.reverse();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: HoorRadius.cardRadius,
-        child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(HoorSpacing.lg),
-          decoration: BoxDecoration(
-            gradient: HoorColors.heroGradient,
-            borderRadius: HoorRadius.cardRadius,
-            boxShadow: HoorShadows.colored(HoorColors.primary, opacity: 0.25),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_scaleAnimation, _pulseAnimation]),
+        builder: (context, child) {
+          final pulseValue = widget.enablePulse ? _pulseAnimation.value : 0.0;
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: HoorDurations.fast,
+              width: double.infinity,
+              padding: EdgeInsets.all(HoorSpacing.xl),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    HoorColors.primary,
+                    Color.lerp(
+                      HoorColors.primary.withValues(alpha: 0.85),
+                      HoorColors.primaryDark,
+                      pulseValue * 0.3,
+                    )!,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(HoorRadius.xxl),
+                boxShadow: _isPressed
+                    ? HoorShadows.colored(HoorColors.primary, opacity: 0.15)
+                    : HoorShadows.colored(
+                        HoorColors.primary,
+                        opacity: 0.3 + (pulseValue * 0.15),
+                      ),
+              ),
+              child: Stack(
                 children: [
-                  Text(
-                    'الرصيد الإجمالي',
-                    style: HoorTypography.bodyMedium.copyWith(
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (period != null)
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: HoorSpacing.sm,
-                        vertical: HoorSpacing.xxs,
-                      ),
+                  // Decorative elements
+                  Positioned(
+                    top: -30.h,
+                    right: -30.w,
+                    child: Container(
+                      width: 120.w,
+                      height: 120.h,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(HoorRadius.full),
-                      ),
-                      child: Text(
-                        period!,
-                        style: HoorTypography.labelSmall.copyWith(
-                          color: Colors.white,
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.1),
+                            Colors.white.withValues(alpha: 0.0),
+                          ],
                         ),
                       ),
                     ),
+                  ),
+                  Positioned(
+                    bottom: -40.h,
+                    left: -20.w,
+                    child: Container(
+                      width: 100.w,
+                      height: 100.h,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
+                    ),
+                  ),
+                  // Content
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(HoorSpacing.sm),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius:
+                                  BorderRadius.circular(HoorRadius.md),
+                            ),
+                            child: Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: Colors.white,
+                              size: HoorIconSize.md,
+                            ),
+                          ),
+                          SizedBox(width: HoorSpacing.sm),
+                          Text(
+                            'الرصيد الإجمالي',
+                            style: HoorTypography.titleSmall.copyWith(
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                          const Spacer(),
+                          if (widget.period != null)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: HoorSpacing.md,
+                                vertical: HoorSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius:
+                                    BorderRadius.circular(HoorRadius.full),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Text(
+                                widget.period!,
+                                style: HoorTypography.labelSmall.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      SizedBox(height: HoorSpacing.lg),
+                      Text(
+                        widget.balance,
+                        style: HoorTypography.displayLarge.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      if (widget.income != null || widget.expense != null) ...[
+                        SizedBox(height: HoorSpacing.xl),
+                        Row(
+                          children: [
+                            if (widget.income != null)
+                              Expanded(
+                                child: _buildSubStat(
+                                  'الدخل',
+                                  widget.income!,
+                                  Icons.arrow_downward_rounded,
+                                  HoorColors.income,
+                                ),
+                              ),
+                            if (widget.income != null && widget.expense != null)
+                              SizedBox(width: HoorSpacing.md),
+                            if (widget.expense != null)
+                              Expanded(
+                                child: _buildSubStat(
+                                  'المصروفات',
+                                  widget.expense!,
+                                  Icons.arrow_upward_rounded,
+                                  HoorColors.expense,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
-              SizedBox(height: HoorSpacing.sm),
-              Text(
-                balance,
-                style: HoorTypography.numericLarge.copyWith(
-                  color: Colors.white,
-                  fontSize: 36.sp,
-                ),
-              ),
-              if (income != null || expense != null) ...[
-                SizedBox(height: HoorSpacing.lg),
-                Row(
-                  children: [
-                    if (income != null)
-                      Expanded(
-                          child: _buildSubStat(
-                              'الدخل',
-                              income!,
-                              Icons.arrow_downward_rounded,
-                              HoorColors.incomeLight)),
-                    if (income != null && expense != null)
-                      SizedBox(width: HoorSpacing.md),
-                    if (expense != null)
-                      Expanded(
-                          child: _buildSubStat(
-                              'المصروفات',
-                              expense!,
-                              Icons.arrow_upward_rounded,
-                              HoorColors.expenseLight)),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildSubStat(String label, String value, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.all(HoorSpacing.sm),
+      padding: EdgeInsets.all(HoorSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(HoorRadius.md),
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(HoorRadius.lg),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(HoorSpacing.xxs),
+            padding: EdgeInsets.all(HoorSpacing.xs),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(HoorRadius.md),
             ),
-            child: Icon(icon, color: color, size: HoorIconSize.xs),
+            child: Icon(icon, color: color, size: HoorIconSize.sm),
           ),
-          SizedBox(width: HoorSpacing.xs),
+          SizedBox(width: HoorSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,10 +828,12 @@ class HoorBalanceCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
+                SizedBox(height: 2.h),
                 Text(
                   value,
-                  style: HoorTypography.titleSmall.copyWith(
+                  style: HoorTypography.titleMedium.copyWith(
                     color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
