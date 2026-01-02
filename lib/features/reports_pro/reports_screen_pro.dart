@@ -868,7 +868,7 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ProCard(
       padding: EdgeInsets.all(isLarge ? AppSpacing.lg : AppSpacing.md),
-      borderColor: color.withValues(alpha: 0.3),
+      borderColor: color.border,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -877,7 +877,7 @@ class _SummaryCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
+                  color: color.soft,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(icon, color: color, size: isLarge ? 24.sp : 20.sp),

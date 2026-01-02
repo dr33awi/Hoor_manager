@@ -543,7 +543,7 @@ class _LowStockCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ProCard(
       margin: EdgeInsets.only(bottom: AppSpacing.sm),
-      borderColor: AppColors.warning.withValues(alpha: 0.3),
+      borderColor: AppColors.warning.border,
       child: Row(
         children: [
           ProIconBox.warning(),
@@ -626,8 +626,7 @@ class _StockCard extends StatelessWidget {
               vertical: AppSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: (isLow ? AppColors.warning : AppColors.success)
-                  .withValues(alpha: 0.1),
+              color: (isLow ? AppColors.warning : AppColors.success).soft,
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
             child: Text(

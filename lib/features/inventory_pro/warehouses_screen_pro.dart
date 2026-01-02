@@ -454,7 +454,7 @@ class _WarehouseCard extends StatelessWidget {
     return ProCard(
       margin: EdgeInsets.only(bottom: AppSpacing.md.h),
       borderColor: warehouse.isDefault
-          ? AppColors.secondary.withValues(alpha: 0.5)
+          ? AppColors.secondary.borderStrong
           : null,
       onTap: onTap,
       child: Column(
@@ -466,7 +466,7 @@ class _WarehouseCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.1),
+                  color: AppColors.secondary.soft,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(
@@ -499,7 +499,7 @@ class _WarehouseCard extends StatelessWidget {
                               vertical: 2.h,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.secondary.withValues(alpha: 0.1),
+                              color: AppColors.secondary.soft,
                               borderRadius:
                                   BorderRadius.circular(AppRadius.full),
                             ),

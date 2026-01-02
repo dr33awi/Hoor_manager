@@ -66,14 +66,14 @@ class _BackupScreenProState extends ConsumerState<BackupScreenPro> {
       padding: EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+          colors: [AppColors.primary, AppColors.primary.o87],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.border,
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -86,7 +86,7 @@ class _BackupScreenProState extends ConsumerState<BackupScreenPro> {
               Container(
                 padding: EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.light,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(
@@ -103,7 +103,7 @@ class _BackupScreenProState extends ConsumerState<BackupScreenPro> {
                     Text(
                       'حالة النسخ الاحتياطي',
                       style: AppTypography.bodySmall.copyWith(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.o87,
                       ),
                     ),
                     Text(
@@ -123,14 +123,14 @@ class _BackupScreenProState extends ConsumerState<BackupScreenPro> {
           Container(
             padding: EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.soft,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.info_outline_rounded,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.o87,
                   size: 20.sp,
                 ),
                 SizedBox(width: AppSpacing.sm),
@@ -138,7 +138,7 @@ class _BackupScreenProState extends ConsumerState<BackupScreenPro> {
                   child: Text(
                     'يُنصح بإنشاء نسخة احتياطية بشكل دوري للحفاظ على بياناتك',
                     style: AppTypography.bodySmall.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.o87,
                     ),
                   ),
                 ),
@@ -410,7 +410,7 @@ class _ActionCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.soft,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: isLoading

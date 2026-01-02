@@ -310,7 +310,7 @@ class _ShiftCard extends StatelessWidget {
                 width: 40.w,
                 height: 40.h,
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
+                  color: statusColor.soft,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(

@@ -459,7 +459,7 @@ class _ReturnCard extends StatelessWidget {
 
     return ProCard(
       margin: EdgeInsets.only(bottom: AppSpacing.md),
-      borderColor: type.accentColor.withValues(alpha: 0.3),
+      borderColor: type.accentColor.border,
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,7 +470,7 @@ class _ReturnCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: type.accentColor.withValues(alpha: 0.1),
+                  color: type.accentColor.soft,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(

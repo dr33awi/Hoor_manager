@@ -40,7 +40,7 @@ class InvoiceCardPro extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
               color: status == 'overdue'
-                  ? AppColors.error.withOpacity(0.3)
+                  ? AppColors.error.border
                   : AppColors.border,
             ),
             boxShadow: AppShadows.xs,

@@ -88,7 +88,7 @@ class _CategoriesScreenProState extends ConsumerState<CategoriesScreenPro> {
                 gradient: LinearGradient(
                   colors: [
                     AppColors.primary,
-                    AppColors.primary.withOpacity(0.8)
+                    AppColors.primary.o87
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -100,7 +100,7 @@ class _CategoriesScreenProState extends ConsumerState<CategoriesScreenPro> {
                   Container(
                     padding: EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.light,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Icon(
@@ -116,7 +116,7 @@ class _CategoriesScreenProState extends ConsumerState<CategoriesScreenPro> {
                       Text(
                         'إجمالي الفئات',
                         style: AppTypography.bodySmall.copyWith(
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.o87,
                         ),
                       ),
                       Text(

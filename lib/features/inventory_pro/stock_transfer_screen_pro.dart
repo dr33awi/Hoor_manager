@@ -599,7 +599,7 @@ class _TransferCard extends ConsumerWidget {
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: _getStatusColor().withValues(alpha: 0.1),
+                  color: _getStatusColor().soft,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(

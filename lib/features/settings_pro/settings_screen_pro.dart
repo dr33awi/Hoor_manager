@@ -178,7 +178,7 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
         gradient: LinearGradient(
           colors: [
             AppColors.primary,
-            AppColors.primary.withOpacity(0.8),
+            AppColors.primary.o87,
           ],
         ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -191,7 +191,7 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
                 width: 64.w,
                 height: 64.w,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.light,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(
@@ -216,7 +216,7 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
                     Text(
                       'الباقة المميزة',
                       style: AppTypography.bodySmall.copyWith(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.o87,
                       ),
                     ),
                   ],
@@ -226,7 +226,7 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
                 onPressed: () {},
                 icon: Icon(
                   Icons.edit_outlined,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.o87,
                 ),
               ),
             ],
@@ -238,7 +238,7 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
               vertical: AppSpacing.sm,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.muted,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Row(
@@ -246,14 +246,14 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
               children: [
                 Icon(
                   Icons.info_outline_rounded,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.o87,
                   size: 16.sp,
                 ),
                 SizedBox(width: AppSpacing.xs),
                 Text(
                   'Hoor Manager',
                   style: AppTypography.bodySmall.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.o87,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -264,7 +264,7 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
                     vertical: 2.h,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.light,
                     borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Text(

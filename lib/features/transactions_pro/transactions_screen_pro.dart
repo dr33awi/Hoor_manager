@@ -194,7 +194,7 @@ class _TransactionsScreenProState extends ConsumerState<TransactionsScreenPro>
           Container(
             padding: EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: widget.type.color.withValues(alpha: 0.1),
+              color: widget.type.color.soft,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Icon(

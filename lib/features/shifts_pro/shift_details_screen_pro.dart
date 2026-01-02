@@ -373,7 +373,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: AppColors.primary.soft,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(Icons.account_balance_wallet_rounded,
@@ -475,7 +475,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.1),
+                  color: AppColors.success.soft,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(Icons.check_circle_rounded,
@@ -594,7 +594,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
                 Container(
                   padding: EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    color: AppColors.secondary.soft,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Icon(Icons.swap_vert_rounded,
@@ -614,7 +614,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
                     vertical: 4.h,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    color: AppColors.secondary.soft,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Text(

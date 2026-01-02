@@ -344,7 +344,7 @@ class ProductCardPro extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(AppSpacing.xs - 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.9),
+        color: color.o87,
         borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Icon(

@@ -112,7 +112,7 @@ class _ProductDetailsView extends StatelessWidget {
               icon: Container(
                 padding: EdgeInsets.all(AppSpacing.xs),
                 decoration: BoxDecoration(
-                  color: AppColors.surface.withOpacity(0.9),
+                  color: AppColors.surface.o87,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(
@@ -128,7 +128,7 @@ class _ProductDetailsView extends StatelessWidget {
                 icon: Container(
                   padding: EdgeInsets.all(AppSpacing.xs),
                   decoration: BoxDecoration(
-                    color: AppColors.surface.withOpacity(0.9),
+                    color: AppColors.surface.o87,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Icon(
@@ -142,7 +142,7 @@ class _ProductDetailsView extends StatelessWidget {
                 icon: Container(
                   padding: EdgeInsets.all(AppSpacing.xs),
                   decoration: BoxDecoration(
-                    color: AppColors.surface.withOpacity(0.9),
+                    color: AppColors.surface.o87,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Icon(
