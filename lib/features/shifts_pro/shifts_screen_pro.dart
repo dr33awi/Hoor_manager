@@ -380,22 +380,7 @@ class _ShiftCard extends StatelessWidget {
                           ),
                         ),
                         SizedBox(width: AppSpacing.sm),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: AppSpacing.xs + 2,
-                            vertical: 2.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                          child: Text(
-                            isOpen ? 'مفتوحة' : 'مغلقة',
-                            style: AppTypography.labelSmall.copyWith(
-                              color: statusColor,
-                            ),
-                          ),
-                        ),
+                        ProStatusBadge.fromShiftStatus(shift.status, small: true),
                       ],
                     ),
                     Text(
@@ -410,40 +395,40 @@ class _ShiftCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
+          Row(
+            children: [
+              Expanded(
+                child: _InfoItem(
+                  label: 'الافتتاح',
+                  value: '${shift.openingBalance.toStringAsFixed(0)} ر.س',
+                ),
+              ),
+              Expanded(
+                child: _InfoItem(
+                  label: 'المبيعات',
+                  value: '${shift.totalSales.toStringAsFixed(0)} ر.س',
+                  color: AppColors.success,
+                ),
+              ),
+              Expanded(
+                child: _InfoItem(
+                  label: 'المصاريف',
+                  value: '${shift.totalExpenses.toStringAsFixed(0)} ر.س',
+                  color: AppColors.error,
+                ),
+              ),
+              if (!isOpen && shift.closingBalance != null)
                 Expanded(
                   child: _InfoItem(
-                    label: 'الافتتاح',
-                    value: '${shift.openingBalance.toStringAsFixed(0)} ر.س',
+                    label: 'الإغلاق',
+                    value: '${shift.closingBalance!.toStringAsFixed(0)} ر.س',
                   ),
                 ),
-                Expanded(
-                  child: _InfoItem(
-                    label: 'المبيعات',
-                    value: '${shift.totalSales.toStringAsFixed(0)} ر.س',
-                    color: AppColors.success,
-                  ),
-                ),
-                Expanded(
-                  child: _InfoItem(
-                    label: 'المصاريف',
-                    value: '${shift.totalExpenses.toStringAsFixed(0)} ر.س',
-                    color: AppColors.error,
-                  ),
-                ),
-                if (!isOpen && shift.closingBalance != null)
-                  Expanded(
-                    child: _InfoItem(
-                      label: 'الإغلاق',
-                      value: '${shift.closingBalance!.toStringAsFixed(0)} ر.س',
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      );
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

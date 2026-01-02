@@ -556,127 +556,126 @@ class _WarehouseCard extends StatelessWidget {
                                 Icon(
                                   Icons.star_rounded,
                                   size: 12.sp,
-                                      color: AppColors.secondary,
-                                    ),
-                                    SizedBox(width: 2.w),
-                                    Text(
-                                      'افتراضي',
-                                      style: AppTypography.labelSmall.copyWith(
-                                        color: AppColors.secondary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                                  color: AppColors.secondary,
                                 ),
-                              ),
-                          ],
-                        ),
-                        if (warehouse.code != null)
-                          Text(
-                            warehouse.code!,
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textTertiary,
-                              fontFamily: 'JetBrains Mono',
+                                SizedBox(width: 2.w),
+                                Text(
+                                  'افتراضي',
+                                  style: AppTypography.labelSmall.copyWith(
+                                    color: AppColors.secondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                       ],
                     ),
-                  ),
-
-                  // Menu
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert_rounded,
-                        color: AppColors.textTertiary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        onTap();
-                      } else if (value == 'delete') {
-                        onDelete();
-                      } else if (value == 'default') {
-                        onSetDefault();
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_rounded,
-                                color: AppColors.secondary, size: 20),
-                            SizedBox(width: AppSpacing.sm),
-                            const Text('تعديل'),
-                          ],
+                    if (warehouse.code != null)
+                      Text(
+                        warehouse.code!,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                          fontFamily: 'JetBrains Mono',
                         ),
-                      ),
-                      if (!warehouse.isDefault)
-                        PopupMenuItem(
-                          value: 'default',
-                          child: Row(
-                            children: [
-                              Icon(Icons.star_rounded,
-                                  color: AppColors.warning, size: 20),
-                              SizedBox(width: AppSpacing.sm),
-                              const Text('تعيين كافتراضي'),
-                            ],
-                          ),
-                        ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_rounded,
-                                color: AppColors.error, size: 20),
-                            SizedBox(width: AppSpacing.sm),
-                            Text('حذف',
-                                style: TextStyle(color: AppColors.error)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Additional Info
-              if (warehouse.address != null || warehouse.phone != null) ...[
-                SizedBox(height: AppSpacing.sm),
-                Divider(color: AppColors.border, height: 1),
-                SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.md,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    if (warehouse.address != null)
-                      _buildInfoChip(
-                        Icons.location_on_outlined,
-                        warehouse.address!,
-                      ),
-                    if (warehouse.phone != null)
-                      _buildInfoChip(
-                        Icons.phone_outlined,
-                        warehouse.phone!,
                       ),
                   ],
                 ),
-              ],
+              ),
 
-              if (warehouse.notes != null && warehouse.notes!.isNotEmpty) ...[
-                SizedBox(height: AppSpacing.xs),
-                Text(
-                  warehouse.notes!,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+              // Menu
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert_rounded,
+                    color: AppColors.textTertiary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-              ],
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    onTap();
+                  } else if (value == 'delete') {
+                    onDelete();
+                  } else if (value == 'default') {
+                    onSetDefault();
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_rounded,
+                            color: AppColors.secondary, size: 20),
+                        SizedBox(width: AppSpacing.sm),
+                        const Text('تعديل'),
+                      ],
+                    ),
+                  ),
+                  if (!warehouse.isDefault)
+                    PopupMenuItem(
+                      value: 'default',
+                      child: Row(
+                        children: [
+                          Icon(Icons.star_rounded,
+                              color: AppColors.warning, size: 20),
+                          SizedBox(width: AppSpacing.sm),
+                          const Text('تعيين كافتراضي'),
+                        ],
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_rounded,
+                            color: AppColors.error, size: 20),
+                        SizedBox(width: AppSpacing.sm),
+                        Text('حذف', style: TextStyle(color: AppColors.error)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-        );
+
+          // Additional Info
+          if (warehouse.address != null || warehouse.phone != null) ...[
+            SizedBox(height: AppSpacing.sm),
+            Divider(color: AppColors.border, height: 1),
+            SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.xs,
+              children: [
+                if (warehouse.address != null)
+                  _buildInfoChip(
+                    Icons.location_on_outlined,
+                    warehouse.address!,
+                  ),
+                if (warehouse.phone != null)
+                  _buildInfoChip(
+                    Icons.phone_outlined,
+                    warehouse.phone!,
+                  ),
+              ],
+            ),
+          ],
+
+          if (warehouse.notes != null && warehouse.notes!.isNotEmpty) ...[
+            SizedBox(height: AppSpacing.xs),
+            Text(
+              warehouse.notes!,
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textTertiary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildInfoChip(IconData icon, String text) {

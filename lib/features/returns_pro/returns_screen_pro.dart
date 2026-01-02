@@ -519,57 +519,56 @@ class _ReturnCard extends StatelessWidget {
             ],
           ),
           if (partyId != null) ...[
-                SizedBox(height: AppSpacing.sm),
-                Container(
-                  padding: EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceMuted,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        type == ReturnType.sales
-                            ? Icons.person_outline
-                            : Icons.business_outlined,
-                        size: 16.sp,
-                        color: AppColors.textSecondary,
-                      ),
-                      SizedBox(width: AppSpacing.xs),
-                      Text(
-                        partyId,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              SizedBox(height: AppSpacing.sm),
-              // Status row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            SizedBox(height: AppSpacing.sm),
+            Container(
+              padding: EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.inventory_2_outlined,
-                          size: 14.sp, color: AppColors.textTertiary),
-                      SizedBox(width: 4.w),
-                      Text(
-                        returnInvoice.status,
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    type == ReturnType.sales
+                        ? Icons.person_outline
+                        : Icons.business_outlined,
+                    size: 16.sp,
+                    color: AppColors.textSecondary,
                   ),
-                  Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textTertiary),
+                  SizedBox(width: AppSpacing.xs),
+                  Text(
+                    partyId,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
+            ),
+          ],
+          SizedBox(height: AppSpacing.sm),
+          // Status row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.inventory_2_outlined,
+                      size: 14.sp, color: AppColors.textTertiary),
+                  SizedBox(width: 4.w),
+                  Text(
+                    returnInvoice.status,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+              Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
             ],
           ),
-        );
+        ],
+      ),
+    );
   }
 }

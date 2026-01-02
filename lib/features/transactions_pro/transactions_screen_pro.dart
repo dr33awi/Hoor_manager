@@ -603,70 +603,54 @@ class _InvoiceCard extends StatelessWidget {
                 ),
               ),
               // Status Badge
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: _statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Text(
-                  _statusText,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: _statusColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              ProStatusBadge.fromInvoiceStatus(invoice.status, small: true),
             ],
           ),
           SizedBox(height: AppSpacing.md),
           Divider(height: 1, color: AppColors.border),
           SizedBox(height: AppSpacing.md),
           Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_rounded,
-                      size: 14.sp,
-                      color: AppColors.textTertiary,
-                    ),
-                    SizedBox(width: AppSpacing.xs),
-                    Text(
-                      dateFormat.format(invoice.invoiceDate),
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    SizedBox(width: AppSpacing.lg),
-                    Icon(
-                      invoice.paymentMethod == 'cash'
-                          ? Icons.payments_rounded
-                          : Icons.credit_card_rounded,
-                      size: 14.sp,
-                      color: AppColors.textTertiary,
-                    ),
-                    SizedBox(width: AppSpacing.xs),
-                    Text(
-                      invoice.paymentMethod == 'cash' ? 'نقدي' : 'آجل',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${invoice.total.toStringAsFixed(2)} ر.س',
-                      style: AppTypography.titleMedium.copyWith(
-                        fontFamily: 'JetBrains Mono',
-                        fontWeight: FontWeight.bold,
-                        color: type.color,
-                      ),
-                    ),
-                  ],
+            children: [
+              Icon(
+                Icons.calendar_today_rounded,
+                size: 14.sp,
+                color: AppColors.textTertiary,
+              ),
+              SizedBox(width: AppSpacing.xs),
+              Text(
+                dateFormat.format(invoice.invoiceDate),
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
                 ),
-              ],
-            ),
-          );
+              ),
+              SizedBox(width: AppSpacing.lg),
+              Icon(
+                invoice.paymentMethod == 'cash'
+                    ? Icons.payments_rounded
+                    : Icons.credit_card_rounded,
+                size: 14.sp,
+                color: AppColors.textTertiary,
+              ),
+              SizedBox(width: AppSpacing.xs),
+              Text(
+                invoice.paymentMethod == 'cash' ? 'نقدي' : 'آجل',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${invoice.total.toStringAsFixed(2)} ر.س',
+                style: AppTypography.titleMedium.copyWith(
+                  fontFamily: 'JetBrains Mono',
+                  fontWeight: FontWeight.bold,
+                  color: type.color,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

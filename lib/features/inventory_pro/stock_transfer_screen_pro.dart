@@ -686,122 +686,106 @@ class _TransferCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: 4.h,
-                ),
-                decoration: BoxDecoration(
-                  color: _getStatusColor().withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Text(
-                  _getStatusText(),
-                  style: AppTypography.labelSmall.copyWith(
-                    color: _getStatusColor(),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              ProStatusBadge.fromTransferStatus(transfer.status, small: true),
             ],
           ),
           SizedBox(height: AppSpacing.md),
 
-              // Warehouses Flow
-              warehousesAsync.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (warehouses) {
-                  final fromWarehouse = warehouses.firstWhere(
-                    (w) => w.id == transfer.fromWarehouseId,
-                    orElse: () => Warehouse(
-                      id: '',
-                      name: '---',
-                      isDefault: false,
-                      isActive: true,
-                      syncStatus: 'synced',
-                      createdAt: DateTime.now(),
-                      updatedAt: DateTime.now(),
-                    ),
-                  );
-                  final toWarehouse = warehouses.firstWhere(
-                    (w) => w.id == transfer.toWarehouseId,
-                    orElse: () => Warehouse(
-                      id: '',
-                      name: '---',
-                      isDefault: false,
-                      isActive: true,
-                      syncStatus: 'synced',
-                      createdAt: DateTime.now(),
-                      updatedAt: DateTime.now(),
-                    ),
-                  );
+          // Warehouses Flow
+          warehousesAsync.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (warehouses) {
+              final fromWarehouse = warehouses.firstWhere(
+                (w) => w.id == transfer.fromWarehouseId,
+                orElse: () => Warehouse(
+                  id: '',
+                  name: '---',
+                  isDefault: false,
+                  isActive: true,
+                  syncStatus: 'synced',
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                ),
+              );
+              final toWarehouse = warehouses.firstWhere(
+                (w) => w.id == transfer.toWarehouseId,
+                orElse: () => Warehouse(
+                  id: '',
+                  name: '---',
+                  isDefault: false,
+                  isActive: true,
+                  syncStatus: 'synced',
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                ),
+              );
 
-                  return Container(
-                    padding: EdgeInsets.all(AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceMuted,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
+              return Container(
+                padding: EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            'من',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                          SizedBox(height: 2.h),
+                          Text(
+                            fromWarehouse.name,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text(
-                                'من',
-                                style: AppTypography.labelSmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                              SizedBox(height: 2.h),
-                              Text(
-                                fromWarehouse.name,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: EdgeInsets.all(AppSpacing.xs),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            color: AppColors.secondary,
-                            size: 16.sp,
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text(
-                                'إلى',
-                                style: AppTypography.labelSmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                              SizedBox(height: 2.h),
-                              Text(
-                                toWarehouse.name,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    Container(
+                      padding: EdgeInsets.all(AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        color: AppColors.secondary,
+                        size: 16.sp,
+                      ),
                     ),
-                  );
-                },
-              ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            'إلى',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                          SizedBox(height: 2.h),
+                          Text(
+                            toWarehouse.name,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           SizedBox(height: AppSpacing.sm),
 
           // Quantity & Actions

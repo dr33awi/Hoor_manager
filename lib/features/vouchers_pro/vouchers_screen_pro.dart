@@ -392,22 +392,7 @@ class _VoucherCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: AppSpacing.sm),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xs + 2,
-                        vertical: 2.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _typeColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Text(
-                        _typeLabel,
-                        style: AppTypography.labelSmall.copyWith(
-                          color: _typeColor,
-                        ),
-                      ),
-                    ),
+                    ProStatusBadge.fromVoucherType(voucher.type, small: true),
                   ],
                 ),
                 if (voucher.description != null) ...[

@@ -423,23 +423,7 @@ class _PurchaseOrderCard extends StatelessWidget {
                 ),
               ),
               // Status Badge
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: _statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Text(
-                  _statusText,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: _statusColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              ProStatusBadge.fromInvoiceStatus(invoice.status, small: true),
             ],
           ),
           SizedBox(height: AppSpacing.md),
