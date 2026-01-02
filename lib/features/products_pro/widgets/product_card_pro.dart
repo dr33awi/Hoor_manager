@@ -283,15 +283,15 @@ class ProductCardPro extends StatelessWidget {
     String text;
 
     if (stock == 0) {
-      bgColor = AppColors.error.withOpacity(0.1);
+      bgColor = AppColors.error.soft;
       textColor = AppColors.error;
       text = 'نفد';
     } else if (stock <= minStock) {
-      bgColor = AppColors.warning.withOpacity(0.1);
+      bgColor = AppColors.warning.soft;
       textColor = AppColors.warning;
       text = '$stock';
     } else {
-      bgColor = AppColors.success.withOpacity(0.1);
+      bgColor = AppColors.success.soft;
       textColor = AppColors.success;
       text = '$stock';
     }

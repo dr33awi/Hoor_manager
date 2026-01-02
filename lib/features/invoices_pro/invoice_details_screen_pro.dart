@@ -403,9 +403,9 @@ class _InvoiceDetailsScreenProState
             horizontal: AppSpacing.sm,
           ),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.soft,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.border),
           ),
           child: Column(
             children: [
@@ -484,12 +484,12 @@ class _InvoiceDetailsScreenProState
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            statusColor.withOpacity(0.1),
-            statusColor.withOpacity(0.05),
+            statusColor.soft,
+            statusColor.subtle,
           ],
         ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
+        border: Border.all(color: statusColor.border),
       ),
       child: Column(
         children: [
@@ -498,7 +498,7 @@ class _InvoiceDetailsScreenProState
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
+                  color: statusColor.light,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child:
@@ -592,7 +592,7 @@ class _InvoiceDetailsScreenProState
         children: [
           CircleAvatar(
             radius: 24.r,
-            backgroundColor: AppColors.secondary.withOpacity(0.1),
+            backgroundColor: AppColors.secondary.soft,
             child: Text(
               customerName.isNotEmpty ? customerName[0] : '?',
               style: AppTypography.titleLarge.copyWith(

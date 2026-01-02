@@ -268,10 +268,10 @@ class _AlertCard extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
           side: BorderSide(
-            color: isRead ? AppColors.border : color.withOpacity(0.3),
+            color: isRead ? AppColors.border : color.border,
           ),
         ),
-        color: isRead ? AppColors.surface : color.withOpacity(0.05),
+        color: isRead ? AppColors.surface : color.subtle,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -283,7 +283,7 @@ class _AlertCard extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.soft,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Icon(icon, color: color, size: AppIconSize.md),

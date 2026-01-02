@@ -197,7 +197,7 @@ class _VouchersScreenProState extends ConsumerState<VouchersScreenPro>
         unselectedLabelColor: AppColors.textSecondary,
         indicatorSize: TabBarIndicatorSize.tab,
         indicator: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
+          color: AppColors.primary.soft,
           borderRadius: BorderRadius.circular(AppRadius.md - 1),
         ),
         dividerColor: Colors.transparent,
@@ -222,7 +222,7 @@ class _VouchersScreenProState extends ConsumerState<VouchersScreenPro>
           Container(
             padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
             decoration: BoxDecoration(
-              color: AppColors.textTertiary.withOpacity(0.2),
+              color: AppColors.textTertiary.light,
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
             child: Text(
@@ -289,9 +289,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.soft,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.border),
       ),
       child: Column(
         children: [
