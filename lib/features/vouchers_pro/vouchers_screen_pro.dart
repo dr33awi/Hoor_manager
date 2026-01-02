@@ -227,9 +227,7 @@ class _VouchersScreenProState extends ConsumerState<VouchersScreenPro>
             ),
             child: Text(
               '$count',
-              style: AppTypography.labelSmall.copyWith(
-                fontFamily: 'JetBrains Mono',
-              ),
+              style: AppTypography.labelSmall.mono,
             ),
           ),
         ],
@@ -305,9 +303,7 @@ class _StatCard extends StatelessWidget {
             amount.toStringAsFixed(0),
             style: AppTypography.titleSmall.copyWith(
               color: color,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'JetBrains Mono',
-            ),
+            ).monoBold,
           ),
         ],
       ),
@@ -366,9 +362,7 @@ class _VoucherCard extends StatelessWidget {
                       '#${voucher.voucherNumber}',
                       style: AppTypography.titleSmall.copyWith(
                         color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'JetBrains Mono',
-                      ),
+                      ).monoSemibold,
                     ),
                     SizedBox(width: AppSpacing.sm),
                     ProStatusBadge.fromVoucherType(voucher.type, small: true),
@@ -399,9 +393,7 @@ class _VoucherCard extends StatelessWidget {
             '${voucher.amount.toStringAsFixed(0)} ر.س',
             style: AppTypography.titleMedium.copyWith(
               color: _typeColor,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'JetBrains Mono',
-            ),
+            ).monoBold,
           ),
         ],
       ),

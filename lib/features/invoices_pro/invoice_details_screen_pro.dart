@@ -237,8 +237,7 @@ class _InvoiceDetailsScreenProState
               _invoice!.invoiceNumber,
               style: AppTypography.titleMedium.copyWith(
                 color: AppColors.textPrimary,
-                fontFamily: 'JetBrains Mono',
-              ),
+              ).mono,
             ),
             Text(
               isSales ? 'فاتورة بيع' : 'فاتورة شراء',
@@ -532,17 +531,14 @@ class _InvoiceDetailsScreenProState
                     '${_invoice!.total.toStringAsFixed(2)} ر.س',
                     style: AppTypography.headlineSmall.copyWith(
                       color: isSales ? AppColors.success : AppColors.secondary,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'JetBrains Mono',
-                    ),
+                    ).monoBold,
                   ),
                   if (!isPaid)
                     Text(
                       'متبقي: ${remaining.toStringAsFixed(0)} ر.س',
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.error,
-                        fontFamily: 'JetBrains Mono',
-                      ),
+                      ).mono,
                     ),
                 ],
               ),
@@ -573,8 +569,7 @@ class _InvoiceDetailsScreenProState
                   '${_invoice!.paidAmount.toStringAsFixed(0)} من ${_invoice!.total.toStringAsFixed(0)} ر.س',
                   style: AppTypography.labelSmall.copyWith(
                     color: AppColors.textSecondary,
-                    fontFamily: 'JetBrains Mono',
-                  ),
+                  ).mono,
                 ),
               ],
             ),
@@ -617,8 +612,7 @@ class _InvoiceDetailsScreenProState
                     customerPhone,
                     style: AppTypography.bodySmall.copyWith(
                       color: AppColors.textSecondary,
-                      fontFamily: 'JetBrains Mono',
-                    ),
+                    ).mono,
                   ),
               ],
             ),
@@ -676,8 +670,7 @@ class _InvoiceDetailsScreenProState
                           '${item.quantity}x',
                           style: AppTypography.labelMedium.copyWith(
                             color: AppColors.secondary,
-                            fontFamily: 'JetBrains Mono',
-                          ),
+                          ).mono,
                         ),
                       ),
                     ),
@@ -696,8 +689,7 @@ class _InvoiceDetailsScreenProState
                             '${item.unitPrice.toStringAsFixed(0)} ر.س للوحدة',
                             style: AppTypography.bodySmall.copyWith(
                               color: AppColors.textTertiary,
-                              fontFamily: 'JetBrains Mono',
-                            ),
+                            ).mono,
                           ),
                         ],
                       ),
@@ -706,9 +698,7 @@ class _InvoiceDetailsScreenProState
                       '${item.total.toStringAsFixed(0)} ر.س',
                       style: AppTypography.titleSmall.copyWith(
                         color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'JetBrains Mono',
-                      ),
+                      ).monoSemibold,
                     ),
                   ],
                 ),
@@ -746,9 +736,7 @@ class _InvoiceDetailsScreenProState
                 '${_invoice!.total.toStringAsFixed(2)} ر.س',
                 style: AppTypography.titleLarge.copyWith(
                   color: isSales ? AppColors.success : AppColors.secondary,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'JetBrains Mono',
-                ),
+                ).monoBold,
               ),
             ],
           ),
@@ -823,8 +811,7 @@ class _InvoiceDetailsScreenProState
           '${isNegative ? "-" : ""}${amount.abs().toStringAsFixed(2)} ر.س',
           style: AppTypography.bodyMedium.copyWith(
             color: isNegative ? AppColors.error : AppColors.textPrimary,
-            fontFamily: 'JetBrains Mono',
-          ),
+          ).mono,
         ),
       ],
     );

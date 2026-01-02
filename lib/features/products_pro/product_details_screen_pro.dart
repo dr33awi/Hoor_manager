@@ -536,8 +536,7 @@ class _ProductDetailsView extends StatelessWidget {
                 product.sku!,
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondary,
-                  fontFamily: 'JetBrains Mono',
-                ),
+                ).mono,
               ),
             ],
             if (product.barcode != null && product.barcode!.isNotEmpty) ...[
@@ -553,8 +552,7 @@ class _ProductDetailsView extends StatelessWidget {
                   product.barcode!,
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textTertiary,
-                    fontFamily: 'JetBrains Mono',
-                  ),
+                  ).mono,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -611,9 +609,7 @@ class _ProductDetailsView extends StatelessWidget {
             '${product.salePrice.toStringAsFixed(0)} ل.س',
             valueStyle: AppTypography.titleMedium.copyWith(
               color: AppColors.secondary,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'JetBrains Mono',
-            ),
+            ).monoBold,
           ),
           Divider(height: AppSpacing.md, color: AppColors.border),
           _buildInfoRow(
@@ -621,8 +617,7 @@ class _ProductDetailsView extends StatelessWidget {
             '${product.purchasePrice.toStringAsFixed(0)} ل.س',
             valueStyle: AppTypography.bodyMedium.copyWith(
               color: AppColors.textSecondary,
-              fontFamily: 'JetBrains Mono',
-            ),
+            ).mono,
           ),
           SizedBox(height: AppSpacing.xs),
           _buildInfoRow(
@@ -630,9 +625,7 @@ class _ProductDetailsView extends StatelessWidget {
             '${profit.toStringAsFixed(0)} ل.س (${margin.toStringAsFixed(1)}%)',
             valueStyle: AppTypography.bodyMedium.copyWith(
               color: AppColors.success,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'JetBrains Mono',
-            ),
+            ).monoSemibold,
           ),
         ],
       ),
@@ -859,9 +852,7 @@ class _StatCard extends StatelessWidget {
             value,
             style: AppTypography.labelLarge.copyWith(
               color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'JetBrains Mono',
-            ),
+            ).monoBold,
           ),
           Text(
             label,

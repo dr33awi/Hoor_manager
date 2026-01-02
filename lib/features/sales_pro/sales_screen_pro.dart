@@ -366,9 +366,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
               child: TextField(
                 controller: _barcodeController,
                 focusNode: _barcodeFocus,
-                style: AppTypography.bodyMedium.copyWith(
-                  fontFamily: 'JetBrains Mono',
-                ),
+                style: AppTypography.bodyMedium.mono,
                 decoration: InputDecoration(
                   hintText: 'مسح الباركود...',
                   hintStyle: AppTypography.bodySmall.copyWith(
@@ -756,9 +754,8 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
               Text(
                 '${_subtotal.toStringAsFixed(2)} ر.س',
                 style: AppTypography.bodyMedium.copyWith(
-                  fontFamily: 'JetBrains Mono',
                   color: AppColors.textPrimary,
-                ),
+                ).mono,
               ),
             ],
           ),
@@ -791,9 +788,8 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
                 Text(
                   '-${_discount.toStringAsFixed(2)} ر.س',
                   style: AppTypography.bodyMedium.copyWith(
-                    fontFamily: 'JetBrains Mono',
                     color: AppColors.success,
-                  ),
+                  ).mono,
                 ),
               ],
             ),
@@ -815,10 +811,8 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
               Text(
                 '${_total.toStringAsFixed(2)} ر.س',
                 style: AppTypography.headlineSmall.copyWith(
-                  fontFamily: 'JetBrains Mono',
                   color: AppColors.success,
-                  fontWeight: FontWeight.w700,
-                ),
+                ).monoBold,
               ),
             ],
           ),
@@ -956,9 +950,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
                               '${_total.toStringAsFixed(2)} ر.س',
                               style: AppTypography.titleMedium.copyWith(
                                 color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'JetBrains Mono',
-                              ),
+                              ).monoBold,
                             ),
                           ],
                         ),
@@ -1060,9 +1052,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
           controller: controller,
           keyboardType: TextInputType.number,
           autofocus: true,
-          style: AppTypography.titleMedium.copyWith(
-            fontFamily: 'JetBrains Mono',
-          ),
+          style: AppTypography.titleMedium.mono,
           decoration: InputDecoration(
             labelText: 'قيمة الخصم',
             suffixText: 'ر.س',
@@ -1364,9 +1354,7 @@ class _ProductCard extends StatelessWidget {
                       color: isOutOfStock
                           ? AppColors.textTertiary
                           : AppColors.success,
-                      fontFamily: 'JetBrains Mono',
-                      fontWeight: FontWeight.w700,
-                    ),
+                    ).monoBold,
                   ),
 
                   // Stock
@@ -1457,8 +1445,7 @@ class _CartItemCard extends StatelessWidget {
                   '${item.product.salePrice.toStringAsFixed(0)} ر.س',
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondary,
-                    fontFamily: 'JetBrains Mono',
-                  ),
+                  ).mono,
                 ),
               ],
             ),
@@ -1482,10 +1469,7 @@ class _CartItemCard extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Text(
                     '${item.quantity}',
-                    style: AppTypography.titleSmall.copyWith(
-                      fontFamily: 'JetBrains Mono',
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppTypography.titleSmall.monoSemibold,
                   ),
                 ),
                 _QuantityButton(
@@ -1503,10 +1487,8 @@ class _CartItemCard extends StatelessWidget {
             child: Text(
               item.total.toStringAsFixed(0),
               style: AppTypography.titleSmall.copyWith(
-                fontFamily: 'JetBrains Mono',
-                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
-              ),
+              ).monoBold,
               textAlign: TextAlign.end,
             ),
           ),
@@ -1658,9 +1640,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                       '${widget.total.toStringAsFixed(2)} ر.س',
                       style: AppTypography.headlineMedium.copyWith(
                         color: Colors.white,
-                        fontFamily: 'JetBrains Mono',
-                        fontWeight: FontWeight.w700,
-                      ),
+                      ).monoBold,
                     ),
                   ],
                 ),
@@ -1724,9 +1704,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                 TextField(
                   controller: _amountController,
                   keyboardType: TextInputType.number,
-                  style: AppTypography.titleLarge.copyWith(
-                    fontFamily: 'JetBrains Mono',
-                  ),
+                  style: AppTypography.titleLarge.mono,
                   decoration: InputDecoration(
                     labelText: 'المبلغ المدفوع',
                     suffixText: 'ر.س',
@@ -1762,9 +1740,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                           '${_change.toStringAsFixed(2)} ر.س',
                           style: AppTypography.titleMedium.copyWith(
                             color: AppColors.success,
-                            fontFamily: 'JetBrains Mono',
-                            fontWeight: FontWeight.w700,
-                          ),
+                          ).monoBold,
                         ),
                       ],
                     ),
@@ -1780,9 +1756,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   keyboardType: TextInputType.number,
                   autofocus: true,
                   style: AppTypography.titleLarge.copyWith(
-                    fontFamily: 'JetBrains Mono',
                     color: AppColors.success,
-                  ),
+                  ).mono,
                   decoration: InputDecoration(
                     labelText: 'المبلغ المدفوع *',
                     hintText: 'أدخل المبلغ المدفوع',
@@ -1834,9 +1809,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                           color: _remainingAmount > 0
                               ? AppColors.warning
                               : AppColors.success,
-                          fontFamily: 'JetBrains Mono',
-                          fontWeight: FontWeight.w700,
-                        ),
+                        ).monoBold,
                       ),
                     ],
                   ),

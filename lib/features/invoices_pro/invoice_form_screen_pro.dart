@@ -523,8 +523,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                       '${_items.length}',
                       style: AppTypography.labelSmall.copyWith(
                         color: AppColors.secondary,
-                        fontFamily: 'JetBrains Mono',
-                      ),
+                      ).mono,
                     ),
                   ),
                 ],
@@ -631,8 +630,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                       '${item['price'].toStringAsFixed(0)} ر.س × ${item['quantity']}',
                       style: AppTypography.bodySmall.copyWith(
                         color: AppColors.textSecondary,
-                        fontFamily: 'JetBrains Mono',
-                      ),
+                      ).mono,
                     ),
                     if (item['discount'] > 0)
                       Text(
@@ -651,9 +649,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                     '${total.toStringAsFixed(0)} ر.س',
                     style: AppTypography.titleSmall.copyWith(
                       color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'JetBrains Mono',
-                    ),
+                    ).monoSemibold,
                   ),
                   SizedBox(height: AppSpacing.sm),
                   Row(
@@ -671,9 +667,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                         alignment: Alignment.center,
                         child: Text(
                           '${item['quantity']}',
-                          style: AppTypography.titleSmall.copyWith(
-                            fontFamily: 'JetBrains Mono',
-                          ),
+                          style: AppTypography.titleSmall.mono,
                         ),
                       ),
                       _buildQuantityButton(
@@ -752,9 +746,8 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.left,
                   style: AppTypography.bodyMedium.copyWith(
-                    fontFamily: 'JetBrains Mono',
                     color: AppColors.error,
-                  ),
+                  ).mono,
                   decoration: InputDecoration(
                     hintText: '0',
                     suffixText: 'ر.س',
@@ -794,9 +787,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                 style: AppTypography.headlineSmall.copyWith(
                   color:
                       widget.isSales ? AppColors.success : AppColors.secondary,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'JetBrains Mono',
-                ),
+                ).monoBold,
               ),
             ],
           ),
@@ -855,9 +846,8 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.left,
                   style: AppTypography.bodyMedium.copyWith(
-                    fontFamily: 'JetBrains Mono',
                     color: AppColors.success,
-                  ),
+                  ).mono,
                   decoration: InputDecoration(
                     hintText: '0',
                     suffixText: 'ر.س',
@@ -913,9 +903,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                     color: _remainingAmount > 0
                         ? AppColors.warning
                         : AppColors.success,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'JetBrains Mono',
-                  ),
+                  ).monoBold,
                 ),
               ],
             ),
@@ -964,8 +952,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
           '${amount.toStringAsFixed(2)} ر.س',
           style: AppTypography.bodyMedium.copyWith(
             color: AppColors.textPrimary,
-            fontFamily: 'JetBrains Mono',
-          ),
+          ).mono,
         ),
       ],
     );

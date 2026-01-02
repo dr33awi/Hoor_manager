@@ -220,10 +220,7 @@ class _PurchasesScreenProState extends ConsumerState<PurchasesScreenPro>
               children: [
                 Text(
                   value,
-                  style: AppTypography.titleMedium.copyWith(
-                    fontFamily: 'JetBrains Mono',
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTypography.titleMedium.monoBold,
                 ),
                 if (suffix.isNotEmpty)
                   Text(
@@ -360,9 +357,7 @@ class _PurchaseOrderCard extends StatelessWidget {
                   children: [
                     Text(
                       invoice.invoiceNumber,
-                      style: AppTypography.titleSmall.copyWith(
-                        fontFamily: 'JetBrains Mono',
-                      ),
+                      style: AppTypography.titleSmall.mono,
                     ),
                     FutureBuilder<String>(
                       future: supplierNameFuture,
@@ -400,10 +395,8 @@ class _PurchaseOrderCard extends StatelessWidget {
               Text(
                 '${invoice.total.toStringAsFixed(2)} ر.س',
                 style: AppTypography.titleMedium.copyWith(
-                  fontFamily: 'JetBrains Mono',
-                  fontWeight: FontWeight.bold,
                   color: AppColors.primary,
-                ),
+                ).monoBold,
               ),
             ],
           ),

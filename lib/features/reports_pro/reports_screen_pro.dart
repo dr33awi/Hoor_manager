@@ -250,9 +250,7 @@ class ReportsScreenPro extends ConsumerWidget {
           value,
           style: AppTypography.titleLarge.copyWith(
             color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontFamily: 'JetBrains Mono',
-          ),
+          ).monoBold,
         ),
         SizedBox(height: AppSpacing.xs),
         Container(
@@ -275,8 +273,7 @@ class ReportsScreenPro extends ConsumerWidget {
                 trend,
                 style: AppTypography.labelSmall.copyWith(
                   color: Colors.white,
-                  fontFamily: 'JetBrains Mono',
-                ),
+                ).mono,
               ),
             ],
           ),

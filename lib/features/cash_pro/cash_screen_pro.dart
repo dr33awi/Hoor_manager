@@ -241,9 +241,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
             '${currentBalance.toStringAsFixed(2)} ر.س',
             style: AppTypography.displaySmall.copyWith(
               color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'JetBrains Mono',
-            ),
+            ).monoBold,
           ),
           SizedBox(height: AppSpacing.lg),
           Row(
@@ -313,9 +311,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
           value.toStringAsFixed(0),
           style: AppTypography.titleSmall.copyWith(
             color: Colors.white,
-            fontFamily: 'JetBrains Mono',
-            fontWeight: FontWeight.bold,
-          ),
+          ).monoBold,
         ),
       ],
     );
@@ -599,9 +595,7 @@ class _MovementCard extends StatelessWidget {
             '${isIncome ? '+' : '-'}${movement.amount.toStringAsFixed(0)}',
             style: AppTypography.titleMedium.copyWith(
               color: isIncome ? AppColors.success : AppColors.error,
-              fontFamily: 'JetBrains Mono',
-              fontWeight: FontWeight.bold,
-            ),
+            ).monoBold,
           ),
         ],
       ),

@@ -110,9 +110,7 @@ class ProductCardPro extends StatelessWidget {
                               (product['price'] as double).toStringAsFixed(0),
                               style: AppTypography.labelMedium.copyWith(
                                 color: AppColors.secondary,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'JetBrains Mono',
-                              ),
+                              ).monoBold,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -214,8 +212,7 @@ class ProductCardPro extends StatelessWidget {
                             product['sku'],
                             style: AppTypography.labelSmall.copyWith(
                               color: AppColors.textTertiary,
-                              fontFamily: 'JetBrains Mono',
-                            ),
+                            ).mono,
                           ),
                           Text(
                             ' • ',
@@ -240,9 +237,7 @@ class ProductCardPro extends StatelessWidget {
                           '${(product['price'] as double).toStringAsFixed(0)} ل.س',
                           style: AppTypography.labelMedium.copyWith(
                             color: AppColors.secondary,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'JetBrains Mono',
-                          ),
+                          ).monoBold,
                         ),
                         SizedBox(width: AppSpacing.sm),
                         Text(
@@ -309,10 +304,8 @@ class ProductCardPro extends StatelessWidget {
         text,
         style: AppTypography.labelSmall.copyWith(
           color: textColor,
-          fontWeight: FontWeight.w600,
-          fontFamily: 'JetBrains Mono',
           fontSize: 10.sp,
-        ),
+        ).monoSemibold,
       ),
     );
   }

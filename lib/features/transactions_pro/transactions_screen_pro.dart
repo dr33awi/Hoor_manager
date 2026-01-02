@@ -497,10 +497,7 @@ class _StatCard extends StatelessWidget {
           ),
           Text(
             value.toStringAsFixed(0),
-            style: AppTypography.titleSmall.copyWith(
-              fontFamily: 'JetBrains Mono',
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppTypography.titleSmall.monoBold,
           ),
         ],
       ),
@@ -545,9 +542,7 @@ class _InvoiceCard extends StatelessWidget {
                   children: [
                     Text(
                       invoice.invoiceNumber,
-                      style: AppTypography.titleSmall.copyWith(
-                        fontFamily: 'JetBrains Mono',
-                      ),
+                      style: AppTypography.titleSmall.mono,
                     ),
                     FutureBuilder<String>(
                       future: partyNameFuture,
@@ -603,10 +598,8 @@ class _InvoiceCard extends StatelessWidget {
               Text(
                 '${invoice.total.toStringAsFixed(2)} ر.س',
                 style: AppTypography.titleMedium.copyWith(
-                  fontFamily: 'JetBrains Mono',
-                  fontWeight: FontWeight.bold,
                   color: type.color,
-                ),
+                ).monoBold,
               ),
             ],
           ),

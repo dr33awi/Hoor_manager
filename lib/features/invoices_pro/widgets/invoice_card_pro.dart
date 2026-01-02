@@ -98,9 +98,8 @@ class InvoiceCardPro extends StatelessWidget {
                               invoice['id'],
                               style: AppTypography.bodySmall.copyWith(
                                 color: AppColors.secondary,
-                                fontFamily: 'JetBrains Mono',
                                 fontWeight: FontWeight.w500,
-                              ),
+                              ).mono,
                             ),
                             SizedBox(width: AppSpacing.sm),
                             Text(
@@ -153,8 +152,7 @@ class InvoiceCardPro extends StatelessWidget {
                           'متبقي: ${remaining.toStringAsFixed(0)} ر.س',
                           style: AppTypography.labelSmall.copyWith(
                             color: AppColors.warning,
-                            fontFamily: 'JetBrains Mono',
-                          ),
+                          ).mono,
                         ),
                       ],
                     ),
@@ -224,9 +222,7 @@ class InvoiceCardPro extends StatelessWidget {
                       style: AppTypography.titleMedium.copyWith(
                         color:
                             isSales ? AppColors.success : AppColors.secondary,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'JetBrains Mono',
-                      ),
+                      ).monoBold,
                     ),
                   ],
                 ),
