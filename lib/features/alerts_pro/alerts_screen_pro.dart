@@ -131,8 +131,7 @@ class _AlertsScreenProState extends ConsumerState<AlertsScreenPro> {
                   '$unreadCount',
                   style: AppTypography.labelSmall.copyWith(
                     color: Colors.white,
-                    fontFamily: 'JetBrains Mono',
-                  ),
+                  ).mono,
                 ),
               ),
             ],

@@ -520,9 +520,7 @@ class _MovementCard extends StatelessWidget {
             '${isAdd ? '+' : '-'}${movement.quantity}',
             style: AppTypography.titleMedium.copyWith(
               color: isAdd ? AppColors.success : AppColors.error,
-              fontFamily: 'JetBrains Mono',
-              fontWeight: FontWeight.bold,
-            ),
+            ).monoBold,
           ),
         ],
       ),
@@ -569,9 +567,7 @@ class _LowStockCard extends StatelessWidget {
                 '${product.quantity}',
                 style: AppTypography.titleMedium.copyWith(
                   color: AppColors.warning,
-                  fontFamily: 'JetBrains Mono',
-                  fontWeight: FontWeight.bold,
-                ),
+                ).monoBold,
               ),
               Text(
                 'متبقي',
@@ -633,9 +629,7 @@ class _StockCard extends StatelessWidget {
               '${product.quantity}',
               style: AppTypography.labelLarge.copyWith(
                 color: isLow ? AppColors.warning : AppColors.success,
-                fontFamily: 'JetBrains Mono',
-                fontWeight: FontWeight.bold,
-              ),
+              ).monoBold,
             ),
           ),
         ],

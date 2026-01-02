@@ -123,9 +123,7 @@ class _CategoriesScreenProState extends ConsumerState<CategoriesScreenPro> {
                         '${categories.length}',
                         style: AppTypography.headlineMedium.copyWith(
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'JetBrains Mono',
-                        ),
+                        ).monoBold,
                       ),
                     ],
                   ),

@@ -743,3 +743,26 @@ class AppColorUtils {
   static Color get whiteOverlay => Colors.white.overlayHeavy;
   static Color get scrim => Colors.black.o54;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPOGRAPHY EXTENSIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Extension to easily convert any text style to monospace
+/// Replaces repetitive .copyWith(fontFamily: 'JetBrains Mono') calls
+extension MonoTypography on TextStyle {
+  /// Convert this style to use JetBrains Mono for numbers/codes
+  TextStyle get mono => copyWith(fontFamily: 'JetBrains Mono');
+  
+  /// Convert with bold weight for emphasis
+  TextStyle get monoBold => copyWith(
+    fontFamily: 'JetBrains Mono',
+    fontWeight: FontWeight.bold,
+  );
+  
+  /// Convert with semi-bold weight
+  TextStyle get monoSemibold => copyWith(
+    fontFamily: 'JetBrains Mono',
+    fontWeight: FontWeight.w600,
+  );
+}

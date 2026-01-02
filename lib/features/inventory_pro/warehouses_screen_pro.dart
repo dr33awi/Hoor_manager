@@ -529,8 +529,7 @@ class _WarehouseCard extends StatelessWidget {
                         warehouse.code!,
                         style: AppTypography.bodySmall.copyWith(
                           color: AppColors.textTertiary,
-                          fontFamily: 'JetBrains Mono',
-                        ),
+                        ).mono,
                       ),
                   ],
                 ),
