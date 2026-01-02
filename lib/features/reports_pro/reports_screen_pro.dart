@@ -907,14 +907,9 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ProCard(
       padding: EdgeInsets.all(isLarge ? AppSpacing.lg : AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: AppShadows.sm,
-      ),
+      borderColor: color.withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -923,7 +918,7 @@ class _SummaryCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(icon, color: color, size: isLarge ? 24.sp : 20.sp),
@@ -963,14 +958,8 @@ class _InvoiceListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final format = DateFormat('yyyy/MM/dd', 'ar');
 
-    return Container(
+    return ProCard.flat(
       margin: EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Row(
         children: [
           Expanded(

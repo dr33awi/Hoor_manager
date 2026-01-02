@@ -989,44 +989,34 @@ class _QuickAddOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.md.w,
-            vertical: AppSpacing.lg.h,
+    return ProCard(
+      backgroundColor: color.withValues(alpha: 0.1),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(AppSpacing.sm.w),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(icon, color: color, size: AppIconSize.md),
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(AppSpacing.sm.w),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(icon, color: color, size: AppIconSize.md),
+          SizedBox(width: AppSpacing.sm.w),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.labelMedium.copyWith(
+                color: AppColors.textPrimary,
               ),
-              SizedBox(width: AppSpacing.sm.w),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTypography.labelMedium.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: AppColors.textTertiary,
-                size: AppIconSize.xs,
-              ),
-            ],
+            ),
           ),
-        ),
+          Icon(
+            Icons.arrow_forward_ios_rounded,
+            color: AppColors.textTertiary,
+            size: AppIconSize.xs,
+          ),
+        ],
       ),
     );
   }

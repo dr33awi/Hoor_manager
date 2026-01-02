@@ -220,13 +220,7 @@ class _BackupScreenProState extends ConsumerState<BackupScreenPro> {
   }
 
   Widget _buildInfoSection() {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: AppShadows.sm,
-      ),
+    return ProCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -463,52 +457,43 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return ProCard(
       onTap: isLoading ? null : onTap,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Container(
-        padding: EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: AppShadows.sm,
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: isLoading
-                  ? SizedBox(
-                      width: 24.w,
-                      height: 24.h,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(color),
-                      ),
-                    )
-                  : Icon(icon, color: color, size: 28.sp),
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            SizedBox(height: AppSpacing.sm),
-            Text(
-              title,
-              style: AppTypography.titleSmall.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            child: isLoading
+                ? SizedBox(
+                    width: 24.w,
+                    height: 24.h,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(color),
+                    ),
+                  )
+                : Icon(icon, color: color, size: 28.sp),
+          ),
+          SizedBox(height: AppSpacing.sm),
+          Text(
+            title,
+            style: AppTypography.titleSmall.copyWith(
+              fontWeight: FontWeight.w600,
             ),
-            SizedBox(height: AppSpacing.xxs),
-            Text(
-              subtitle,
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.textTertiary,
-              ),
-              textAlign: TextAlign.center,
+          ),
+          SizedBox(height: AppSpacing.xxs),
+          Text(
+            subtitle,
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.textTertiary,
             ),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

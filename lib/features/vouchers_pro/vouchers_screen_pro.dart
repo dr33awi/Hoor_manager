@@ -363,91 +363,83 @@ class _VoucherCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('yyyy/MM/dd', 'ar');
 
-    return Card(
+    return ProCard(
       margin: EdgeInsets.only(bottom: AppSpacing.sm),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: AppColors.border),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            Container(
-              width: 48.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: _typeColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Icon(_typeIcon, color: _typeColor, size: AppIconSize.md),
+      child: Row(
+        children: [
+          Container(
+            width: 48.w,
+            height: 48.h,
+            decoration: BoxDecoration(
+              color: _typeColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        '#${voucher.voucherNumber}',
-                        style: AppTypography.titleSmall.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'JetBrains Mono',
-                        ),
-                      ),
-                      SizedBox(width: AppSpacing.sm),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs + 2,
-                          vertical: 2.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _typeColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Text(
-                          _typeLabel,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: _typeColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (voucher.description != null) ...[
-                    SizedBox(height: 4.h),
+            child: Icon(_typeIcon, color: _typeColor, size: AppIconSize.md),
+          ),
+          SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
                     Text(
-                      voucher.description!,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
+                      '#${voucher.voucherNumber}',
+                      style: AppTypography.titleSmall.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'JetBrains Mono',
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(width: AppSpacing.sm),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs + 2,
+                        vertical: 2.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _typeColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        _typeLabel,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: _typeColor,
+                        ),
+                      ),
                     ),
                   ],
+                ),
+                if (voucher.description != null) ...[
                   SizedBox(height: 4.h),
                   Text(
-                    dateFormat.format(voucher.voucherDate),
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.textTertiary,
+                    voucher.description!,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
-              ),
+                SizedBox(height: 4.h),
+                Text(
+                  dateFormat.format(voucher.voucherDate),
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              '${voucher.amount.toStringAsFixed(0)} ر.س',
-              style: AppTypography.titleMedium.copyWith(
-                color: _typeColor,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'JetBrains Mono',
-              ),
+          ),
+          Text(
+            '${voucher.amount.toStringAsFixed(0)} ر.س',
+            style: AppTypography.titleMedium.copyWith(
+              color: _typeColor,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'JetBrains Mono',
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

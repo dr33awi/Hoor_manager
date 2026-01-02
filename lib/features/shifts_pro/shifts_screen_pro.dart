@@ -299,13 +299,9 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
+    return ProCard(
+      backgroundColor: color.withValues(alpha: 0.1),
+      borderColor: color.withValues(alpha: 0.3),
       child: Row(
         children: [
           Icon(icon, color: color, size: AppIconSize.md),
@@ -346,81 +342,74 @@ class _ShiftCard extends StatelessWidget {
     final isOpen = shift.status == 'open';
     final statusColor = isOpen ? AppColors.success : AppColors.textSecondary;
 
-    return Card(
+    return ProCard(
       margin: EdgeInsets.only(bottom: AppSpacing.sm),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: AppColors.border),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40.w,
-                  height: 40.h,
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Icon(
-                    isOpen
-                        ? Icons.access_time_rounded
-                        : Icons.check_circle_rounded,
-                    color: statusColor,
-                    size: AppIconSize.sm,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40.w,
+                height: 40.h,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            '#${shift.shiftNumber}',
-                            style: AppTypography.titleSmall.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'JetBrains Mono',
-                            ),
+                child: Icon(
+                  isOpen
+                      ? Icons.access_time_rounded
+                      : Icons.check_circle_rounded,
+                  color: statusColor,
+                  size: AppIconSize.sm,
+                ),
+              ),
+              SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '#${shift.shiftNumber}',
+                          style: AppTypography.titleSmall.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'JetBrains Mono',
                           ),
-                          SizedBox(width: AppSpacing.sm),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xs + 2,
-                              vertical: 2.h,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                            ),
-                            child: Text(
-                              isOpen ? 'مفتوحة' : 'مغلقة',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: statusColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        dateFormat.format(shift.openedAt),
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
                         ),
+                        SizedBox(width: AppSpacing.sm),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xs + 2,
+                            vertical: 2.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Text(
+                            isOpen ? 'مفتوحة' : 'مغلقة',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      dateFormat.format(shift.openedAt),
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            SizedBox(height: AppSpacing.md),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
@@ -454,8 +443,7 @@ class _ShiftCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }
 
