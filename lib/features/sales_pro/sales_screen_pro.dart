@@ -1129,11 +1129,11 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
         return customersAsync.when(
           loading: () => SizedBox(
             height: 200.h,
-            child: const Center(child: CircularProgressIndicator()),
+            child: ProLoadingState.list(itemCount: 3),
           ),
           error: (e, _) => SizedBox(
             height: 200.h,
-            child: Center(child: Text('خطأ: $e')),
+            child: ProEmptyState.error(error: e.toString()),
           ),
           data: (customers) => Container(
             constraints: BoxConstraints(maxHeight: 400.h),

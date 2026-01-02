@@ -151,7 +151,8 @@ class _InvoicesScreenProState extends ConsumerState<InvoicesScreenPro>
                   if (filtered.isEmpty) {
                     return ProEmptyState.list(
                       itemName: 'فاتورة',
-                      onAdd: () => context.push(isSales ? '/sales' : '/purchases/add'),
+                      onAdd: () =>
+                          context.push(isSales ? '/sales' : '/purchases/add'),
                     );
                   }
 

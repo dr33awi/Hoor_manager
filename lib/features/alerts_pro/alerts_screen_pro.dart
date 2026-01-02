@@ -200,7 +200,6 @@ class _AlertsScreenProState extends ConsumerState<AlertsScreenPro> {
         break;
     }
   }
-
 }
 
 class _AlertCard extends StatelessWidget {

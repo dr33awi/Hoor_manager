@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/widgets/widgets.dart';
 import '../../features/invoices_pro/widgets/invoice_success_dialog.dart';
 import '../../data/database/app_database.dart';
 
@@ -1108,9 +1109,9 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
           return customersAsync.when(
             loading: () => SizedBox(
                 height: 200.h,
-                child: Center(child: CircularProgressIndicator())),
+                child: ProLoadingState.list(itemCount: 3)),
             error: (e, _) =>
-                SizedBox(height: 200.h, child: Center(child: Text('خطأ: $e'))),
+                SizedBox(height: 200.h, child: ProEmptyState.error(error: e.toString())),
             data: (customers) => _buildSelectionList(
               title: 'اختر العميل',
               items: customers
@@ -1130,9 +1131,9 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
           return suppliersAsync.when(
             loading: () => SizedBox(
                 height: 200.h,
-                child: Center(child: CircularProgressIndicator())),
+                child: ProLoadingState.list(itemCount: 3)),
             error: (e, _) =>
-                SizedBox(height: 200.h, child: Center(child: Text('خطأ: $e'))),
+                SizedBox(height: 200.h, child: ProEmptyState.error(error: e.toString())),
             data: (suppliers) => _buildSelectionList(
               title: 'اختر المورد',
               items: suppliers
@@ -1205,9 +1206,9 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
       builder: (context) {
         return productsAsync.when(
           loading: () => SizedBox(
-              height: 200.h, child: Center(child: CircularProgressIndicator())),
+              height: 200.h, child: ProLoadingState.list(itemCount: 3)),
           error: (e, _) =>
-              SizedBox(height: 200.h, child: Center(child: Text('خطأ: $e'))),
+              SizedBox(height: 200.h, child: ProEmptyState.error(error: e.toString())),
           data: (products) => Container(
             constraints: BoxConstraints(maxHeight: 500.h),
             padding: EdgeInsets.all(AppSpacing.md),

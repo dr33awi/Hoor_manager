@@ -147,7 +147,8 @@ class _PrintSettingsScreenProState
             _buildHeader(),
             Expanded(
               child: _isLoading
-                  ? ProLoadingState.withMessage(message: 'جاري تحميل الإعدادات...')
+                  ? ProLoadingState.withMessage(
+                      message: 'جاري تحميل الإعدادات...')
                   : Form(
                       key: _formKey,
                       child: ListView(

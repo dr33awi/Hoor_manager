@@ -64,7 +64,8 @@ class _PurchasesScreenProState extends ConsumerState<PurchasesScreenPro>
             Expanded(
               child: invoicesAsync.when(
                 loading: () => ProLoadingState.list(),
-                error: (error, _) => ProEmptyState.error(error: error.toString()),
+                error: (error, _) =>
+                    ProEmptyState.error(error: error.toString()),
                 data: (invoices) => _buildOrdersList(invoices),
               ),
             ),
