@@ -16,11 +16,13 @@ import '../../data/database/app_database.dart';
 class InvoiceFormScreenPro extends ConsumerStatefulWidget {
   final String type; // 'sale' or 'purchase'
   final String? invoiceId;
+  final Map<String, dynamic>? preSelectedProduct; // المنتج المحدد مسبقاً
 
   const InvoiceFormScreenPro({
     super.key,
     required this.type,
     this.invoiceId,
+    this.preSelectedProduct,
   });
 
   bool get isEditing => invoiceId != null;
@@ -41,6 +43,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
   String _paymentMethod = 'cash';
   final _discountController = TextEditingController();
   final _notesController = TextEditingController();
+  final _paidAmountController = TextEditingController();
   bool _isSaving = false;
 
   // Items list with real products
@@ -54,13 +57,46 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
       );
 
   double get _discount => double.tryParse(_discountController.text) ?? 0;
-  double get _tax => (_subtotal - _discount) * 0.15;
-  double get _total => _subtotal - _discount + _tax;
+  double get _total => _subtotal - _discount;
+  double get _paidAmount => double.tryParse(_paidAmountController.text) ?? 0;
+  double get _remainingAmount => _total - _paidAmount;
+
+  @override
+  void initState() {
+    super.initState();
+    // إضافة المنتج المحدد مسبقاً إن وجد
+    _addPreSelectedProduct();
+  }
+
+  void _addPreSelectedProduct() {
+    if (widget.preSelectedProduct != null) {
+      final productData = widget.preSelectedProduct!['preSelectedProduct'];
+      if (productData != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {
+            _items.add({
+              'id': '1',
+              'productId': productData['id'],
+              'name': productData['name'],
+              'quantity': productData['quantity'] ?? 1,
+              'price': widget.isSales
+                  ? productData['salePrice']
+                  : productData['purchasePrice'],
+              'purchasePrice': productData['purchasePrice'],
+              'discount': 0.0,
+              'maxQuantity': productData['availableStock'] ?? 999,
+            });
+          });
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
     _discountController.dispose();
     _notesController.dispose();
+    _paidAmountController.dispose();
     super.dispose();
   }
 
@@ -119,6 +155,10 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
 
                   // Totals Section
                   _buildTotalsSection(),
+                  SizedBox(height: AppSpacing.lg),
+
+                  // Payment Section (للدفع الجزئي)
+                  _buildPaymentSection(),
                   SizedBox(height: AppSpacing.lg),
 
                   // Notes
@@ -217,7 +257,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                                 ),
                               ),
                               Text(
-                                _paymentMethod == 'credit' ? 'آجل' : 'نقدي',
+                                _getPaymentMethodLabel(_paymentMethod),
                                 style: AppTypography.bodySmall.copyWith(
                                   color: AppColors.textTertiary,
                                 ),
@@ -242,6 +282,23 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
         ],
       ),
     );
+  }
+
+  String _getPaymentMethodLabel(String method) {
+    switch (method) {
+      case 'cash':
+        return 'نقدي';
+      case 'credit':
+        return 'آجل';
+      case 'partial':
+        return 'دفع جزئي';
+      case 'card':
+        return 'بطاقة';
+      case 'transfer':
+        return 'تحويل';
+      default:
+        return method;
+    }
   }
 
   Widget _buildInvoiceDetails() {
@@ -328,8 +385,10 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
           SizedBox(height: AppSpacing.xs),
           Wrap(
             spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: [
               _buildPaymentChip('cash', 'نقدي', Icons.payments_outlined),
+              _buildPaymentChip('partial', 'جزئي', Icons.pie_chart_outline),
               _buildPaymentChip('credit', 'آجل', Icons.schedule_outlined),
               _buildPaymentChip('card', 'بطاقة', Icons.credit_card_outlined),
               _buildPaymentChip(
@@ -400,7 +459,19 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
     final isSelected = _paymentMethod == value;
     return FilterChip(
       selected: isSelected,
-      onSelected: (selected) => setState(() => _paymentMethod = value),
+      onSelected: (selected) {
+        setState(() {
+          _paymentMethod = value;
+          // إذا كان نقدي، اجعل المبلغ المدفوع = الإجمالي
+          if (value == 'cash') {
+            _paidAmountController.text = _total.toStringAsFixed(0);
+          } else if (value == 'credit') {
+            _paidAmountController.text = '0';
+          } else if (value == 'partial') {
+            _paidAmountController.clear();
+          }
+        });
+      },
       avatar: Icon(
         icon,
         size: AppIconSize.xs,
@@ -717,8 +788,6 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
               ),
             ],
           ),
-          SizedBox(height: AppSpacing.sm),
-          _buildTotalRow('الضريبة (15%)', _tax),
 
           Divider(height: AppSpacing.lg, color: AppColors.border),
 
@@ -745,6 +814,151 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPaymentSection() {
+    // إظهار قسم الدفع فقط عند اختيار الدفع الجزئي
+    if (_paymentMethod != 'partial') return const SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.success.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.payments_outlined,
+                size: AppIconSize.sm,
+                color: AppColors.success,
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Text(
+                'الدفع الجزئي',
+                style: AppTypography.titleSmall.copyWith(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.md),
+
+          // المبلغ المدفوع
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'المبلغ المدفوع',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              SizedBox(
+                width: 120.w,
+                child: TextField(
+                  controller: _paidAmountController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.left,
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontFamily: 'JetBrains Mono',
+                    color: AppColors.success,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    suffixText: 'ر.س',
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      borderSide: BorderSide(color: AppColors.success),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      borderSide:
+                          BorderSide(color: AppColors.success, width: 2),
+                    ),
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                  ],
+                  onChanged: (value) => setState(() {}),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.md),
+
+          // المبلغ المتبقي
+          Container(
+            padding: EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: _remainingAmount > 0
+                  ? AppColors.warning.withOpacity(0.1)
+                  : AppColors.success.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'المبلغ المتبقي',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: _remainingAmount > 0
+                        ? AppColors.warning
+                        : AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${_remainingAmount.toStringAsFixed(2)} ر.س',
+                  style: AppTypography.titleMedium.copyWith(
+                    color: _remainingAmount > 0
+                        ? AppColors.warning
+                        : AppColors.success,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'JetBrains Mono',
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // أزرار سريعة للمبالغ
+          SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            children: [
+              _buildQuickAmountChip((_total * 0.25).round(), '25%'),
+              _buildQuickAmountChip((_total * 0.5).round(), '50%'),
+              _buildQuickAmountChip((_total * 0.75).round(), '75%'),
+              _buildQuickAmountChip(_total.round(), 'كامل'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAmountChip(int amount, String label) {
+    return ActionChip(
+      label: Text('$label (${amount.toStringAsFixed(0)})'),
+      onPressed: () {
+        setState(() {
+          _paidAmountController.text = amount.toString();
+        });
+      },
+      backgroundColor: AppColors.background,
+      side: BorderSide(color: AppColors.border),
     );
   }
 
@@ -1086,6 +1300,19 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
               })
           .toList();
 
+      // حساب المبلغ المدفوع بناءً على طريقة الدفع
+      double paidAmount;
+      if (_paymentMethod == 'cash' ||
+          _paymentMethod == 'card' ||
+          _paymentMethod == 'transfer') {
+        paidAmount = _total;
+      } else if (_paymentMethod == 'credit') {
+        paidAmount = 0;
+      } else {
+        // partial
+        paidAmount = _paidAmount;
+      }
+
       await invoiceRepo.createInvoice(
         type: widget.type,
         customerId: widget.isSales ? _selectedCustomerId : null,
@@ -1093,7 +1320,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
         items: invoiceItems,
         discountAmount: _discount,
         paymentMethod: _paymentMethod,
-        paidAmount: _paymentMethod == 'cash' ? _total : 0,
+        paidAmount: paidAmount,
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),

@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -59,7 +60,7 @@ class ProductDetailsScreenPro extends ConsumerWidget {
                     color: AppColors.textSecondary),
               ),
             ),
-            body: Center(child: Text('المنتج غير موجود')),
+            body: const Center(child: Text('المنتج غير موجود')),
           );
         }
 
@@ -102,7 +103,7 @@ class _ProductDetailsView extends StatelessWidget {
           // App Bar
           // ═══════════════════════════════════════════════════════════════════
           SliverAppBar(
-            expandedHeight: 280.h,
+            expandedHeight: 200.h,
             pinned: true,
             backgroundColor: AppColors.surface,
             leading: IconButton(
@@ -154,7 +155,8 @@ class _ProductDetailsView extends StatelessWidget {
                   const PopupMenuItem(
                       value: 'print', child: Text('طباعة الباركود')),
                   const PopupMenuItem(
-                      value: 'history', child: Text('سجل الحركات')),
+                      value: 'generate_barcode',
+                      child: Text('توليد باركود جديد')),
                   const PopupMenuDivider(),
                   PopupMenuItem(
                     value: 'delete',
@@ -173,7 +175,7 @@ class _ProductDetailsView extends StatelessWidget {
                     : Center(
                         child: Icon(
                           Icons.inventory_2_outlined,
-                          size: 100.sp,
+                          size: 80.sp,
                           color: AppColors.textTertiary,
                         ),
                       ),
@@ -192,27 +194,23 @@ class _ProductDetailsView extends StatelessWidget {
                 children: [
                   // Product Name & Category
                   _buildHeader(),
-                  SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.md),
 
-                  // Quick Stats
+                  // Quick Stats - حجم أصغر
                   _buildQuickStats(),
-                  SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.md),
 
                   // Price Info
                   _buildPriceSection(),
-                  SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.md),
 
                   // Stock Info
                   _buildStockSection(),
-                  SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.md),
 
                   // Product Details
                   _buildDetailsSection(),
-                  SizedBox(height: AppSpacing.lg),
-
-                  // Recent Activity
-                  _buildRecentActivity(),
-                  SizedBox(height: AppSpacing.xxl),
+                  SizedBox(height: AppSpacing.xl),
                 ],
               ),
             ),
@@ -228,10 +226,8 @@ class _ProductDetailsView extends StatelessWidget {
       case 'print':
         _printBarcode(context);
         break;
-      case 'history':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('سجل الحركات - قريباً')),
-        );
+      case 'generate_barcode':
+        await _generateAndSaveBarcode(context);
         break;
       case 'delete':
         final confirm = await showDialog<bool>(
@@ -259,7 +255,7 @@ class _ProductDetailsView extends StatelessWidget {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                    content: Text('تم حذف المنتج بنجاح'),
+                    content: const Text('تم حذف المنتج بنجاح'),
                     backgroundColor: AppColors.success),
               );
               context.pop();
@@ -277,22 +273,102 @@ class _ProductDetailsView extends StatelessWidget {
     }
   }
 
+  /// توليد باركود EAN-13 تلقائي
+  String _generateEAN13Barcode() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final prefix = '200'; // Custom prefix for internal products
+    final uniquePart = timestamp.substring(timestamp.length - 9);
+    final barcodeWithoutCheck = '$prefix$uniquePart';
+
+    // Calculate check digit for EAN-13
+    int sum = 0;
+    for (int i = 0; i < 12; i++) {
+      int digit = int.parse(barcodeWithoutCheck[i]);
+      sum += (i % 2 == 0) ? digit : digit * 3;
+    }
+    int checkDigit = (10 - (sum % 10)) % 10;
+
+    return '$barcodeWithoutCheck$checkDigit';
+  }
+
+  /// توليد باركود جديد وحفظه
+  Future<void> _generateAndSaveBarcode(BuildContext context) async {
+    final newBarcode = _generateEAN13Barcode();
+
+    try {
+      final productRepo = ref.read(productRepositoryProvider);
+      await productRepo.updateProduct(
+        id: product.id,
+        barcode: newBarcode,
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم توليد الباركود: $newBarcode'),
+            backgroundColor: AppColors.success,
+            action: SnackBarAction(
+              label: 'نسخ',
+              textColor: Colors.white,
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: newBarcode));
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في حفظ الباركود: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// طباعة الباركود فقط (بدون اسم المنتج والسعر)
   void _printBarcode(BuildContext context) async {
-    final barcodeValue = product.barcode ?? product.id;
+    final barcodeValue = product.barcode;
+
+    if (barcodeValue == null || barcodeValue.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              const Text('لا يوجد باركود لهذا المنتج. قم بتوليد باركود أولاً.'),
+          backgroundColor: AppColors.warning,
+          action: SnackBarAction(
+            label: 'توليد',
+            textColor: Colors.white,
+            onPressed: () => _generateAndSaveBarcode(context),
+          ),
+        ),
+      );
+      return;
+    }
 
     final pdf = pw.Document();
 
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.roll57,
+        margin: const pw.EdgeInsets.all(5),
         build: (pw.Context ctx) {
           return pw.Center(
-            child: pw.BarcodeWidget(
-              barcode: pw.Barcode.code128(),
-              data: barcodeValue,
-              width: 150,
-              height: 50,
-              drawText: false,
+            child: pw.Column(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                pw.BarcodeWidget(
+                  barcode: pw.Barcode.ean13(),
+                  data: barcodeValue,
+                  width: 150,
+                  height: 50,
+                  drawText: true,
+                  textStyle: pw.TextStyle(fontSize: 10),
+                ),
+              ],
             ),
           );
         },
@@ -301,7 +377,7 @@ class _ProductDetailsView extends StatelessWidget {
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'barcode_${product.name}',
+      name: 'barcode_${product.barcode ?? product.id}',
     );
   }
 
@@ -389,6 +465,19 @@ class _ProductDetailsView extends StatelessWidget {
                   return;
                 }
 
+                // التحقق من عدم السحب أكثر من المتوفر
+                if (adjustmentType == 'subtract' &&
+                    quantity > product.quantity) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'لا يمكن سحب أكثر من الكمية المتوفرة (${product.quantity})'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                  return;
+                }
+
                 try {
                   final adjustment =
                       adjustmentType == 'add' ? quantity : -quantity;
@@ -400,7 +489,11 @@ class _ProductDetailsView extends StatelessWidget {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('تم تعديل المخزون بنجاح'),
+                        content: Text(
+                          adjustmentType == 'add'
+                              ? 'تم إضافة $quantity وحدة'
+                              : 'تم سحب $quantity وحدة',
+                        ),
                         backgroundColor: AppColors.success,
                       ),
                     );
@@ -425,8 +518,18 @@ class _ProductDetailsView extends StatelessWidget {
   }
 
   void _addToSale(BuildContext context) {
-    // Navigate to sales screen with product pre-selected
-    context.push('/sales', extra: {'productId': product.id});
+    // Navigate to sales invoice screen with product pre-selected
+    context.push('/sales/add', extra: {
+      'preSelectedProduct': {
+        'id': product.id,
+        'name': product.name,
+        'barcode': product.barcode,
+        'salePrice': product.salePrice,
+        'purchasePrice': product.purchasePrice,
+        'quantity': 1, // الكمية الافتراضية
+        'availableStock': product.quantity,
+      },
+    });
   }
 
   Widget _buildHeader() {
@@ -477,7 +580,7 @@ class _ProductDetailsView extends StatelessWidget {
         SizedBox(height: AppSpacing.sm),
         Text(
           product.name,
-          style: AppTypography.headlineMedium.copyWith(
+          style: AppTypography.headlineSmall.copyWith(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
@@ -485,7 +588,7 @@ class _ProductDetailsView extends StatelessWidget {
         SizedBox(height: AppSpacing.xs),
         Row(
           children: [
-            if (product.sku != null) ...[
+            if (product.sku != null && product.sku!.isNotEmpty) ...[
               Icon(
                 Icons.qr_code_rounded,
                 size: AppIconSize.xs,
@@ -494,13 +597,13 @@ class _ProductDetailsView extends StatelessWidget {
               SizedBox(width: AppSpacing.xs),
               Text(
                 product.sku!,
-                style: AppTypography.bodyMedium.copyWith(
+                style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondary,
                   fontFamily: 'JetBrains Mono',
                 ),
               ),
             ],
-            if (product.barcode != null) ...[
+            if (product.barcode != null && product.barcode!.isNotEmpty) ...[
               SizedBox(width: AppSpacing.md),
               Icon(
                 Icons.view_week_rounded,
@@ -508,11 +611,14 @@ class _ProductDetailsView extends StatelessWidget {
                 color: AppColors.textTertiary,
               ),
               SizedBox(width: AppSpacing.xs),
-              Text(
-                product.barcode!,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                  fontFamily: 'JetBrains Mono',
+              Flexible(
+                child: Text(
+                  product.barcode!,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                    fontFamily: 'JetBrains Mono',
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -527,13 +633,13 @@ class _ProductDetailsView extends StatelessWidget {
       children: [
         Expanded(
           child: _StatCard(
-            icon: Icons.shopping_cart_outlined,
+            icon: Icons.attach_money_rounded,
             label: 'سعر البيع',
             value: '${product.salePrice.toStringAsFixed(0)}',
             color: AppColors.secondary,
           ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        SizedBox(width: AppSpacing.xs),
         Expanded(
           child: _StatCard(
             icon: Icons.inventory_2_outlined,
@@ -544,7 +650,7 @@ class _ProductDetailsView extends StatelessWidget {
                 : AppColors.warning,
           ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        SizedBox(width: AppSpacing.xs),
         Expanded(
           child: _StatCard(
             icon: Icons.trending_up_rounded,
@@ -565,27 +671,27 @@ class _ProductDetailsView extends StatelessWidget {
         children: [
           _buildInfoRow(
             'سعر البيع',
-            '${product.salePrice.toStringAsFixed(0)} ر.س',
-            valueStyle: AppTypography.titleLarge.copyWith(
+            '${product.salePrice.toStringAsFixed(0)} ل.س',
+            valueStyle: AppTypography.titleMedium.copyWith(
               color: AppColors.secondary,
               fontWeight: FontWeight.w700,
               fontFamily: 'JetBrains Mono',
             ),
           ),
-          Divider(height: AppSpacing.lg, color: AppColors.border),
+          Divider(height: AppSpacing.md, color: AppColors.border),
           _buildInfoRow(
             'سعر التكلفة',
-            '${product.purchasePrice.toStringAsFixed(0)} ر.س',
-            valueStyle: AppTypography.bodyLarge.copyWith(
+            '${product.purchasePrice.toStringAsFixed(0)} ل.س',
+            valueStyle: AppTypography.bodyMedium.copyWith(
               color: AppColors.textSecondary,
               fontFamily: 'JetBrains Mono',
             ),
           ),
-          SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.xs),
           _buildInfoRow(
             'الربح لكل وحدة',
-            '${profit.toStringAsFixed(0)} ر.س (${margin.toStringAsFixed(1)}%)',
-            valueStyle: AppTypography.bodyLarge.copyWith(
+            '${profit.toStringAsFixed(0)} ل.س (${margin.toStringAsFixed(1)}%)',
+            valueStyle: AppTypography.bodyMedium.copyWith(
               color: AppColors.success,
               fontWeight: FontWeight.w600,
               fontFamily: 'JetBrains Mono',
@@ -603,39 +709,50 @@ class _ProductDetailsView extends StatelessWidget {
       child: Column(
         children: [
           _buildInfoRow('الكمية المتوفرة', '${product.quantity} وحدة'),
-          SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.xs),
           _buildInfoRow('حد التنبيه', '${product.minQuantity} وحدة'),
-          SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.sm),
 
           // Stock Status
           Container(
-            padding: EdgeInsets.all(AppSpacing.md),
+            padding: EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: product.quantity > product.minQuantity
                   ? AppColors.success.withOpacity(0.1)
-                  : AppColors.warning.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(AppRadius.md),
+                  : product.quantity > 0
+                      ? AppColors.warning.withOpacity(0.1)
+                      : AppColors.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Row(
               children: [
                 Icon(
                   product.quantity > product.minQuantity
                       ? Icons.check_circle_outline
-                      : Icons.warning_amber_rounded,
+                      : product.quantity > 0
+                          ? Icons.warning_amber_rounded
+                          : Icons.error_outline,
                   color: product.quantity > product.minQuantity
                       ? AppColors.success
-                      : AppColors.warning,
+                      : product.quantity > 0
+                          ? AppColors.warning
+                          : AppColors.error,
+                  size: AppIconSize.sm,
                 ),
                 SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     product.quantity > product.minQuantity
                         ? 'المخزون كافي'
-                        : 'المخزون منخفض - يُنصح بإعادة الطلب',
-                    style: AppTypography.bodyMedium.copyWith(
+                        : product.quantity > 0
+                            ? 'المخزون منخفض - يُنصح بإعادة الطلب'
+                            : 'نفد المخزون',
+                    style: AppTypography.bodySmall.copyWith(
                       color: product.quantity > product.minQuantity
                           ? AppColors.success
-                          : AppColors.warning,
+                          : product.quantity > 0
+                              ? AppColors.warning
+                              : AppColors.error,
                     ),
                   ),
                 ),
@@ -660,59 +777,17 @@ class _ProductDetailsView extends StatelessWidget {
               product.description!.isNotEmpty) ...[
             Text(
               product.description!,
-              style: AppTypography.bodyMedium.copyWith(
+              style: AppTypography.bodySmall.copyWith(
                 color: AppColors.textSecondary,
               ),
             ),
-            SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.sm),
             Divider(color: AppColors.border),
-            SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.sm),
           ],
-          _buildInfoRow(
-            'خاضع للضريبة',
-            product.taxRate != null && product.taxRate! > 0 ? 'نعم' : 'لا',
-          ),
-          SizedBox(height: AppSpacing.sm),
           _buildInfoRow('تاريخ الإضافة', dateFormat.format(product.createdAt)),
-          SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.xs),
           _buildInfoRow('آخر تحديث', dateFormat.format(product.updatedAt)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentActivity() {
-    return _buildCard(
-      title: 'آخر الحركات',
-      icon: Icons.history_rounded,
-      trailing: TextButton(
-        onPressed: () {},
-        child: Text(
-          'عرض الكل',
-          style: AppTypography.labelMedium.copyWith(
-            color: AppColors.secondary,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          _ActivityItem(
-            type: 'sale',
-            description: 'بيع 2 وحدات',
-            date: 'اليوم 10:30 ص',
-          ),
-          Divider(height: AppSpacing.lg, color: AppColors.border),
-          _ActivityItem(
-            type: 'purchase',
-            description: 'إضافة 10 وحدات',
-            date: 'أمس 3:15 م',
-          ),
-          Divider(height: AppSpacing.lg, color: AppColors.border),
-          _ActivityItem(
-            type: 'adjustment',
-            description: 'تعديل الكمية (-1)',
-            date: '20 يونيو 2024',
-          ),
         ],
       ),
     );
@@ -725,10 +800,10 @@ class _ProductDetailsView extends StatelessWidget {
     required Widget child,
   }) {
     return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -740,7 +815,7 @@ class _ProductDetailsView extends StatelessWidget {
               SizedBox(width: AppSpacing.sm),
               Text(
                 title,
-                style: AppTypography.titleSmall.copyWith(
+                style: AppTypography.labelMedium.copyWith(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -749,7 +824,7 @@ class _ProductDetailsView extends StatelessWidget {
               if (trailing != null) trailing,
             ],
           ),
-          SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.sm),
           child,
         ],
       ),
@@ -762,14 +837,14 @@ class _ProductDetailsView extends StatelessWidget {
       children: [
         Text(
           label,
-          style: AppTypography.bodyMedium.copyWith(
+          style: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondary,
           ),
         ),
         Text(
           value,
           style: valueStyle ??
-              AppTypography.bodyMedium.copyWith(
+              AppTypography.bodySmall.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w500,
               ),
@@ -794,7 +869,7 @@ class _ProductDetailsView extends StatelessWidget {
                 icon: const Icon(Icons.inventory_rounded),
                 label: const Text('تعديل المخزون'),
                 style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
                 ),
               ),
             ),
@@ -806,7 +881,7 @@ class _ProductDetailsView extends StatelessWidget {
                 label: const Text('إضافة للبيع'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.secondary,
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
                 ),
               ),
             ),
@@ -833,7 +908,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(AppSpacing.sm),
+      padding: EdgeInsets.all(AppSpacing.xs),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -841,11 +916,11 @@ class _StatCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, size: AppIconSize.sm, color: color),
+          Icon(icon, size: AppIconSize.xs, color: color),
           SizedBox(height: 2.h),
           Text(
             value,
-            style: AppTypography.titleMedium.copyWith(
+            style: AppTypography.labelLarge.copyWith(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w700,
               fontFamily: 'JetBrains Mono',
@@ -855,75 +930,11 @@ class _StatCard extends StatelessWidget {
             label,
             style: AppTypography.labelSmall.copyWith(
               color: AppColors.textTertiary,
+              fontSize: 9.sp,
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ActivityItem extends StatelessWidget {
-  final String type;
-  final String description;
-  final String date;
-
-  const _ActivityItem({
-    required this.type,
-    required this.description,
-    required this.date,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    IconData icon;
-    Color color;
-
-    switch (type) {
-      case 'sale':
-        icon = Icons.arrow_upward_rounded;
-        color = AppColors.success;
-        break;
-      case 'purchase':
-        icon = Icons.arrow_downward_rounded;
-        color = AppColors.secondary;
-        break;
-      default:
-        icon = Icons.edit_rounded;
-        color = AppColors.warning;
-    }
-
-    return Row(
-      children: [
-        Container(
-          padding: EdgeInsets.all(AppSpacing.xs),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Icon(icon, size: AppIconSize.sm, color: color),
-        ),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                description,
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Text(
-                date,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

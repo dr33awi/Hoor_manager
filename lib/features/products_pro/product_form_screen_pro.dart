@@ -1,27 +1,28 @@
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // Product Form Screen Pro
-// Add/Edit Product Form with Professional Design
-// ═══════════════════════════════════════════════════════════════════════════
+// Add/Edit product with auto barcode generation and printing
+// ═══════════════════════════════════════════════════════════════════════════════
 
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:go_router/go_router.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../core/theme/pro/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 
 class ProductFormScreenPro extends ConsumerStatefulWidget {
-  final String? productId;
+  final String? productId; // null for new product
 
   const ProductFormScreenPro({
     super.key,
     this.productId,
   });
-
-  bool get isEditing => productId != null;
 
   @override
   ConsumerState<ProductFormScreenPro> createState() =>
@@ -30,424 +31,496 @@ class ProductFormScreenPro extends ConsumerStatefulWidget {
 
 class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
   final _formKey = GlobalKey<FormState>();
+
+  // Controllers
   final _nameController = TextEditingController();
-  final _skuController = TextEditingController();
   final _barcodeController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _costController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _costPriceController = TextEditingController();
+  final _salePriceController = TextEditingController();
   final _stockController = TextEditingController();
   final _minStockController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final _skuController = TextEditingController();
 
   String? _selectedCategoryId;
-  String _selectedUnit = 'قطعة';
-  bool _isActive = true;
-  bool _isTaxable = true;
-  bool _hasExpiry = false;
   bool _isLoading = false;
-  bool _isSaving = false;
+  bool _isLoadingProduct = false;
+  bool _isPrintingBarcode = false;
   Product? _existingProduct;
 
-  final List<String> _units = [
-    'قطعة',
-    'كيلو',
-    'متر',
-    'لتر',
-    'علبة',
-    'كرتون',
-  ];
+  bool get isEditing => widget.productId != null;
 
   @override
   void initState() {
     super.initState();
-    if (widget.isEditing) {
-      _loadProductData();
+    // تعيين القيمة الافتراضية للحد الأدنى
+    _minStockController.text = '0';
+
+    if (isEditing) {
+      _loadProduct();
     }
-  }
-
-  Future<void> _loadProductData() async {
-    if (widget.productId == null) return;
-
-    setState(() => _isLoading = true);
-    try {
-      final productRepo = ref.read(productRepositoryProvider);
-      final product = await productRepo.getProductById(widget.productId!);
-
-      if (product != null && mounted) {
-        setState(() {
-          _existingProduct = product;
-          _nameController.text = product.name;
-          _skuController.text = product.sku ?? '';
-          _barcodeController.text = product.barcode ?? '';
-          _priceController.text = product.salePrice.toStringAsFixed(0);
-          _costController.text = product.purchasePrice.toStringAsFixed(0);
-          _stockController.text = product.quantity.toString();
-          _minStockController.text = product.minQuantity.toString();
-          _descriptionController.text = product.description ?? '';
-          _selectedCategoryId = product.categoryId;
-          _isActive = product.isActive;
-          _isTaxable = product.taxRate != null && product.taxRate! > 0;
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _generateBarcode() {
-    // Generate EAN-13 compatible barcode
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-    final prefix = '200'; // Custom prefix for internal products
-    final uniquePart = timestamp.substring(timestamp.length - 9);
-    final barcodeWithoutCheck = '$prefix$uniquePart';
-
-    // Calculate check digit for EAN-13
-    int sum = 0;
-    for (int i = 0; i < 12; i++) {
-      int digit = int.parse(barcodeWithoutCheck[i]);
-      sum += (i % 2 == 0) ? digit : digit * 3;
-    }
-    int checkDigit = (10 - (sum % 10)) % 10;
-
-    final barcode = '$barcodeWithoutCheck$checkDigit';
-    setState(() {
-      _barcodeController.text = barcode;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم توليد الباركود: $barcode'),
-        backgroundColor: AppColors.success,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _skuController.dispose();
     _barcodeController.dispose();
-    _priceController.dispose();
-    _costController.dispose();
+    _descriptionController.dispose();
+    _costPriceController.dispose();
+    _salePriceController.dispose();
     _stockController.dispose();
     _minStockController.dispose();
-    _descriptionController.dispose();
+    _skuController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProduct() async {
+    if (widget.productId == null) return;
+
+    setState(() => _isLoadingProduct = true);
+
+    try {
+      final productRepo = ref.read(productRepositoryProvider);
+      final product = await productRepo.getProductById(widget.productId!);
+
+      if (product != null && mounted) {
+        _existingProduct = product;
+
+        // ملء الحقول ببيانات المنتج
+        _nameController.text = product.name;
+        _barcodeController.text = product.barcode ?? '';
+        _descriptionController.text = product.description ?? '';
+        _costPriceController.text = product.purchasePrice > 0
+            ? product.purchasePrice.toStringAsFixed(0)
+            : '';
+        _salePriceController.text =
+            product.salePrice > 0 ? product.salePrice.toStringAsFixed(0) : '';
+        _stockController.text = product.quantity.toString();
+        _minStockController.text = product.minQuantity.toString();
+        _skuController.text = product.sku ?? '';
+        _selectedCategoryId = product.categoryId;
+
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحميل المنتج: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProduct = false);
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EAN-13 Barcode Generation
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Generate a valid EAN-13 barcode
+  String _generateEAN13Barcode() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final random = Random();
+
+    // Prefix 200-299 is for internal use (store-specific)
+    final prefix = '20${random.nextInt(10)}';
+
+    // Get unique part from timestamp (last 9 digits)
+    final uniquePart = timestamp.substring(timestamp.length - 9);
+
+    // Combine to get 12 digits (without check digit)
+    final barcodeWithoutCheck = '$prefix$uniquePart';
+
+    // Calculate EAN-13 check digit
+    final checkDigit = _calculateEAN13CheckDigit(barcodeWithoutCheck);
+
+    return '$barcodeWithoutCheck$checkDigit';
+  }
+
+  /// Calculate the check digit for EAN-13
+  int _calculateEAN13CheckDigit(String barcode12) {
+    int sum = 0;
+    for (int i = 0; i < 12; i++) {
+      final digit = int.parse(barcode12[i]);
+      // Odd positions (0, 2, 4...) multiply by 1
+      // Even positions (1, 3, 5...) multiply by 3
+      sum += (i % 2 == 0) ? digit : digit * 3;
+    }
+    return (10 - (sum % 10)) % 10;
+  }
+
+  /// Validate if barcode is valid EAN-13
+  bool _isValidEAN13(String barcode) {
+    if (barcode.length != 13) return false;
+    if (!RegExp(r'^\d{13}$').hasMatch(barcode)) return false;
+
+    final checkDigit = _calculateEAN13CheckDigit(barcode.substring(0, 12));
+    return checkDigit == int.parse(barcode[12]);
+  }
+
+  void _onGenerateBarcodePressed() {
+    final newBarcode = _generateEAN13Barcode();
+    setState(() {
+      _barcodeController.text = newBarcode;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تم توليد الباركود: $newBarcode'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Barcode Printing (Clean - No Name/Price)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _printBarcodeOnly() async {
+    final barcode = _barcodeController.text.trim();
+
+    if (barcode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('الرجاء إدخال أو توليد باركود أولاً'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (!_isValidEAN13(barcode)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('الباركود غير صالح. يجب أن يكون EAN-13 صحيح'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isPrintingBarcode = true);
+
+    try {
+      final pdf = pw.Document();
+
+      // 57mm roll format for thermal printers
+      final pageFormat = PdfPageFormat.roll57;
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: pageFormat,
+          margin: const pw.EdgeInsets.all(8),
+          build: (context) {
+            return pw.Center(
+              child: pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  // Barcode only - no product name or price
+                  pw.BarcodeWidget(
+                    barcode: pw.Barcode.ean13(),
+                    data: barcode,
+                    width: 45 * PdfPageFormat.mm,
+                    height: 20 * PdfPageFormat.mm,
+                    drawText: true, // Shows barcode numbers only
+                    textStyle: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (format) async => pdf.save(),
+        name: 'barcode_$barcode',
+        format: pageFormat,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في طباعة الباركود: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPrintingBarcode = false);
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Form Submission
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final productRepo = ref.read(productRepositoryProvider);
+
+      final name = _nameController.text.trim();
+      final barcode = _barcodeController.text.trim().isEmpty
+          ? null
+          : _barcodeController.text.trim();
+      final description = _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim();
+      final purchasePrice = double.tryParse(_costPriceController.text) ?? 0;
+      final salePrice = double.tryParse(_salePriceController.text) ?? 0;
+      final quantity = int.tryParse(_stockController.text) ?? 0;
+      final minQuantity = int.tryParse(_minStockController.text) ?? 0;
+      final sku = _skuController.text.trim().isEmpty
+          ? null
+          : _skuController.text.trim();
+
+      if (isEditing && widget.productId != null) {
+        // تعديل منتج موجود
+        await productRepo.updateProduct(
+          id: widget.productId!,
+          name: name,
+          barcode: barcode,
+          description: description,
+          purchasePrice: purchasePrice,
+          salePrice: salePrice,
+          quantity: quantity,
+          minQuantity: minQuantity,
+          sku: sku,
+          categoryId: _selectedCategoryId,
+        );
+      } else {
+        // إضافة منتج جديد
+        await productRepo.createProduct(
+          name: name,
+          barcode: barcode,
+          description: description,
+          purchasePrice: purchasePrice,
+          salePrice: salePrice,
+          quantity: quantity,
+          minQuantity: minQuantity,
+          sku: sku,
+          categoryId: _selectedCategoryId,
+        );
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                isEditing ? 'تم تحديث المنتج بنجاح' : 'تم إضافة المنتج بنجاح'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final categoriesAsync = ref.watch(categoriesStreamProvider);
-
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          leading: IconButton(
-            onPressed: () => context.pop(),
-            icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
-          ),
-          title: Text(
-            widget.isEditing ? 'تعديل منتج' : 'منتج جديد',
-            style:
-                AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
-          ),
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: Icon(
-            Icons.close_rounded,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        title: Text(
-          widget.isEditing ? 'تعديل منتج' : 'منتج جديد',
-          style: AppTypography.titleLarge.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _isSaving ? null : _saveProduct,
-            child: _isSaving
-                ? SizedBox(
-                    width: 20.w,
-                    height: 20.w,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(
-                    'حفظ',
-                    style: AppTypography.labelLarge.copyWith(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-          ),
-          SizedBox(width: AppSpacing.sm),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ═══════════════════════════════════════════════════════════════
-              // Image Section
-              // ═══════════════════════════════════════════════════════════════
-              _buildImagePicker(),
-              SizedBox(height: AppSpacing.lg),
-
-              // ═══════════════════════════════════════════════════════════════
-              // Basic Info Section
-              // ═══════════════════════════════════════════════════════════════
-              _buildSectionTitle('المعلومات الأساسية'),
-              SizedBox(height: AppSpacing.md),
-              _buildTextField(
-                controller: _nameController,
-                label: 'اسم المنتج',
-                hint: 'أدخل اسم المنتج',
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'اسم المنتج مطلوب' : null,
-              ),
-              SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _skuController,
-                      label: 'رمز المنتج (SKU)',
-                      hint: 'PRD-001',
-                      keyboardType: TextInputType.text,
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _barcodeController,
-                      label: 'الباركود',
-                      hint: 'امسح أو أدخل الباركود',
-                      suffixIcon: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            onPressed: _generateBarcode,
-                            icon: Icon(
-                              Icons.autorenew_rounded,
-                              color: AppColors.success,
-                            ),
-                            tooltip: 'توليد باركود تلقائي',
-                          ),
-                          IconButton(
-                            onPressed: () {
-                              // TODO: Open barcode scanner
-                            },
-                            icon: Icon(
-                              Icons.qr_code_scanner_rounded,
-                              color: AppColors.secondary,
-                            ),
-                            tooltip: 'مسح الباركود',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: categoriesAsync.when(
-                      data: (categories) => _buildCategoryDropdown(categories),
-                      loading: () => _buildLoadingDropdown('التصنيف'),
-                      error: (_, __) => _buildErrorDropdown('التصنيف'),
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _buildDropdown(
-                      label: 'الوحدة',
-                      value: _selectedUnit,
-                      items: _units,
-                      onChanged: (value) =>
-                          setState(() => _selectedUnit = value!),
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: AppSpacing.xl),
-
-              // ═══════════════════════════════════════════════════════════════
-              // Pricing Section
-              // ═══════════════════════════════════════════════════════════════
-              _buildSectionTitle('التسعير'),
-              SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _priceController,
-                      label: 'سعر البيع',
-                      hint: '0.00',
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                      ],
-                      prefixText: 'ر.س ',
-                      validator: (value) =>
-                          value?.isEmpty ?? true ? 'السعر مطلوب' : null,
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _costController,
-                      label: 'سعر التكلفة',
-                      hint: '0.00',
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                      ],
-                      prefixText: 'ر.س ',
-                    ),
-                  ),
-                ],
-              ),
-              if (_priceController.text.isNotEmpty &&
-                  _costController.text.isNotEmpty)
-                _buildProfitIndicator(),
-
-              SizedBox(height: AppSpacing.xl),
-
-              // ═══════════════════════════════════════════════════════════════
-              // Inventory Section
-              // ═══════════════════════════════════════════════════════════════
-              _buildSectionTitle('المخزون'),
-              SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _stockController,
-                      label: 'الكمية الحالية',
-                      hint: '0',
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _minStockController,
-                      label: 'الحد الأدنى للتنبيه',
-                      hint: '5',
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: AppSpacing.xl),
-
-              // ═══════════════════════════════════════════════════════════════
-              // Settings Section
-              // ═══════════════════════════════════════════════════════════════
-              _buildSectionTitle('الإعدادات'),
-              SizedBox(height: AppSpacing.md),
-              _buildSwitchTile(
-                title: 'منتج نشط',
-                subtitle: 'يظهر في المبيعات والتقارير',
-                value: _isActive,
-                onChanged: (value) => setState(() => _isActive = value),
-              ),
-              _buildSwitchTile(
-                title: 'خاضع للضريبة',
-                subtitle: 'يتم احتساب ضريبة القيمة المضافة',
-                value: _isTaxable,
-                onChanged: (value) => setState(() => _isTaxable = value),
-              ),
-              _buildSwitchTile(
-                title: 'له تاريخ صلاحية',
-                subtitle: 'تتبع صلاحية المنتج',
-                value: _hasExpiry,
-                onChanged: (value) => setState(() => _hasExpiry = value),
-              ),
-
-              SizedBox(height: AppSpacing.xl),
-
-              // ═══════════════════════════════════════════════════════════════
-              // Description Section
-              // ═══════════════════════════════════════════════════════════════
-              _buildSectionTitle('الوصف (اختياري)'),
-              SizedBox(height: AppSpacing.md),
-              _buildTextField(
-                controller: _descriptionController,
-                label: 'وصف المنتج',
-                hint: 'أضف وصفاً تفصيلياً للمنتج...',
-                maxLines: 4,
-              ),
-
-              SizedBox(height: AppSpacing.xxl),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomBar(),
+      appBar: _buildAppBar(),
+      body: _isLoadingProduct
+          ? const Center(child: CircularProgressIndicator())
+          : _buildBody(),
     );
   }
 
-  Widget _buildImagePicker() {
-    return Center(
-      child: GestureDetector(
-        onTap: () {
-          // TODO: Show image picker options
-        },
-        child: Container(
-          width: 140.w,
-          height: 140.w,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(
-              color: AppColors.border,
-              width: 2,
-              strokeAlign: BorderSide.strokeAlignCenter,
-            ),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.surface,
+      elevation: 0,
+      leading: IconButton(
+        onPressed: () => Navigator.of(context).pop(),
+        icon: Icon(
+          Icons.arrow_back_ios_rounded,
+          color: AppColors.textSecondary,
+          size: AppIconSize.sm,
+        ),
+      ),
+      title: Text(
+        isEditing ? 'تعديل المنتج' : 'إضافة منتج',
+        style: AppTypography.headlineSmall.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : _saveProduct,
+          child: _isLoading
+              ? SizedBox(
+                  width: 20.w,
+                  height: 20.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                )
+              : Text(
+                  'حفظ',
+                  style: AppTypography.labelLarge.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+        ),
+        SizedBox(width: AppSpacing.sm),
+      ],
+    );
+  }
+
+  Widget _buildBody() {
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: EdgeInsets.all(AppSpacing.md),
+        children: [
+          // Product Name
+          _buildSectionTitle('معلومات المنتج'),
+          SizedBox(height: AppSpacing.sm),
+          _buildTextField(
+            controller: _nameController,
+            label: 'اسم المنتج',
+            hint: 'أدخل اسم المنتج',
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'الرجاء إدخال اسم المنتج';
+              }
+              return null;
+            },
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          SizedBox(height: AppSpacing.md),
+
+          // Barcode with Generate & Print buttons
+          _buildBarcodeField(),
+          SizedBox(height: AppSpacing.md),
+
+          // Description
+          _buildTextField(
+            controller: _descriptionController,
+            label: 'الوصف',
+            hint: 'أدخل وصف المنتج (اختياري)',
+            maxLines: 3,
+          ),
+          SizedBox(height: AppSpacing.lg),
+
+          // Pricing Section
+          _buildSectionTitle('التسعير'),
+          SizedBox(height: AppSpacing.sm),
+          Row(
             children: [
-              Icon(
-                Icons.add_photo_alternate_outlined,
-                size: 48.sp,
-                color: AppColors.textTertiary,
+              Expanded(
+                child: _buildTextField(
+                  controller: _costPriceController,
+                  label: 'سعر التكلفة',
+                  hint: '0.00',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                  ],
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'الرجاء إدخال سعر التكلفة';
+                    }
+                    return null;
+                  },
+                ),
               ),
-              SizedBox(height: AppSpacing.sm),
-              Text(
-                'إضافة صورة',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
+              SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _buildTextField(
+                  controller: _salePriceController,
+                  label: 'سعر البيع (اختياري)',
+                  hint: '0.00',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
+          SizedBox(height: AppSpacing.lg),
+
+          // Stock Section
+          _buildSectionTitle('المخزون'),
+          SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _stockController,
+                  label: 'الكمية الحالية',
+                  hint: '0',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'الرجاء إدخال الكمية';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _buildTextField(
+                  controller: _minStockController,
+                  label: 'الحد الأدنى',
+                  hint: '0',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.md),
+
+          // SKU
+          _buildTextField(
+            controller: _skuController,
+            label: 'رمز المنتج (SKU)',
+            hint: 'رمز المنتج الفريد (اختياري)',
+          ),
+          SizedBox(height: AppSpacing.xl),
+        ],
       ),
     );
   }
@@ -465,13 +538,12 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
-    required String hint,
+    String? hint,
+    int maxLines = 1,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
-    String? prefixText,
-    Widget? suffixIcon,
-    int maxLines = 1,
     String? Function(String?)? validator,
+    Widget? suffix,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,27 +557,21 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
         SizedBox(height: AppSpacing.xs),
         TextFormField(
           controller: controller,
+          maxLines: maxLines,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
-          maxLines: maxLines,
           validator: validator,
           style: AppTypography.bodyMedium.copyWith(
-            fontFamily:
-                keyboardType == TextInputType.number ? 'JetBrains Mono' : null,
+            color: AppColors.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: AppTypography.bodyMedium.copyWith(
               color: AppColors.textTertiary,
             ),
-            prefixText: prefixText,
-            prefixStyle: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-              fontFamily: 'JetBrains Mono',
-            ),
-            suffixIcon: suffixIcon,
             filled: true,
             fillColor: AppColors.surface,
+            suffixIcon: suffix,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: BorderSide(color: AppColors.border),
@@ -516,7 +582,7 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(color: AppColors.secondary, width: 2),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -524,7 +590,7 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
-              vertical: AppSpacing.md,
+              vertical: AppSpacing.sm,
             ),
           ),
         ),
@@ -532,420 +598,127 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
     );
   }
 
-  Widget _buildDropdown({
-    required String label,
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
+  Widget _buildBarcodeField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
+          'الباركود',
           style: AppTypography.labelMedium.copyWith(
             color: AppColors.textSecondary,
           ),
         ),
         SizedBox(height: AppSpacing.xs),
-        Container(
-          height: 56.h,
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              isExpanded: true,
-              icon: Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: AppColors.textSecondary,
-              ),
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
-              ),
-              items: items
-                  .map((item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(item),
-                      ))
-                  .toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryDropdown(List<Category> categories) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'التصنيف',
-          style: AppTypography.labelMedium.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        SizedBox(height: AppSpacing.xs),
-        Container(
-          height: 56.h,
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String?>(
-              value: _selectedCategoryId,
-              isExpanded: true,
-              hint: Text('اختر التصنيف',
-                  style: AppTypography.bodyMedium
-                      .copyWith(color: AppColors.textTertiary)),
-              icon: Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: AppColors.textSecondary,
-              ),
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
-              ),
-              items: [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('بدون تصنيف'),
-                ),
-                ...categories.map((cat) => DropdownMenuItem(
-                      value: cat.id,
-                      child: Text(cat.name),
-                    )),
-              ],
-              onChanged: (value) => setState(() => _selectedCategoryId = value),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLoadingDropdown(String label) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: AppTypography.labelMedium
-                .copyWith(color: AppColors.textSecondary)),
-        SizedBox(height: AppSpacing.xs),
-        Container(
-          height: 56.h,
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Center(
-              child: SizedBox(
-                  width: 20.w,
-                  height: 20.w,
-                  child: CircularProgressIndicator(strokeWidth: 2))),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildErrorDropdown(String label) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: AppTypography.labelMedium
-                .copyWith(color: AppColors.textSecondary)),
-        SizedBox(height: AppSpacing.xs),
-        Container(
-          height: 56.h,
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.error),
-          ),
-          child: Center(
-              child: Text('خطأ في التحميل',
-                  style: AppTypography.bodySmall
-                      .copyWith(color: AppColors.error))),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSwitchTile({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Container(
-      margin: EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTypography.titleSmall.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  subtitle,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch.adaptive(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.secondary,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfitIndicator() {
-    final price = double.tryParse(_priceController.text) ?? 0;
-    final cost = double.tryParse(_costController.text) ?? 0;
-    final profit = price - cost;
-    final margin = price > 0 ? (profit / price * 100) : 0;
-
-    return Container(
-      margin: EdgeInsets.only(top: AppSpacing.md),
-      padding: EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: profit >= 0
-            ? AppColors.success.withOpacity(0.1)
-            : AppColors.error.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'هامش الربح',
-            style: AppTypography.bodyMedium.copyWith(
-              color: profit >= 0 ? AppColors.success : AppColors.error,
-            ),
-          ),
-          Text(
-            '${profit.toStringAsFixed(0)} ر.س (${margin.toStringAsFixed(1)}%)',
-            style: AppTypography.titleSmall.copyWith(
-              color: profit >= 0 ? AppColors.success : AppColors.error,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'JetBrains Mono',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.border),
-        ),
-      ),
-      child: SafeArea(
-        child: Row(
+        Row(
           children: [
-            if (widget.isEditing)
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _isSaving ? null : _deleteProduct,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: BorderSide(color: AppColors.error),
-                    padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            Expanded(
+              child: TextFormField(
+                controller: _barcodeController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(13),
+                ],
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textPrimary,
+                  fontFamily: 'monospace',
+                  letterSpacing: 2,
+                ),
+                decoration: InputDecoration(
+                  hintText: '0000000000000',
+                  hintStyle: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textTertiary,
+                    fontFamily: 'monospace',
+                    letterSpacing: 2,
                   ),
-                  child: const Text('حذف'),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  prefixIcon: Icon(
+                    Icons.qr_code_rounded,
+                    color: AppColors.textTertiary,
+                    size: AppIconSize.sm,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.horizontal(
+                      right: Radius.circular(AppRadius.md),
+                    ),
+                    borderSide: BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.horizontal(
+                      right: Radius.circular(AppRadius.md),
+                    ),
+                    borderSide: BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.horizontal(
+                      right: Radius.circular(AppRadius.md),
+                    ),
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
                 ),
               ),
-            if (widget.isEditing) SizedBox(width: AppSpacing.md),
-            Expanded(
-              flex: 2,
-              child: FilledButton(
-                onPressed: _isSaving ? null : _saveProduct,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            ),
+            // Generate Button
+            Container(
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+              ),
+              child: IconButton(
+                onPressed: _onGenerateBarcodePressed,
+                icon: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppColors.primary,
+                  size: AppIconSize.sm,
                 ),
-                child: _isSaving
+                tooltip: 'توليد باركود',
+              ),
+            ),
+            // Print Button
+            Container(
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.1),
+                border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+                borderRadius: BorderRadius.horizontal(
+                  left: Radius.circular(AppRadius.md),
+                ),
+              ),
+              child: IconButton(
+                onPressed: _isPrintingBarcode ? null : _printBarcodeOnly,
+                icon: _isPrintingBarcode
                     ? SizedBox(
-                        width: 20.w,
-                        height: 20.w,
+                        width: 18.w,
+                        height: 18.w,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppColors.secondary,
                         ),
                       )
-                    : Text(
-                        widget.isEditing ? 'حفظ التغييرات' : 'إضافة المنتج',
-                        style: AppTypography.labelLarge.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    : Icon(
+                        Icons.print_rounded,
+                        color: AppColors.secondary,
+                        size: AppIconSize.sm,
                       ),
+                tooltip: 'طباعة الباركود',
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Future<void> _deleteProduct() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('حذف المنتج'),
-        content: const Text('هل أنت متأكد من حذف هذا المنتج؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+        SizedBox(height: AppSpacing.xs),
+        Text(
+          'اضغط على ✨ لتوليد باركود EAN-13 تلقائياً',
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textTertiary,
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
-
-    if (confirm != true || !mounted) return;
-
-    setState(() => _isSaving = true);
-    try {
-      final productRepo = ref.read(productRepositoryProvider);
-      await productRepo.deleteProduct(widget.productId!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('تم حذف المنتج بنجاح'),
-              backgroundColor: AppColors.success),
-        );
-        context.pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('خطأ في حذف المنتج: $e'),
-              backgroundColor: AppColors.error),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _saveProduct() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    setState(() => _isSaving = true);
-    try {
-      final productRepo = ref.read(productRepositoryProvider);
-
-      if (widget.isEditing && _existingProduct != null) {
-        // Update existing product
-        await productRepo.updateProduct(
-          id: widget.productId!,
-          name: _nameController.text.trim(),
-          sku: _skuController.text.trim().isEmpty
-              ? null
-              : _skuController.text.trim(),
-          barcode: _barcodeController.text.trim().isEmpty
-              ? null
-              : _barcodeController.text.trim(),
-          categoryId: _selectedCategoryId,
-          purchasePrice: double.tryParse(_costController.text) ?? 0,
-          salePrice: double.tryParse(_priceController.text) ?? 0,
-          quantity: int.tryParse(_stockController.text) ?? 0,
-          minQuantity: int.tryParse(_minStockController.text) ?? 5,
-          taxRate: _isTaxable ? 15.0 : null,
-          description: _descriptionController.text.trim().isEmpty
-              ? null
-              : _descriptionController.text.trim(),
-          isActive: _isActive,
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('تم تحديث المنتج بنجاح'),
-                backgroundColor: AppColors.success),
-          );
-        }
-      } else {
-        // Create new product
-        await productRepo.createProduct(
-          name: _nameController.text.trim(),
-          sku: _skuController.text.trim().isEmpty
-              ? null
-              : _skuController.text.trim(),
-          barcode: _barcodeController.text.trim().isEmpty
-              ? null
-              : _barcodeController.text.trim(),
-          categoryId: _selectedCategoryId,
-          purchasePrice: double.tryParse(_costController.text) ?? 0,
-          salePrice: double.tryParse(_priceController.text) ?? 0,
-          quantity: int.tryParse(_stockController.text) ?? 0,
-          minQuantity: int.tryParse(_minStockController.text) ?? 5,
-          taxRate: _isTaxable ? 15.0 : null,
-          description: _descriptionController.text.trim().isEmpty
-              ? null
-              : _descriptionController.text.trim(),
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('تم إضافة المنتج بنجاح'),
-                backgroundColor: AppColors.success),
-          );
-        }
-      }
-
-      if (mounted) context.pop();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('خطأ في حفظ المنتج: $e'),
-              backgroundColor: AppColors.error),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
   }
 }

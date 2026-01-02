@@ -7,13 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 
 import '../../core/theme/pro/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/export/export_button.dart';
+import '../../core/services/export/products_export_service.dart';
 import '../../data/database/app_database.dart';
 import 'widgets/product_card_pro.dart';
 import 'widgets/products_header.dart';
@@ -30,7 +28,7 @@ class ProductsScreenPro extends ConsumerStatefulWidget {
 class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
     with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
-  String _selectedCategory = 'الكل';
+  String _selectedCategoryId = 'all';
   String _sortBy = 'name';
   bool _isGridView = true;
   bool _isExporting = false;
@@ -58,8 +56,10 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
     super.dispose();
   }
 
-  List<Product> _filterProducts(List<Product> products) {
+  List<Product> _filterProducts(
+      List<Product> products, List<Category> categories) {
     return products.where((product) {
+      // فلتر البحث
       final matchesSearch = _searchController.text.isEmpty ||
           product.name
               .toLowerCase()
@@ -72,132 +72,123 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
                   ?.toLowerCase()
                   .contains(_searchController.text.toLowerCase()) ??
               false);
-      // Category filter is handled separately via categories
-      return matchesSearch;
+
+      // فلتر التصنيف
+      final matchesCategory = _selectedCategoryId == 'all' ||
+          product.categoryId == _selectedCategoryId;
+
+      return matchesSearch && matchesCategory;
     }).toList();
   }
 
   List<Product> _sortProducts(List<Product> products) {
+    final sorted = List<Product>.from(products);
     switch (_sortBy) {
       case 'name':
-        return products..sort((a, b) => a.name.compareTo(b.name));
+        sorted.sort((a, b) => a.name.compareTo(b.name));
+        break;
       case 'price_asc':
-        return products..sort((a, b) => a.salePrice.compareTo(b.salePrice));
+        sorted.sort((a, b) => a.salePrice.compareTo(b.salePrice));
+        break;
       case 'price_desc':
-        return products..sort((a, b) => b.salePrice.compareTo(a.salePrice));
+        sorted.sort((a, b) => b.salePrice.compareTo(a.salePrice));
+        break;
       case 'stock':
-        return products..sort((a, b) => a.quantity.compareTo(b.quantity));
-      default:
-        return products;
+        sorted.sort((a, b) => a.quantity.compareTo(b.quantity));
+        break;
+      case 'recent':
+        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
     }
+    return sorted;
   }
 
   Future<void> _handleExport(ExportType type, List<Product> products) async {
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('لا توجد منتجات للتصدير'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isExporting = true);
 
     try {
       switch (type) {
         case ExportType.excel:
-          await _exportToExcel(products);
+          final filePath = await ProductsExportService.exportToExcel(
+            products: products,
+            fileName: 'products_list',
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('تم تصدير ${products.length} منتج إلى Excel'),
+                backgroundColor: AppColors.success,
+                action: SnackBarAction(
+                  label: 'مشاركة',
+                  textColor: Colors.white,
+                  onPressed: () => ProductsExportService.shareFile(filePath),
+                ),
+              ),
+            );
+          }
           break;
         case ExportType.pdf:
-          await _exportToPdf(products);
+          final bytes = await ProductsExportService.generatePdf(
+            products: products,
+          );
+          final filePath =
+              await ProductsExportService.savePdf(bytes, 'products_list');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('تم تصدير ${products.length} منتج إلى PDF'),
+                backgroundColor: AppColors.success,
+                action: SnackBarAction(
+                  label: 'مشاركة',
+                  textColor: Colors.white,
+                  onPressed: () => ProductsExportService.shareFile(filePath),
+                ),
+              ),
+            );
+          }
           break;
         case ExportType.sharePdf:
-          await _sharePdf(products);
+          final bytes = await ProductsExportService.generatePdf(
+            products: products,
+          );
+          await ProductsExportService.sharePdfBytes(
+            bytes,
+            fileName: 'products_list',
+            subject: 'قائمة المنتجات',
+          );
           break;
         case ExportType.shareExcel:
-          await _shareExcel(products);
+          final filePath = await ProductsExportService.exportToExcel(
+            products: products,
+            fileName: 'products_list',
+          );
+          await ProductsExportService.shareFile(
+            filePath,
+            subject: 'قائمة المنتجات',
+          );
           break;
-      }
-    } finally {
-      if (mounted) setState(() => _isExporting = false);
-    }
-  }
-
-  Future<void> _exportToExcel(List<Product> products) async {
-    try {
-      final csvData = StringBuffer();
-      csvData.writeln(
-          'الاسم,الباركود,SKU,سعر البيع,سعر الشراء,الكمية,الحد الأدنى');
-
-      for (final product in products) {
-        csvData.writeln(
-            '${product.name},${product.barcode ?? ''},${product.sku ?? ''},${product.salePrice},${product.purchasePrice},${product.quantity},${product.minQuantity}');
-      }
-
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/products_export.csv');
-      await file.writeAsString(csvData.toString());
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تم تصدير ${products.length} منتج إلى Excel بنجاح'),
-            backgroundColor: AppColors.success,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('خطأ في التصدير: $e'),
-            backgroundColor: AppColors.expense,
+            backgroundColor: AppColors.error,
           ),
         );
       }
-    }
-  }
-
-  Future<void> _exportToPdf(List<Product> products) async {
-    // TODO: Implement PDF export
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تصدير PDF - قريباً')),
-      );
-    }
-  }
-
-  Future<void> _sharePdf(List<Product> products) async {
-    // TODO: Implement PDF share
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('مشاركة PDF - قريباً')),
-      );
-    }
-  }
-
-  Future<void> _shareExcel(List<Product> products) async {
-    try {
-      final shareText = StringBuffer();
-      shareText.writeln('قائمة المنتجات:');
-      shareText.writeln('═══════════════════');
-
-      for (final product in products) {
-        shareText.writeln('• ${product.name}');
-        shareText
-            .writeln('  السعر: ${product.salePrice.toStringAsFixed(0)} ر.س');
-        shareText.writeln('  المخزون: ${product.quantity} وحدة');
-        if (product.barcode != null) {
-          shareText.writeln('  الباركود: ${product.barcode}');
-        }
-        shareText.writeln('');
-      }
-
-      shareText.writeln('═══════════════════');
-      shareText.writeln('إجمالي المنتجات: ${products.length}');
-
-      await Share.share(shareText.toString(), subject: 'قائمة المنتجات');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في المشاركة: $e'),
-            backgroundColor: AppColors.expense,
-          ),
-        );
-      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
     }
   }
 
@@ -256,19 +247,28 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
               loading: () => const SizedBox(height: 50),
               error: (_, __) => const SizedBox(height: 50),
               data: (categories) {
+                // حساب عدد المنتجات لكل تصنيف
+                final products = productsAsync.asData?.value ?? [];
+                final allCount = products.length;
+
                 final categoryList = [
-                  {'id': 'all', 'name': 'الكل', 'count': 0},
-                  ...categories.map((c) => {
-                        'id': c.id,
-                        'name': c.name,
-                        'count': 0,
-                      }),
+                  {'id': 'all', 'name': 'الكل', 'count': allCount},
+                  ...categories.map((c) {
+                    final count =
+                        products.where((p) => p.categoryId == c.id).length;
+                    return {
+                      'id': c.id,
+                      'name': c.name,
+                      'count': count,
+                    };
+                  }),
                 ];
+
                 return CategoryChips(
                   categories: categoryList,
-                  selectedCategory: _selectedCategory,
-                  onCategorySelected: (category) =>
-                      setState(() => _selectedCategory = category),
+                  selectedCategoryId: _selectedCategoryId,
+                  onCategorySelected: (categoryId) =>
+                      setState(() => _selectedCategoryId = categoryId),
                 );
               },
             ),
@@ -281,17 +281,10 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
                 loading: () => _buildLoadingState(),
                 error: (error, _) => _buildErrorState(error.toString()),
                 data: (products) {
-                  // Filter by category
-                  var filteredProducts = _selectedCategory == 'الكل'
-                      ? products
-                      : products
-                          .where((p) => p.categoryId == _selectedCategory)
-                          .toList();
+                  final categories = categoriesAsync.asData?.value ?? [];
 
-                  // Apply search filter
-                  filteredProducts = _filterProducts(filteredProducts);
-
-                  // Apply sorting
+                  // Apply filters and sorting
+                  var filteredProducts = _filterProducts(products, categories);
                   filteredProducts = _sortProducts(filteredProducts);
 
                   if (filteredProducts.isEmpty) {
@@ -305,8 +298,8 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
                         ref.invalidate(activeProductsStreamProvider);
                       },
                       child: _isGridView
-                          ? _buildGridView(filteredProducts)
-                          : _buildListView(filteredProducts),
+                          ? _buildGridView(filteredProducts, categories)
+                          : _buildListView(filteredProducts, categories),
                     ),
                   );
                 },
@@ -327,46 +320,50 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
     );
   }
 
-  Widget _buildGridView(List<Product> products) {
+  Widget _buildGridView(List<Product> products, List<Category> categories) {
     return GridView.builder(
-      padding: EdgeInsets.all(AppSpacing.screenPadding.w),
+      padding: EdgeInsets.all(AppSpacing.md),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.72,
-        crossAxisSpacing: AppSpacing.md.w,
-        mainAxisSpacing: AppSpacing.md.h,
+        childAspectRatio: 0.78,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.sm,
       ),
       itemCount: products.length,
       itemBuilder: (context, index) {
         final product = products[index];
+        final category =
+            categories.where((c) => c.id == product.categoryId).firstOrNull;
         return ProductCardPro(
-          product: _productToMap(product),
+          product: _productToMap(product, category),
           isListView: false,
           onTap: () => context.push('/products/${product.id}'),
-          onEdit: () => context.push('/products/${product.id}/edit'),
+          onEdit: () => context.push('/products/edit/${product.id}'),
         );
       },
     );
   }
 
-  Widget _buildListView(List<Product> products) {
+  Widget _buildListView(List<Product> products, List<Category> categories) {
     return ListView.separated(
-      padding: EdgeInsets.all(AppSpacing.screenPadding.w),
+      padding: EdgeInsets.all(AppSpacing.md),
       itemCount: products.length,
-      separatorBuilder: (_, __) => SizedBox(height: AppSpacing.md.h),
+      separatorBuilder: (_, __) => SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
         final product = products[index];
+        final category =
+            categories.where((c) => c.id == product.categoryId).firstOrNull;
         return ProductCardPro(
-          product: _productToMap(product),
+          product: _productToMap(product, category),
           isListView: true,
           onTap: () => context.push('/products/${product.id}'),
-          onEdit: () => context.push('/products/${product.id}/edit'),
+          onEdit: () => context.push('/products/edit/${product.id}'),
         );
       },
     );
   }
 
-  Map<String, dynamic> _productToMap(Product product) {
+  Map<String, dynamic> _productToMap(Product product, Category? category) {
     String status = 'active';
     if (product.quantity <= 0) {
       status = 'out_of_stock';
@@ -383,7 +380,8 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
       'cost': product.purchasePrice,
       'stock': product.quantity,
       'minStock': product.minQuantity,
-      'category': product.categoryId ?? '',
+      'category': category?.name ?? 'بدون تصنيف',
+      'categoryId': product.categoryId,
       'image': product.imageUrl,
       'status': status,
       'isActive': product.isActive,
@@ -392,19 +390,19 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
 
   Widget _buildLoadingState() {
     return GridView.builder(
-      padding: EdgeInsets.all(AppSpacing.screenPadding.w),
+      padding: EdgeInsets.all(AppSpacing.md),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: AppSpacing.md.w,
-        mainAxisSpacing: AppSpacing.md.h,
+        childAspectRatio: 0.78,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.sm,
       ),
       itemCount: 6,
       itemBuilder: (context, index) {
         return Container(
           decoration: BoxDecoration(
             color: AppColors.surfaceMuted,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
         );
       },
@@ -412,43 +410,58 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
   }
 
   Widget _buildEmptyState() {
+    final hasFilter =
+        _searchController.text.isNotEmpty || _selectedCategoryId != 'all';
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.inventory_2_outlined,
+            hasFilter ? Icons.search_off_rounded : Icons.inventory_2_outlined,
             size: 80.sp,
             color: AppColors.textTertiary,
           ),
-          SizedBox(height: AppSpacing.lg.h),
+          SizedBox(height: AppSpacing.lg),
           Text(
-            'لا توجد منتجات',
+            hasFilter ? 'لا توجد نتائج' : 'لا توجد منتجات',
             style: AppTypography.titleLarge.copyWith(
               color: AppColors.textSecondary,
             ),
           ),
-          SizedBox(height: AppSpacing.sm.h),
+          SizedBox(height: AppSpacing.sm),
           Text(
-            'أضف منتجات جديدة للبدء',
+            hasFilter ? 'جرب تغيير معايير البحث' : 'أضف منتجات جديدة للبدء',
             style: AppTypography.bodyMedium.copyWith(
               color: AppColors.textTertiary,
             ),
           ),
-          SizedBox(height: AppSpacing.xl.h),
-          ElevatedButton.icon(
-            onPressed: () => context.push('/products/add'),
-            icon: const Icon(Icons.add),
-            label: const Text('إضافة منتج'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl.w,
-                vertical: AppSpacing.md.h,
+          SizedBox(height: AppSpacing.xl),
+          if (hasFilter)
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _searchController.clear();
+                  _selectedCategoryId = 'all';
+                });
+              },
+              icon: const Icon(Icons.clear),
+              label: const Text('مسح الفلاتر'),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: () => context.push('/products/add'),
+              icon: const Icon(Icons.add),
+              label: const Text('إضافة منتج'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xl,
+                  vertical: AppSpacing.md,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -462,24 +475,27 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
           Icon(
             Icons.error_outline,
             size: 80.sp,
-            color: AppColors.expense,
+            color: AppColors.error,
           ),
-          SizedBox(height: AppSpacing.lg.h),
+          SizedBox(height: AppSpacing.lg),
           Text(
             'حدث خطأ',
             style: AppTypography.titleLarge.copyWith(
-              color: AppColors.expense,
+              color: AppColors.error,
             ),
           ),
-          SizedBox(height: AppSpacing.sm.h),
-          Text(
-            error,
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
+          SizedBox(height: AppSpacing.sm),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Text(
+              error,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
-          SizedBox(height: AppSpacing.xl.h),
+          SizedBox(height: AppSpacing.xl),
           ElevatedButton.icon(
             onPressed: () => ref.invalidate(activeProductsStreamProvider),
             icon: const Icon(Icons.refresh),

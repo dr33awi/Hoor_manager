@@ -32,20 +32,20 @@ class ProductCardPro extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: AppColors.border),
             boxShadow: AppShadows.sm,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Product Image / Placeholder
-              AspectRatio(
-                aspectRatio: 1.2,
+              // Product Image / Placeholder - حجم أصغر
+              Expanded(
+                flex: 3,
                 child: Stack(
                   children: [
                     Container(
@@ -53,80 +53,89 @@ class ProductCardPro extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.background,
                         borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(AppRadius.lg - 1),
+                          top: Radius.circular(AppRadius.md - 1),
                         ),
                       ),
                       child: product['image'] != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(AppRadius.lg - 1),
+                                top: Radius.circular(AppRadius.md - 1),
                               ),
                               child: Image.network(
                                 product['image'],
                                 fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    _buildPlaceholder(),
                               ),
                             )
-                          : Center(
-                              child: Icon(
-                                Icons.inventory_2_outlined,
-                                color: AppColors.textTertiary,
-                                size: 40.sp,
-                              ),
-                            ),
+                          : _buildPlaceholder(),
                     ),
                     // Status Badge
-                    Positioned(
-                      top: AppSpacing.xs,
-                      right: AppSpacing.xs,
-                      child: _buildStatusBadge(),
-                    ),
+                    if (_shouldShowStatusBadge())
+                      Positioned(
+                        top: AppSpacing.xs,
+                        right: AppSpacing.xs,
+                        child: _buildStatusBadge(),
+                      ),
                   ],
                 ),
               ),
 
-              // Product Info
-              Padding(
-                padding: EdgeInsets.all(AppSpacing.sm),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Name
-                    Text(
-                      product['name'],
-                      style: AppTypography.labelMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4.h),
-
-                    // Price & Stock
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            '${product['price'].toStringAsFixed(0)} ر.س',
-                            style: AppTypography.labelLarge.copyWith(
-                              color: AppColors.secondary,
-                              fontWeight: FontWeight.w700,
-                              fontFamily: 'JetBrains Mono',
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+              // Product Info - حجم أصغر
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.xs),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Name
+                      Text(
+                        product['name'],
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
                         ),
-                        _buildStockBadge(),
-                      ],
-                    ),
-                  ],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      // Price & Stock
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${(product['price'] as double).toStringAsFixed(0)}',
+                              style: AppTypography.labelMedium.copyWith(
+                                color: AppColors.secondary,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'JetBrains Mono',
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          _buildStockBadge(),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Center(
+      child: Icon(
+        Icons.inventory_2_outlined,
+        color: AppColors.textTertiary,
+        size: 32.sp,
       ),
     );
   }
@@ -138,7 +147,7 @@ class ProductCardPro extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
-          padding: EdgeInsets.all(AppSpacing.md),
+          padding: EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -148,8 +157,8 @@ class ProductCardPro extends StatelessWidget {
             children: [
               // Image
               Container(
-                width: 64.w,
-                height: 64.w,
+                width: 56.w,
+                height: 56.w,
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -160,15 +169,20 @@ class ProductCardPro extends StatelessWidget {
                         child: Image.network(
                           product['image'],
                           fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.inventory_2_outlined,
+                            color: AppColors.textTertiary,
+                            size: AppIconSize.md,
+                          ),
                         ),
                       )
                     : Icon(
                         Icons.inventory_2_outlined,
                         color: AppColors.textTertiary,
-                        size: AppIconSize.lg,
+                        size: AppIconSize.md,
                       ),
               ),
-              SizedBox(width: AppSpacing.md),
+              SizedBox(width: AppSpacing.sm),
 
               // Info
               Expanded(
@@ -180,7 +194,7 @@ class ProductCardPro extends StatelessWidget {
                         Expanded(
                           child: Text(
                             product['name'],
-                            style: AppTypography.titleSmall.copyWith(
+                            style: AppTypography.labelMedium.copyWith(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w600,
                             ),
@@ -191,45 +205,49 @@ class ProductCardPro extends StatelessWidget {
                         _buildStockBadge(),
                       ],
                     ),
-                    SizedBox(height: 4.h),
+                    SizedBox(height: 2.h),
                     Row(
                       children: [
-                        Text(
-                          product['sku'],
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textTertiary,
-                            fontFamily: 'JetBrains Mono',
+                        if (product['sku'] != null &&
+                            (product['sku'] as String).isNotEmpty) ...[
+                          Text(
+                            product['sku'],
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary,
+                              fontFamily: 'JetBrains Mono',
+                            ),
                           ),
-                        ),
-                        SizedBox(width: AppSpacing.sm),
-                        Text(
-                          '•',
-                          style: TextStyle(color: AppColors.textTertiary),
-                        ),
-                        SizedBox(width: AppSpacing.sm),
-                        Text(
-                          product['category'],
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textTertiary,
+                          Text(
+                            ' • ',
+                            style: TextStyle(color: AppColors.textTertiary),
+                          ),
+                        ],
+                        Expanded(
+                          child: Text(
+                            product['category'] ?? '',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 4.h),
                     Row(
                       children: [
                         Text(
-                          '${product['price'].toStringAsFixed(0)} ر.س',
-                          style: AppTypography.titleMedium.copyWith(
+                          '${(product['price'] as double).toStringAsFixed(0)} ل.س',
+                          style: AppTypography.labelMedium.copyWith(
                             color: AppColors.secondary,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'JetBrains Mono',
                           ),
                         ),
-                        SizedBox(width: AppSpacing.md),
+                        SizedBox(width: AppSpacing.sm),
                         Text(
-                          'التكلفة: ${product['cost'].toStringAsFixed(0)} ر.س',
-                          style: AppTypography.bodySmall.copyWith(
+                          'التكلفة: ${(product['cost'] as double).toStringAsFixed(0)}',
+                          style: AppTypography.labelSmall.copyWith(
                             color: AppColors.textTertiary,
                           ),
                         ),
@@ -239,45 +257,15 @@ class ProductCardPro extends StatelessWidget {
                 ),
               ),
 
-              // Actions
-              PopupMenuButton<String>(
+              // Edit Button
+              IconButton(
+                onPressed: onEdit,
                 icon: Icon(
-                  Icons.more_vert_rounded,
+                  Icons.edit_outlined,
                   color: AppColors.textSecondary,
+                  size: AppIconSize.sm,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    onEdit();
-                  } else if (value == 'delete') {
-                    // Handle delete
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit_outlined, size: 20),
-                        SizedBox(width: 8),
-                        Text('تعديل'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('حذف', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),
@@ -298,7 +286,7 @@ class ProductCardPro extends StatelessWidget {
       bgColor = AppColors.error.withOpacity(0.1);
       textColor = AppColors.error;
       text = 'نفد';
-    } else if (stock < minStock) {
+    } else if (stock <= minStock) {
       bgColor = AppColors.warning.withOpacity(0.1);
       textColor = AppColors.warning;
       text = '$stock';
@@ -310,12 +298,12 @@ class ProductCardPro extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs + 2,
+        horizontal: AppSpacing.xs,
         vertical: 2.h,
       ),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Text(
         text,
@@ -323,9 +311,15 @@ class ProductCardPro extends StatelessWidget {
           color: textColor,
           fontWeight: FontWeight.w600,
           fontFamily: 'JetBrains Mono',
+          fontSize: 10.sp,
         ),
       ),
     );
+  }
+
+  bool _shouldShowStatusBadge() {
+    final status = product['status'] as String;
+    return status == 'out_of_stock' || status == 'low_stock';
   }
 
   Widget _buildStatusBadge() {
@@ -348,15 +342,15 @@ class ProductCardPro extends StatelessWidget {
     }
 
     return Container(
-      padding: EdgeInsets.all(AppSpacing.xs),
+      padding: EdgeInsets.all(AppSpacing.xs - 2),
       decoration: BoxDecoration(
         color: color.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Icon(
         icon,
         color: Colors.white,
-        size: AppIconSize.xs,
+        size: 12.sp,
       ),
     );
   }

@@ -102,6 +102,12 @@ class ProductsHeader extends StatelessWidget {
               onExport: onExport!,
               isLoading: isExporting,
               tooltip: 'تصدير ومشاركة',
+              enabledOptions: const {
+                ExportType.excel,
+                ExportType.pdf,
+                ExportType.sharePdf,
+                ExportType.shareExcel,
+              },
             ),
         ],
       ),

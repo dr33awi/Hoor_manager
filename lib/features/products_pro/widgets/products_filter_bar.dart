@@ -35,7 +35,7 @@ class ProductsFilterBar extends StatelessWidget {
           // Search Field
           Expanded(
             child: Container(
-              height: 48.h,
+              height: 44.h,
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(AppRadius.md),
@@ -112,7 +112,7 @@ class ProductsFilterBar extends StatelessWidget {
 
           // Sort Button
           Container(
-            height: 48.h,
+            height: 44.h,
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             decoration: BoxDecoration(
               color: AppColors.surface,
@@ -132,7 +132,8 @@ class ProductsFilterBar extends StatelessWidget {
                 ),
                 items: const [
                   DropdownMenuItem(value: 'name', child: Text('الاسم')),
-                  DropdownMenuItem(value: 'price', child: Text('السعر')),
+                  DropdownMenuItem(value: 'price_asc', child: Text('السعر ⬆')),
+                  DropdownMenuItem(value: 'price_desc', child: Text('السعر ⬇')),
                   DropdownMenuItem(value: 'stock', child: Text('المخزون')),
                   DropdownMenuItem(value: 'recent', child: Text('الأحدث')),
                 ],
@@ -158,8 +159,8 @@ class ProductsFilterBar extends StatelessWidget {
         right: isLeft ? Radius.zero : Radius.circular(AppRadius.sm - 1),
       ),
       child: Container(
-        width: 44.w,
-        height: 46.h,
+        width: 40.w,
+        height: 42.h,
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary.withOpacity(0.1) : null,
         ),

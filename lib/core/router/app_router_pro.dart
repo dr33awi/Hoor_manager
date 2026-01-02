@@ -112,10 +112,17 @@ final appRouterProProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'add',
             name: 'sales-add',
-            pageBuilder: (context, state) => _buildSlideUpTransition(
-              state,
-              const InvoiceFormScreenPro(type: 'sale'),
-            ),
+            pageBuilder: (context, state) {
+              // استقبال البيانات الإضافية (المنتج المحدد مسبقاً)
+              final extra = state.extra as Map<String, dynamic>?;
+              return _buildSlideUpTransition(
+                state,
+                InvoiceFormScreenPro(
+                  type: 'sale',
+                  preSelectedProduct: extra,
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -134,10 +141,17 @@ final appRouterProProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'add',
             name: 'purchases-add',
-            pageBuilder: (context, state) => _buildSlideUpTransition(
-              state,
-              const InvoiceFormScreenPro(type: 'purchase'),
-            ),
+            pageBuilder: (context, state) {
+              // استقبال البيانات الإضافية (المنتج المحدد مسبقاً)
+              final extra = state.extra as Map<String, dynamic>?;
+              return _buildSlideUpTransition(
+                state,
+                InvoiceFormScreenPro(
+                  type: 'purchase',
+                  preSelectedProduct: extra,
+                ),
+              );
+            },
           ),
         ],
       ),

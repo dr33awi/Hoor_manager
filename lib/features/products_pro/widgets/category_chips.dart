@@ -10,13 +10,13 @@ import '../../../core/theme/pro/design_tokens.dart';
 
 class CategoryChips extends StatelessWidget {
   final List<Map<String, dynamic>> categories;
-  final String selectedCategory;
+  final String selectedCategoryId;
   final ValueChanged<String> onCategorySelected;
 
   const CategoryChips({
     super.key,
     required this.categories,
-    required this.selectedCategory,
+    required this.selectedCategoryId,
     required this.onCategorySelected,
   });
 
@@ -31,17 +31,18 @@ class CategoryChips extends StatelessWidget {
         itemCount: categories.length,
         itemBuilder: (context, index) {
           final category = categories[index];
-          final isSelected = category['name'] == selectedCategory;
+          final categoryId = category['id'] as String;
+          final isSelected = categoryId == selectedCategoryId;
 
           return Padding(
             padding: EdgeInsets.only(
               right: index < categories.length - 1 ? AppSpacing.sm : 0,
             ),
             child: _CategoryChip(
-              name: category['name'],
-              count: category['count'],
+              name: category['name'] as String,
+              count: category['count'] as int,
               isSelected: isSelected,
-              onTap: () => onCategorySelected(category['name']),
+              onTap: () => onCategorySelected(categoryId),
             ),
           );
         },
