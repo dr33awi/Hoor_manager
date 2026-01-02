@@ -66,7 +66,11 @@ class _InventoryCountScreenProState
                           .toList();
 
                   return filteredProducts.isEmpty
-                      ? _buildEmptyState()
+                      ? ProEmptyState(
+                          icon: Icons.inventory_2_outlined,
+                          title: 'لا توجد منتجات',
+                          message: 'أضف منتجات للبدء في الجرد',
+                        )
                       : _buildProductsList(filteredProducts);
                 },
               ),
@@ -99,8 +103,8 @@ class _InventoryCountScreenProState
         if (_countedQuantities.isNotEmpty)
           TextButton.icon(
             onPressed: _saveCount,
-            icon: Icon(Icons.save_rounded,
-                color: AppColors.success, size: 20.sp),
+            icon:
+                Icon(Icons.save_rounded, color: AppColors.success, size: 20.sp),
             label: Text(
               'حفظ (${_countedQuantities.length})',
               style: AppTypography.labelMedium.copyWith(
@@ -199,47 +203,6 @@ class _InventoryCountScreenProState
       margin: EdgeInsets.all(AppSpacing.md),
       onChanged: (value) => setState(() => _searchQuery = value),
       onClear: () => setState(() => _searchQuery = ''),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: EdgeInsets.all(AppSpacing.xl),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.inventory_2_outlined,
-                size: 64.sp,
-                color: AppColors.primary,
-              ),
-            ),
-            SizedBox(height: AppSpacing.lg),
-            Text(
-              'لا توجد منتجات',
-              style: AppTypography.titleLarge.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: AppSpacing.sm),
-            Text(
-              'أضف منتجات للبدء في الجرد',
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
     );
   }
 

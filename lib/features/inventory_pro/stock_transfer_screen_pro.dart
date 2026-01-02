@@ -126,7 +126,12 @@ class _StockTransferScreenProState extends ConsumerState<StockTransferScreenPro>
 
   Widget _buildTransfersList(List<StockTransfer> transfers) {
     if (transfers.isEmpty) {
-      return _buildEmptyState();
+      return ProEmptyState(
+        icon: Icons.swap_horiz_rounded,
+        iconColor: AppColors.warning,
+        title: 'لا توجد عمليات نقل',
+        message: 'أنشئ عملية نقل جديدة لنقل البضائع بين المستودعات',
+      );
     }
 
     // Sort by date descending
@@ -147,47 +152,6 @@ class _StockTransferScreenProState extends ConsumerState<StockTransferScreenPro>
               : null,
         );
       },
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: EdgeInsets.all(AppSpacing.xl),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.swap_horiz_rounded,
-                size: 64.sp,
-                color: AppColors.warning,
-              ),
-            ),
-            SizedBox(height: AppSpacing.lg),
-            Text(
-              'لا توجد عمليات نقل',
-              style: AppTypography.titleLarge.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: AppSpacing.sm),
-            Text(
-              'أنشئ عملية نقل جديدة لنقل البضائع بين المستودعات',
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
     );
   }
 

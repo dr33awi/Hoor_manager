@@ -52,7 +52,10 @@ class _WarehousesScreenProState extends ConsumerState<WarehousesScreenPro> {
                 data: (warehouses) {
                   final filtered = _filterWarehouses(warehouses);
                   if (filtered.isEmpty) {
-                    return _buildEmptyState();
+                    return ProEmptyState.list(
+                      itemName: 'مستودع',
+                      onAdd: () => _showWarehouseDialog(),
+                    );
                   }
                   return _buildWarehousesList(filtered);
                 },
@@ -102,67 +105,6 @@ class _WarehousesScreenProState extends ConsumerState<WarehousesScreenPro> {
       margin: EdgeInsets.all(AppSpacing.md),
       onChanged: (value) => setState(() => _searchQuery = value),
       onClear: () => setState(() => _searchQuery = ''),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: EdgeInsets.all(AppSpacing.xl),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.warehouse_outlined,
-                size: 64.sp,
-                color: AppColors.secondary,
-              ),
-            ),
-            SizedBox(height: AppSpacing.lg),
-            Text(
-              'لا توجد مستودعات',
-              style: AppTypography.titleLarge.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: AppSpacing.sm),
-            Text(
-              'أضف مستودعاً جديداً لبدء إدارة المخزون',
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: AppSpacing.xl),
-            ElevatedButton.icon(
-              onPressed: () => _showWarehouseDialog(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondary,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xl,
-                  vertical: AppSpacing.md,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-              ),
-              icon: const Icon(Icons.add_rounded),
-              label: Text(
-                'إضافة مستودع',
-                style: AppTypography.labelLarge.copyWith(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

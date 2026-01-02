@@ -149,7 +149,10 @@ class _InvoicesScreenProState extends ConsumerState<InvoicesScreenPro>
                   final filtered = _filterInvoices(invoices);
 
                   if (filtered.isEmpty) {
-                    return _buildEmptyState();
+                    return ProEmptyState.list(
+                      itemName: 'فاتورة',
+                      onAdd: () => context.push(isSales ? '/sales' : '/purchases/add'),
+                    );
                   }
 
                   return RefreshIndicator(
@@ -401,46 +404,6 @@ class _InvoicesScreenProState extends ConsumerState<InvoicesScreenPro>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.receipt_long_outlined,
-            size: 80.sp,
-            color: AppColors.textTertiary,
-          ),
-          SizedBox(height: AppSpacing.lg.h),
-          Text(
-            'لا توجد فواتير',
-            style: AppTypography.titleLarge.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(height: AppSpacing.sm.h),
-          Text(
-            'أنشئ فاتورة جديدة للبدء',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          SizedBox(height: AppSpacing.xl.h),
-          ElevatedButton.icon(
-            onPressed: () =>
-                context.push(isSales ? '/sales' : '/purchases/add'),
-            icon: const Icon(Icons.add),
-            label: Text(isSales ? 'فاتورة بيع جديدة' : 'فاتورة شراء جديدة'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isSales ? AppColors.income : AppColors.purchases,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
       ),
     );
   }
