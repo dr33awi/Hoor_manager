@@ -12,3 +12,4 @@ export 'pro_tab_scaffold.dart';
 export 'pro_text_field.dart';
 export 'pro_section_title.dart';
 export 'pro_switch_tile.dart';
+export 'pro_card.dart';
