@@ -597,9 +597,11 @@ class _InvoiceCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '${invoice.total.toStringAsFixed(2)} ر.س',
-                style: AppTypography.titleMedium.copyWith(
-                  color: type.color,
-                ).monoBold,
+                style: AppTypography.titleMedium
+                    .copyWith(
+                      color: type.color,
+                    )
+                    .monoBold,
               ),
             ],
           ),

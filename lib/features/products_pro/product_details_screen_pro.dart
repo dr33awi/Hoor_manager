@@ -534,9 +534,11 @@ class _ProductDetailsView extends StatelessWidget {
               SizedBox(width: AppSpacing.xs),
               Text(
                 product.sku!,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ).mono,
+                style: AppTypography.bodySmall
+                    .copyWith(
+                      color: AppColors.textSecondary,
+                    )
+                    .mono,
               ),
             ],
             if (product.barcode != null && product.barcode!.isNotEmpty) ...[
@@ -550,9 +552,11 @@ class _ProductDetailsView extends StatelessWidget {
               Flexible(
                 child: Text(
                   product.barcode!,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ).mono,
+                  style: AppTypography.bodySmall
+                      .copyWith(
+                        color: AppColors.textTertiary,
+                      )
+                      .mono,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -607,25 +611,31 @@ class _ProductDetailsView extends StatelessWidget {
           _buildInfoRow(
             'سعر البيع',
             '${product.salePrice.toStringAsFixed(0)} ل.س',
-            valueStyle: AppTypography.titleMedium.copyWith(
-              color: AppColors.secondary,
-            ).monoBold,
+            valueStyle: AppTypography.titleMedium
+                .copyWith(
+                  color: AppColors.secondary,
+                )
+                .monoBold,
           ),
           Divider(height: AppSpacing.md, color: AppColors.border),
           _buildInfoRow(
             'سعر التكلفة',
             '${product.purchasePrice.toStringAsFixed(0)} ل.س',
-            valueStyle: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-            ).mono,
+            valueStyle: AppTypography.bodyMedium
+                .copyWith(
+                  color: AppColors.textSecondary,
+                )
+                .mono,
           ),
           SizedBox(height: AppSpacing.xs),
           _buildInfoRow(
             'الربح لكل وحدة',
             '${profit.toStringAsFixed(0)} ل.س (${margin.toStringAsFixed(1)}%)',
-            valueStyle: AppTypography.bodyMedium.copyWith(
-              color: AppColors.success,
-            ).monoSemibold,
+            valueStyle: AppTypography.bodyMedium
+                .copyWith(
+                  color: AppColors.success,
+                )
+                .monoSemibold,
           ),
         ],
       ),
@@ -850,9 +860,11 @@ class _StatCard extends StatelessWidget {
           SizedBox(height: 2.h),
           Text(
             value,
-            style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textPrimary,
-            ).monoBold,
+            style: AppTypography.labelLarge
+                .copyWith(
+                  color: AppColors.textPrimary,
+                )
+                .monoBold,
           ),
           Text(
             label,

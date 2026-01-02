@@ -394,9 +394,11 @@ class _PurchaseOrderCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '${invoice.total.toStringAsFixed(2)} ر.س',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.primary,
-                ).monoBold,
+                style: AppTypography.titleMedium
+                    .copyWith(
+                      color: AppColors.primary,
+                    )
+                    .monoBold,
               ),
             ],
           ),

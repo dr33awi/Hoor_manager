@@ -273,9 +273,11 @@ class _StatCard extends StatelessWidget {
                 ),
                 Text(
                   ' ${amount.toStringAsFixed(0)} ر.س',
-                  style: AppTypography.titleSmall.copyWith(
-                    color: color,
-                  ).monoBold,
+                  style: AppTypography.titleSmall
+                      .copyWith(
+                        color: color,
+                      )
+                      .monoBold,
                 ),
               ],
             ),
@@ -328,9 +330,11 @@ class _ShiftCard extends StatelessWidget {
                       children: [
                         Text(
                           '#${shift.shiftNumber}',
-                          style: AppTypography.titleSmall.copyWith(
-                            color: AppColors.textPrimary,
-                          ).monoSemibold,
+                          style: AppTypography.titleSmall
+                              .copyWith(
+                                color: AppColors.textPrimary,
+                              )
+                              .monoSemibold,
                         ),
                         SizedBox(width: AppSpacing.sm),
                         ProStatusBadge.fromShiftStatus(shift.status,
@@ -410,9 +414,11 @@ class _InfoItem extends StatelessWidget {
         ),
         Text(
           value,
-          style: AppTypography.labelMedium.copyWith(
-            color: color ?? AppColors.textPrimary,
-          ).mono,
+          style: AppTypography.labelMedium
+              .copyWith(
+                color: color ?? AppColors.textPrimary,
+              )
+              .mono,
         ),
       ],
     );

@@ -86,10 +86,7 @@ class _CategoriesScreenProState extends ConsumerState<CategoriesScreenPro> {
               padding: EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primary.o87
-                  ],
+                  colors: [AppColors.primary, AppColors.primary.o87],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -121,9 +118,11 @@ class _CategoriesScreenProState extends ConsumerState<CategoriesScreenPro> {
                       ),
                       Text(
                         '${categories.length}',
-                        style: AppTypography.headlineMedium.copyWith(
-                          color: Colors.white,
-                        ).monoBold,
+                        style: AppTypography.headlineMedium
+                            .copyWith(
+                              color: Colors.white,
+                            )
+                            .monoBold,
                       ),
                     ],
                   ),

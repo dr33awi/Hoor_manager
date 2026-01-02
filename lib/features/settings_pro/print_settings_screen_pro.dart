@@ -829,52 +829,18 @@ class _PrintSettingsScreenProState
     );
   }
 
-  void _testPrint() {
-    showDialog(
+  void _testPrint() async {
+    final confirm = await showProConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.print, color: AppColors.primary),
-            SizedBox(width: AppSpacing.sm),
-            Text('طباعة تجريبية', style: AppTypography.titleLarge),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle_outline,
-                size: 64.sp, color: AppColors.success),
-            SizedBox(height: AppSpacing.md),
-            Text(
-              'سيتم إرسال صفحة اختبار للطابعة',
-              style: AppTypography.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ProSnackbar.info(context, 'جاري الطباعة...');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
-            child: const Text('طباعة', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      title: 'طباعة تجريبية',
+      message: 'سيتم إرسال صفحة اختبار للطابعة',
+      icon: Icons.print_rounded,
+      iconColor: AppColors.primary,
+      confirmText: 'طباعة',
     );
+    if (confirm == true) {
+      ProSnackbar.info(context, 'جاري الطباعة...');
+    }
   }
 
   Future<void> _resetToDefaults() async {

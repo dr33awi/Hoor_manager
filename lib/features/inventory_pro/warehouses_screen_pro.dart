@@ -453,9 +453,8 @@ class _WarehouseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ProCard(
       margin: EdgeInsets.only(bottom: AppSpacing.md.h),
-      borderColor: warehouse.isDefault
-          ? AppColors.secondary.borderStrong
-          : null,
+      borderColor:
+          warehouse.isDefault ? AppColors.secondary.borderStrong : null,
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,9 +526,11 @@ class _WarehouseCard extends StatelessWidget {
                     if (warehouse.code != null)
                       Text(
                         warehouse.code!,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ).mono,
+                        style: AppTypography.bodySmall
+                            .copyWith(
+                              color: AppColors.textTertiary,
+                            )
+                            .mono,
                       ),
                   ],
                 ),

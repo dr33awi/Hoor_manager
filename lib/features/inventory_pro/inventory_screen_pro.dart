@@ -518,9 +518,11 @@ class _MovementCard extends StatelessWidget {
           ),
           Text(
             '${isAdd ? '+' : '-'}${movement.quantity}',
-            style: AppTypography.titleMedium.copyWith(
-              color: isAdd ? AppColors.success : AppColors.error,
-            ).monoBold,
+            style: AppTypography.titleMedium
+                .copyWith(
+                  color: isAdd ? AppColors.success : AppColors.error,
+                )
+                .monoBold,
           ),
         ],
       ),
@@ -565,9 +567,11 @@ class _LowStockCard extends StatelessWidget {
             children: [
               Text(
                 '${product.quantity}',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.warning,
-                ).monoBold,
+                style: AppTypography.titleMedium
+                    .copyWith(
+                      color: AppColors.warning,
+                    )
+                    .monoBold,
               ),
               Text(
                 'متبقي',
@@ -627,9 +631,11 @@ class _StockCard extends StatelessWidget {
             ),
             child: Text(
               '${product.quantity}',
-              style: AppTypography.labelLarge.copyWith(
-                color: isLow ? AppColors.warning : AppColors.success,
-              ).monoBold,
+              style: AppTypography.labelLarge
+                  .copyWith(
+                    color: isLow ? AppColors.warning : AppColors.success,
+                  )
+                  .monoBold,
             ),
           ),
         ],

@@ -521,9 +521,11 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                     ),
                     child: Text(
                       '${_items.length}',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.secondary,
-                      ).mono,
+                      style: AppTypography.labelSmall
+                          .copyWith(
+                            color: AppColors.secondary,
+                          )
+                          .mono,
                     ),
                   ),
                 ],
@@ -628,9 +630,11 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                     SizedBox(height: 4.h),
                     Text(
                       '${item['price'].toStringAsFixed(0)} ر.س × ${item['quantity']}',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ).mono,
+                      style: AppTypography.bodySmall
+                          .copyWith(
+                            color: AppColors.textSecondary,
+                          )
+                          .mono,
                     ),
                     if (item['discount'] > 0)
                       Text(
@@ -647,9 +651,11 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                 children: [
                   Text(
                     '${total.toStringAsFixed(0)} ر.س',
-                    style: AppTypography.titleSmall.copyWith(
-                      color: AppColors.textPrimary,
-                    ).monoSemibold,
+                    style: AppTypography.titleSmall
+                        .copyWith(
+                          color: AppColors.textPrimary,
+                        )
+                        .monoSemibold,
                   ),
                   SizedBox(height: AppSpacing.sm),
                   Row(
@@ -745,9 +751,11 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                   controller: _discountController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.left,
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.error,
-                  ).mono,
+                  style: AppTypography.bodyMedium
+                      .copyWith(
+                        color: AppColors.error,
+                      )
+                      .mono,
                   decoration: InputDecoration(
                     hintText: '0',
                     suffixText: 'ر.س',
@@ -784,10 +792,13 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
               ),
               Text(
                 '${_total.toStringAsFixed(2)} ر.س',
-                style: AppTypography.headlineSmall.copyWith(
-                  color:
-                      widget.isSales ? AppColors.success : AppColors.secondary,
-                ).monoBold,
+                style: AppTypography.headlineSmall
+                    .copyWith(
+                      color: widget.isSales
+                          ? AppColors.success
+                          : AppColors.secondary,
+                    )
+                    .monoBold,
               ),
             ],
           ),
@@ -845,9 +856,11 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                   controller: _paidAmountController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.left,
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.success,
-                  ).mono,
+                  style: AppTypography.bodyMedium
+                      .copyWith(
+                        color: AppColors.success,
+                      )
+                      .mono,
                   decoration: InputDecoration(
                     hintText: '0',
                     suffixText: 'ر.س',
@@ -899,11 +912,13 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                 ),
                 Text(
                   '${_remainingAmount.toStringAsFixed(2)} ر.س',
-                  style: AppTypography.titleMedium.copyWith(
-                    color: _remainingAmount > 0
-                        ? AppColors.warning
-                        : AppColors.success,
-                  ).monoBold,
+                  style: AppTypography.titleMedium
+                      .copyWith(
+                        color: _remainingAmount > 0
+                            ? AppColors.warning
+                            : AppColors.success,
+                      )
+                      .monoBold,
                 ),
               ],
             ),
@@ -950,9 +965,11 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
         ),
         Text(
           '${amount.toStringAsFixed(2)} ر.س',
-          style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.textPrimary,
-          ).mono,
+          style: AppTypography.bodyMedium
+              .copyWith(
+                color: AppColors.textPrimary,
+              )
+              .mono,
         ),
       ],
     );
@@ -1375,29 +1392,17 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
     });
   }
 
-  void _showDiscardDialog() {
-    showDialog(
+  void _showDiscardDialog() async {
+    final confirm = await showProConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تجاهل التغييرات؟'),
-        content: const Text('سيتم فقدان جميع البيانات المدخلة'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.pop();
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
-            child: const Text('تجاهل'),
-          ),
-        ],
-      ),
+      title: 'تجاهل التغييرات؟',
+      message: 'سيتم فقدان جميع البيانات المدخلة',
+      icon: Icons.warning_amber_rounded,
+      isDanger: true,
+      confirmText: 'تجاهل',
     );
+    if (confirm == true) {
+      context.pop();
+    }
   }
 }

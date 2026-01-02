@@ -96,10 +96,12 @@ class InvoiceCardPro extends StatelessWidget {
                           children: [
                             Text(
                               invoice['id'],
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.secondary,
-                                fontWeight: FontWeight.w500,
-                              ).mono,
+                              style: AppTypography.bodySmall
+                                  .copyWith(
+                                    color: AppColors.secondary,
+                                    fontWeight: FontWeight.w500,
+                                  )
+                                  .mono,
                             ),
                             SizedBox(width: AppSpacing.sm),
                             Text(
@@ -150,9 +152,11 @@ class InvoiceCardPro extends StatelessWidget {
                         ),
                         Text(
                           'متبقي: ${remaining.toStringAsFixed(0)} ر.س',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.warning,
-                          ).mono,
+                          style: AppTypography.labelSmall
+                              .copyWith(
+                                color: AppColors.warning,
+                              )
+                              .mono,
                         ),
                       ],
                     ),
@@ -219,10 +223,13 @@ class InvoiceCardPro extends StatelessWidget {
                     // Total Amount
                     Text(
                       '${total.toStringAsFixed(0)} ر.س',
-                      style: AppTypography.titleMedium.copyWith(
-                        color:
-                            isSales ? AppColors.success : AppColors.secondary,
-                      ).monoBold,
+                      style: AppTypography.titleMedium
+                          .copyWith(
+                            color: isSales
+                                ? AppColors.success
+                                : AppColors.secondary,
+                          )
+                          .monoBold,
                     ),
                   ],
                 ),

@@ -108,9 +108,11 @@ class ProductCardPro extends StatelessWidget {
                           Flexible(
                             child: Text(
                               (product['price'] as double).toStringAsFixed(0),
-                              style: AppTypography.labelMedium.copyWith(
-                                color: AppColors.secondary,
-                              ).monoBold,
+                              style: AppTypography.labelMedium
+                                  .copyWith(
+                                    color: AppColors.secondary,
+                                  )
+                                  .monoBold,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -210,9 +212,11 @@ class ProductCardPro extends StatelessWidget {
                             (product['sku'] as String).isNotEmpty) ...[
                           Text(
                             product['sku'],
-                            style: AppTypography.labelSmall.copyWith(
-                              color: AppColors.textTertiary,
-                            ).mono,
+                            style: AppTypography.labelSmall
+                                .copyWith(
+                                  color: AppColors.textTertiary,
+                                )
+                                .mono,
                           ),
                           Text(
                             ' • ',
@@ -235,9 +239,11 @@ class ProductCardPro extends StatelessWidget {
                       children: [
                         Text(
                           '${(product['price'] as double).toStringAsFixed(0)} ل.س',
-                          style: AppTypography.labelMedium.copyWith(
-                            color: AppColors.secondary,
-                          ).monoBold,
+                          style: AppTypography.labelMedium
+                              .copyWith(
+                                color: AppColors.secondary,
+                              )
+                              .monoBold,
                         ),
                         SizedBox(width: AppSpacing.sm),
                         Text(
@@ -302,10 +308,12 @@ class ProductCardPro extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: AppTypography.labelSmall.copyWith(
-          color: textColor,
-          fontSize: 10.sp,
-        ).monoSemibold,
+        style: AppTypography.labelSmall
+            .copyWith(
+              color: textColor,
+              fontSize: 10.sp,
+            )
+            .monoSemibold,
       ),
     );
   }

@@ -301,9 +301,11 @@ class _StatCard extends StatelessWidget {
           ),
           Text(
             amount.toStringAsFixed(0),
-            style: AppTypography.titleSmall.copyWith(
-              color: color,
-            ).monoBold,
+            style: AppTypography.titleSmall
+                .copyWith(
+                  color: color,
+                )
+                .monoBold,
           ),
         ],
       ),
@@ -360,9 +362,11 @@ class _VoucherCard extends StatelessWidget {
                   children: [
                     Text(
                       '#${voucher.voucherNumber}',
-                      style: AppTypography.titleSmall.copyWith(
-                        color: AppColors.textPrimary,
-                      ).monoSemibold,
+                      style: AppTypography.titleSmall
+                          .copyWith(
+                            color: AppColors.textPrimary,
+                          )
+                          .monoSemibold,
                     ),
                     SizedBox(width: AppSpacing.sm),
                     ProStatusBadge.fromVoucherType(voucher.type, small: true),
@@ -391,9 +395,11 @@ class _VoucherCard extends StatelessWidget {
           ),
           Text(
             '${voucher.amount.toStringAsFixed(0)} ر.س',
-            style: AppTypography.titleMedium.copyWith(
-              color: _typeColor,
-            ).monoBold,
+            style: AppTypography.titleMedium
+                .copyWith(
+                  color: _typeColor,
+                )
+                .monoBold,
           ),
         ],
       ),

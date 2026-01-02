@@ -753,16 +753,16 @@ class AppColorUtils {
 extension MonoTypography on TextStyle {
   /// Convert this style to use JetBrains Mono for numbers/codes
   TextStyle get mono => copyWith(fontFamily: 'JetBrains Mono');
-  
+
   /// Convert with bold weight for emphasis
   TextStyle get monoBold => copyWith(
-    fontFamily: 'JetBrains Mono',
-    fontWeight: FontWeight.bold,
-  );
-  
+        fontFamily: 'JetBrains Mono',
+        fontWeight: FontWeight.bold,
+      );
+
   /// Convert with semi-bold weight
   TextStyle get monoSemibold => copyWith(
-    fontFamily: 'JetBrains Mono',
-    fontWeight: FontWeight.w600,
-  );
+        fontFamily: 'JetBrains Mono',
+        fontWeight: FontWeight.w600,
+      );
 }

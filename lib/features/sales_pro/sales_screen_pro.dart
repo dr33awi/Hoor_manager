@@ -753,9 +753,11 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
               ),
               Text(
                 '${_subtotal.toStringAsFixed(2)} ر.س',
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.textPrimary,
-                ).mono,
+                style: AppTypography.bodyMedium
+                    .copyWith(
+                      color: AppColors.textPrimary,
+                    )
+                    .mono,
               ),
             ],
           ),
@@ -787,9 +789,11 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
                 ),
                 Text(
                   '-${_discount.toStringAsFixed(2)} ر.س',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.success,
-                  ).mono,
+                  style: AppTypography.bodyMedium
+                      .copyWith(
+                        color: AppColors.success,
+                      )
+                      .mono,
                 ),
               ],
             ),
@@ -810,9 +814,11 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
               ),
               Text(
                 '${_total.toStringAsFixed(2)} ر.س',
-                style: AppTypography.headlineSmall.copyWith(
-                  color: AppColors.success,
-                ).monoBold,
+                style: AppTypography.headlineSmall
+                    .copyWith(
+                      color: AppColors.success,
+                    )
+                    .monoBold,
               ),
             ],
           ),
@@ -948,9 +954,11 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
                             ),
                             Text(
                               '${_total.toStringAsFixed(2)} ر.س',
-                              style: AppTypography.titleMedium.copyWith(
-                                color: AppColors.textPrimary,
-                              ).monoBold,
+                              style: AppTypography.titleMedium
+                                  .copyWith(
+                                    color: AppColors.textPrimary,
+                                  )
+                                  .monoBold,
                             ),
                           ],
                         ),
@@ -1035,50 +1043,57 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
       text: _discount > 0 ? _discount.toString() : '',
     );
 
-    showDialog(
+    showProBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        title: Row(
+      title: 'إضافة خصم',
+      titleIcon: Icons.discount_outlined,
+      titleIconColor: AppColors.success,
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.discount_outlined, color: AppColors.success),
-            SizedBox(width: AppSpacing.sm),
-            const Text('إضافة خصم'),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          style: AppTypography.titleMedium.mono,
-          decoration: InputDecoration(
-            labelText: 'قيمة الخصم',
-            suffixText: 'ر.س',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              style: AppTypography.titleMedium.mono,
+              decoration: InputDecoration(
+                labelText: 'قيمة الخصم',
+                suffixText: 'ر.س',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+              ],
             ),
-          ),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+            SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: ProButton.secondary(
+                    label: 'إلغاء',
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: ProButton(
+                    label: 'تطبيق',
+                    onPressed: () {
+                      setState(() {
+                        _discount = double.tryParse(controller.text) ?? 0;
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () {
-              setState(() {
-                _discount = double.tryParse(controller.text) ?? 0;
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('تطبيق'),
-          ),
-        ],
       ),
     );
   }
@@ -1350,11 +1365,13 @@ class _ProductCard extends StatelessWidget {
                   // Price
                   Text(
                     '${product.salePrice.toStringAsFixed(0)} ر.س',
-                    style: AppTypography.titleSmall.copyWith(
-                      color: isOutOfStock
-                          ? AppColors.textTertiary
-                          : AppColors.success,
-                    ).monoBold,
+                    style: AppTypography.titleSmall
+                        .copyWith(
+                          color: isOutOfStock
+                              ? AppColors.textTertiary
+                              : AppColors.success,
+                        )
+                        .monoBold,
                   ),
 
                   // Stock
@@ -1443,9 +1460,11 @@ class _CartItemCard extends StatelessWidget {
                 SizedBox(height: 2.h),
                 Text(
                   '${item.product.salePrice.toStringAsFixed(0)} ر.س',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ).mono,
+                  style: AppTypography.bodySmall
+                      .copyWith(
+                        color: AppColors.textSecondary,
+                      )
+                      .mono,
                 ),
               ],
             ),
@@ -1486,9 +1505,11 @@ class _CartItemCard extends StatelessWidget {
             width: 70.w,
             child: Text(
               item.total.toStringAsFixed(0),
-              style: AppTypography.titleSmall.copyWith(
-                color: AppColors.textPrimary,
-              ).monoBold,
+              style: AppTypography.titleSmall
+                  .copyWith(
+                    color: AppColors.textPrimary,
+                  )
+                  .monoBold,
               textAlign: TextAlign.end,
             ),
           ),
@@ -1638,9 +1659,11 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                     ),
                     Text(
                       '${widget.total.toStringAsFixed(2)} ر.س',
-                      style: AppTypography.headlineMedium.copyWith(
-                        color: Colors.white,
-                      ).monoBold,
+                      style: AppTypography.headlineMedium
+                          .copyWith(
+                            color: Colors.white,
+                          )
+                          .monoBold,
                     ),
                   ],
                 ),
@@ -1738,9 +1761,11 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                         ),
                         Text(
                           '${_change.toStringAsFixed(2)} ر.س',
-                          style: AppTypography.titleMedium.copyWith(
-                            color: AppColors.success,
-                          ).monoBold,
+                          style: AppTypography.titleMedium
+                              .copyWith(
+                                color: AppColors.success,
+                              )
+                              .monoBold,
                         ),
                       ],
                     ),
@@ -1755,9 +1780,11 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   controller: _amountController,
                   keyboardType: TextInputType.number,
                   autofocus: true,
-                  style: AppTypography.titleLarge.copyWith(
-                    color: AppColors.success,
-                  ).mono,
+                  style: AppTypography.titleLarge
+                      .copyWith(
+                        color: AppColors.success,
+                      )
+                      .mono,
                   decoration: InputDecoration(
                     labelText: 'المبلغ المدفوع *',
                     hintText: 'أدخل المبلغ المدفوع',
@@ -1805,11 +1832,13 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                       ),
                       Text(
                         '${_remainingAmount.toStringAsFixed(2)} ر.س',
-                        style: AppTypography.titleMedium.copyWith(
-                          color: _remainingAmount > 0
-                              ? AppColors.warning
-                              : AppColors.success,
-                        ).monoBold,
+                        style: AppTypography.titleMedium
+                            .copyWith(
+                              color: _remainingAmount > 0
+                                  ? AppColors.warning
+                                  : AppColors.success,
+                            )
+                            .monoBold,
                       ),
                     ],
                   ),

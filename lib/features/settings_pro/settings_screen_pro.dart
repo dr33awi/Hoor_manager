@@ -351,42 +351,42 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
   }
 
   void _showCurrencyDialog() {
-    showDialog(
+    showProBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('اختر العملة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile(
-              value: 'SAR',
-              groupValue: _currency,
-              onChanged: (value) {
-                setState(() => _currency = value!);
-                Navigator.pop(context);
-              },
-              title: const Text('ريال سعودي (ر.س)'),
-            ),
-            RadioListTile(
-              value: 'USD',
-              groupValue: _currency,
-              onChanged: (value) {
-                setState(() => _currency = value!);
-                Navigator.pop(context);
-              },
-              title: const Text('دولار أمريكي (\$)'),
-            ),
-            RadioListTile(
-              value: 'AED',
-              groupValue: _currency,
-              onChanged: (value) {
-                setState(() => _currency = value!);
-                Navigator.pop(context);
-              },
-              title: const Text('درهم إماراتي'),
-            ),
-          ],
-        ),
+      title: 'اختر العملة',
+      titleIcon: Icons.currency_exchange_rounded,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RadioListTile(
+            value: 'SAR',
+            groupValue: _currency,
+            onChanged: (value) {
+              setState(() => _currency = value!);
+              Navigator.pop(context);
+            },
+            title: const Text('ريال سعودي (ر.س)'),
+          ),
+          RadioListTile(
+            value: 'USD',
+            groupValue: _currency,
+            onChanged: (value) {
+              setState(() => _currency = value!);
+              Navigator.pop(context);
+            },
+            title: const Text('دولار أمريكي (\$)'),
+          ),
+          RadioListTile(
+            value: 'AED',
+            groupValue: _currency,
+            onChanged: (value) {
+              setState(() => _currency = value!);
+              Navigator.pop(context);
+            },
+            title: const Text('درهم إماراتي'),
+          ),
+          SizedBox(height: AppSpacing.md),
+        ],
       ),
     );
   }

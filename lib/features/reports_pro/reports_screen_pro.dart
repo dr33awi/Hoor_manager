@@ -248,9 +248,11 @@ class ReportsScreenPro extends ConsumerWidget {
         SizedBox(height: AppSpacing.xs),
         Text(
           value,
-          style: AppTypography.titleLarge.copyWith(
-            color: Colors.white,
-          ).monoBold,
+          style: AppTypography.titleLarge
+              .copyWith(
+                color: Colors.white,
+              )
+              .monoBold,
         ),
         SizedBox(height: AppSpacing.xs),
         Container(
@@ -271,9 +273,11 @@ class ReportsScreenPro extends ConsumerWidget {
               SizedBox(width: 2.w),
               Text(
                 trend,
-                style: AppTypography.labelSmall.copyWith(
-                  color: Colors.white,
-                ).mono,
+                style: AppTypography.labelSmall
+                    .copyWith(
+                      color: Colors.white,
+                    )
+                    .mono,
               ),
             ],
           ),

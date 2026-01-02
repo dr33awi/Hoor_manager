@@ -163,27 +163,19 @@ class _InvoiceDetailsScreenProState
     }
   }
 
-  void _showPdfPreview(dynamic pdfBytes) {
-    showDialog(
+  void _showPdfPreview(dynamic pdfBytes) async {
+    final shouldPrint = await showProConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('معاينة الفاتورة'),
-        content: Text('تم إنشاء PDF بنجاح. اختر طباعة أو مشاركة.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('إغلاق'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _handlePrint(PrintType.print);
-            },
-            child: Text('طباعة'),
-          ),
-        ],
-      ),
+      title: 'معاينة الفاتورة',
+      message: 'تم إنشاء PDF بنجاح. اختر طباعة أو مشاركة.',
+      icon: Icons.picture_as_pdf_rounded,
+      iconColor: AppColors.success,
+      confirmText: 'طباعة',
+      cancelText: 'إغلاق',
     );
+    if (shouldPrint == true) {
+      _handlePrint(PrintType.print);
+    }
   }
 
   @override
@@ -235,9 +227,11 @@ class _InvoiceDetailsScreenProState
           children: [
             Text(
               _invoice!.invoiceNumber,
-              style: AppTypography.titleMedium.copyWith(
-                color: AppColors.textPrimary,
-              ).mono,
+              style: AppTypography.titleMedium
+                  .copyWith(
+                    color: AppColors.textPrimary,
+                  )
+                  .mono,
             ),
             Text(
               isSales ? 'فاتورة بيع' : 'فاتورة شراء',
@@ -529,16 +523,21 @@ class _InvoiceDetailsScreenProState
                 children: [
                   Text(
                     '${_invoice!.total.toStringAsFixed(2)} ر.س',
-                    style: AppTypography.headlineSmall.copyWith(
-                      color: isSales ? AppColors.success : AppColors.secondary,
-                    ).monoBold,
+                    style: AppTypography.headlineSmall
+                        .copyWith(
+                          color:
+                              isSales ? AppColors.success : AppColors.secondary,
+                        )
+                        .monoBold,
                   ),
                   if (!isPaid)
                     Text(
                       'متبقي: ${remaining.toStringAsFixed(0)} ر.س',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.error,
-                      ).mono,
+                      style: AppTypography.bodySmall
+                          .copyWith(
+                            color: AppColors.error,
+                          )
+                          .mono,
                     ),
                 ],
               ),
@@ -567,9 +566,11 @@ class _InvoiceDetailsScreenProState
                 ),
                 Text(
                   '${_invoice!.paidAmount.toStringAsFixed(0)} من ${_invoice!.total.toStringAsFixed(0)} ر.س',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ).mono,
+                  style: AppTypography.labelSmall
+                      .copyWith(
+                        color: AppColors.textSecondary,
+                      )
+                      .mono,
                 ),
               ],
             ),
@@ -610,9 +611,11 @@ class _InvoiceDetailsScreenProState
                 if (customerPhone.isNotEmpty)
                   Text(
                     customerPhone,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ).mono,
+                    style: AppTypography.bodySmall
+                        .copyWith(
+                          color: AppColors.textSecondary,
+                        )
+                        .mono,
                   ),
               ],
             ),
@@ -668,9 +671,11 @@ class _InvoiceDetailsScreenProState
                       child: Center(
                         child: Text(
                           '${item.quantity}x',
-                          style: AppTypography.labelMedium.copyWith(
-                            color: AppColors.secondary,
-                          ).mono,
+                          style: AppTypography.labelMedium
+                              .copyWith(
+                                color: AppColors.secondary,
+                              )
+                              .mono,
                         ),
                       ),
                     ),
@@ -687,18 +692,22 @@ class _InvoiceDetailsScreenProState
                           ),
                           Text(
                             '${item.unitPrice.toStringAsFixed(0)} ر.س للوحدة',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textTertiary,
-                            ).mono,
+                            style: AppTypography.bodySmall
+                                .copyWith(
+                                  color: AppColors.textTertiary,
+                                )
+                                .mono,
                           ),
                         ],
                       ),
                     ),
                     Text(
                       '${item.total.toStringAsFixed(0)} ر.س',
-                      style: AppTypography.titleSmall.copyWith(
-                        color: AppColors.textPrimary,
-                      ).monoSemibold,
+                      style: AppTypography.titleSmall
+                          .copyWith(
+                            color: AppColors.textPrimary,
+                          )
+                          .monoSemibold,
                     ),
                   ],
                 ),
@@ -734,9 +743,11 @@ class _InvoiceDetailsScreenProState
               ),
               Text(
                 '${_invoice!.total.toStringAsFixed(2)} ر.س',
-                style: AppTypography.titleLarge.copyWith(
-                  color: isSales ? AppColors.success : AppColors.secondary,
-                ).monoBold,
+                style: AppTypography.titleLarge
+                    .copyWith(
+                      color: isSales ? AppColors.success : AppColors.secondary,
+                    )
+                    .monoBold,
               ),
             ],
           ),
@@ -809,9 +820,11 @@ class _InvoiceDetailsScreenProState
         ),
         Text(
           '${isNegative ? "-" : ""}${amount.abs().toStringAsFixed(2)} ر.س',
-          style: AppTypography.bodyMedium.copyWith(
-            color: isNegative ? AppColors.error : AppColors.textPrimary,
-          ).mono,
+          style: AppTypography.bodyMedium
+              .copyWith(
+                color: isNegative ? AppColors.error : AppColors.textPrimary,
+              )
+              .mono,
         ),
       ],
     );
