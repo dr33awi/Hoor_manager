@@ -264,7 +264,7 @@ class _PrintSettingsScreenProState
                     Container(
                       padding: EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.1),
+                        color: AppColors.success.soft,
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Icon(Icons.print,
@@ -322,7 +322,7 @@ class _PrintSettingsScreenProState
           padding: EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.secondary.withOpacity(0.1)
+                ? AppColors.secondary.soft
                 : AppColors.surfaceMuted,
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
@@ -386,7 +386,7 @@ class _PrintSettingsScreenProState
                           padding: EdgeInsets.all(AppSpacing.md),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.primary.withOpacity(0.1)
+                                ? AppColors.primary.soft
                                 : AppColors.surfaceMuted,
                             borderRadius: BorderRadius.circular(AppRadius.md),
                             border: Border.all(
@@ -678,7 +678,7 @@ class _PrintSettingsScreenProState
                 Container(
                   padding: EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: iconColor.soft,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Icon(icon, color: iconColor, size: 20.sp),
@@ -720,7 +720,7 @@ class _PrintSettingsScreenProState
           color: AppColors.textSecondary,
         ),
         hintStyle: AppTypography.bodySmall.copyWith(
-          color: AppColors.textSecondary.withOpacity(0.5),
+          color: AppColors.textSecondary.borderStrong,
         ),
         prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 20.sp),
         border: OutlineInputBorder(
