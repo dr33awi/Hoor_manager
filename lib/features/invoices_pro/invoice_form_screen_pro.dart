@@ -390,9 +390,6 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
               _buildPaymentChip('cash', 'نقدي', Icons.payments_outlined),
               _buildPaymentChip('partial', 'جزئي', Icons.pie_chart_outline),
               _buildPaymentChip('credit', 'آجل', Icons.schedule_outlined),
-              _buildPaymentChip('card', 'بطاقة', Icons.credit_card_outlined),
-              _buildPaymentChip(
-                  'transfer', 'تحويل', Icons.account_balance_outlined),
             ],
           ),
         ],
@@ -1283,6 +1280,17 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
       return;
     }
 
+    // التحقق من إدخال المبلغ المدفوع عند الدفع الجزئي
+    if (_paymentMethod == 'partial' &&
+        _paidAmountController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('الرجاء إدخال المبلغ المدفوع'),
+            backgroundColor: AppColors.warning),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
     try {
       final invoiceRepo = ref.read(invoiceRepositoryProvider);
@@ -1302,14 +1310,12 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
 
       // حساب المبلغ المدفوع بناءً على طريقة الدفع
       double paidAmount;
-      if (_paymentMethod == 'cash' ||
-          _paymentMethod == 'card' ||
-          _paymentMethod == 'transfer') {
+      if (_paymentMethod == 'cash') {
         paidAmount = _total;
       } else if (_paymentMethod == 'credit') {
         paidAmount = 0;
       } else {
-        // partial
+        // partial - المبلغ المدفوع إجباري
         paidAmount = _paidAmount;
       }
 
