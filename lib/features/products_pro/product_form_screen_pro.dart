@@ -105,12 +105,7 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في تحميل المنتج: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ProSnackbar.showError(context, e);
       }
     } finally {
       if (mounted) {
@@ -170,13 +165,7 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
       _barcodeController.text = newBarcode;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم توليد الباركود: $newBarcode'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    ProSnackbar.success(context, 'تم توليد الباركود: $newBarcode');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -187,22 +176,12 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
     final barcode = _barcodeController.text.trim();
 
     if (barcode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('الرجاء إدخال أو توليد باركود أولاً'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ProSnackbar.warning(context, 'الرجاء إدخال أو توليد باركود أولاً');
       return;
     }
 
     if (!_isValidEAN13(barcode)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('الباركود غير صالح. يجب أن يكون EAN-13 صحيح'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ProSnackbar.warning(context, 'الباركود غير صالح. يجب أن يكون EAN-13 صحيح');
       return;
     }
 
@@ -249,12 +228,7 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في طباعة الباركود: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ProSnackbar.error(context, 'خطأ في طباعة الباركود: $e');
       }
     } finally {
       if (mounted) {
@@ -321,24 +295,11 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
 
       if (mounted) {
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                isEditing ? 'تم تحديث المنتج بنجاح' : 'تم إضافة المنتج بنجاح'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ProSnackbar.saved(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ: $e'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ProSnackbar.showError(context, e);
       }
     } finally {
       if (mounted) {

@@ -412,19 +412,14 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
                       products.where((p) => p.barcode == barcode).firstOrNull;
                   if (product != null) {
                     _addToCart(product);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('تمت إضافة ${product.name}'),
-                        backgroundColor: AppColors.success,
-                        duration: const Duration(seconds: 1),
-                      ),
+                    ProSnackbar.success(
+                      context,
+                      'تمت إضافة ${product.name}',
                     );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('المنتج غير موجود'),
-                        backgroundColor: AppColors.error,
-                      ),
+                    ProSnackbar.error(
+                      context,
+                      'المنتج غير موجود',
                     );
                   }
                   _barcodeController.clear();
@@ -1284,12 +1279,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ProSnackbar.showError(context, e);
       }
     }
   }

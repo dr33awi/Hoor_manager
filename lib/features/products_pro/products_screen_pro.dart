@@ -105,12 +105,7 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
 
   Future<void> _handleExport(ExportType type, List<Product> products) async {
     if (products.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('لا توجد منتجات للتصدير'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
+      ProSnackbar.warning(context, 'لا توجد منتجات للتصدير');
       return;
     }
 
@@ -124,16 +119,9 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
             fileName: 'products_list',
           );
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('تم تصدير ${products.length} منتج إلى Excel'),
-                backgroundColor: AppColors.success,
-                action: SnackBarAction(
-                  label: 'مشاركة',
-                  textColor: Colors.white,
-                  onPressed: () => ProductsExportService.shareFile(filePath),
-                ),
-              ),
+            ProSnackbar.success(
+              context,
+              'تم تصدير ${products.length} منتج إلى Excel',
             );
           }
           break;
@@ -144,16 +132,9 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
           final filePath =
               await ProductsExportService.savePdf(bytes, 'products_list');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('تم تصدير ${products.length} منتج إلى PDF'),
-                backgroundColor: AppColors.success,
-                action: SnackBarAction(
-                  label: 'مشاركة',
-                  textColor: Colors.white,
-                  onPressed: () => ProductsExportService.shareFile(filePath),
-                ),
-              ),
+            ProSnackbar.success(
+              context,
+              'تم تصدير ${products.length} منتج إلى PDF',
             );
           }
           break;
@@ -180,12 +161,7 @@ class _ProductsScreenProState extends ConsumerState<ProductsScreenPro>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في التصدير: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ProSnackbar.showError(context, e);
       }
     } finally {
       if (mounted) setState(() => _isExporting = false);

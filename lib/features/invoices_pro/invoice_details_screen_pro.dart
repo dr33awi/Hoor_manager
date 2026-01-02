@@ -113,12 +113,7 @@ class _InvoiceDetailsScreenProState
             options: printOptions,
           );
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('جاري الطباعة...'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            ProSnackbar.info(context, 'جاري الطباعة...');
           }
           break;
 
@@ -141,12 +136,7 @@ class _InvoiceDetailsScreenProState
             options: printOptions,
           );
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('تم حفظ الفاتورة: $filePath'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            ProSnackbar.success(context, 'تم حفظ الفاتورة');
           }
           break;
 
@@ -166,12 +156,7 @@ class _InvoiceDetailsScreenProState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في الطباعة: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ProSnackbar.showError(context, e);
       }
     } finally {
       if (mounted) setState(() => _isPrinting = false);
@@ -475,19 +460,12 @@ class _InvoiceDetailsScreenProState
             final invoiceRepo = ref.read(invoiceRepositoryProvider);
             await invoiceRepo.deleteInvoiceWithReverse(widget.invoiceId);
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text('تم حذف الفاتورة'),
-                    backgroundColor: AppColors.success),
-              );
+              ProSnackbar.deleted(context);
               context.pop();
             }
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text('خطأ: $e'), backgroundColor: AppColors.error),
-              );
+              ProSnackbar.showError(context, e);
             }
           }
         }

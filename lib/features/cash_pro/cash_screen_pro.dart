@@ -432,9 +432,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
                   onPressed: () async {
                     final amount = double.tryParse(amountController.text) ?? 0;
                     if (amount <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('أدخل مبلغ صحيح')),
-                      );
+                      ProSnackbar.warning(context, 'أدخل مبلغ صحيح');
                       return;
                     }
 
@@ -460,23 +458,14 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
 
                       if (context.mounted) {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(isDeposit
-                                ? 'تم الإيداع بنجاح'
-                                : 'تم السحب بنجاح'),
-                            backgroundColor: AppColors.success,
-                          ),
+                        ProSnackbar.success(
+                          context,
+                          isDeposit ? 'تم الإيداع بنجاح' : 'تم السحب بنجاح',
                         );
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('خطأ: $e'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
+                        ProSnackbar.showError(context, e);
                       }
                     }
                   },
