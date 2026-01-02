@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
 import 'connectivity_service.dart';
 import 'network_utils.dart';
-import 'print_settings_service.dart';
+import 'printing/print_settings_service.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/invoice_repository.dart';

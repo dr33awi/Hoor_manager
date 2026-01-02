@@ -9,7 +9,7 @@ import '../services/connectivity_service.dart';
 import '../services/sync_service.dart';
 import '../services/backup_service.dart';
 import '../services/currency_service.dart';
-import '../services/print_settings_service.dart';
+import '../services/printing/print_settings_service.dart';
 import '../services/accounting_service.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../data/repositories/category_repository.dart';

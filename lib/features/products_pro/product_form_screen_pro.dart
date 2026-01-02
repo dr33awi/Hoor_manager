@@ -12,7 +12,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 

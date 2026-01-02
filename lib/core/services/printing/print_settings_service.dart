@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
-import '../constants/app_constants.dart';
-import '../../data/database/app_database.dart';
-import 'printing/print_settings.dart';
-import 'printing/invoice_pdf_generator.dart';
-import 'printing/voucher_pdf_generator.dart';
+import '../../constants/app_constants.dart';
+import '../../../data/database/app_database.dart';
+import 'print_settings.dart';
+import 'invoice_pdf_generator.dart';
+import 'voucher_pdf_generator.dart';
 
 /// خدمة إدارة إعدادات الطباعة الموحدة
 /// تقوم بحفظ واسترجاع إعدادات الطباعة من قاعدة البيانات مع مزامنة Firestore

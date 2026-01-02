@@ -8,8 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
-import '../../core/animations/pro_animations.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 
@@ -218,13 +217,10 @@ class _CategoriesScreenProState extends ConsumerState<CategoriesScreenPro> {
       padding: EdgeInsets.all(AppSpacing.md),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
-        return StaggeredListAnimation(
-          index: index,
-          child: _CategoryCard(
-            category: filtered[index],
-            onEdit: () => _showCategoryForm(category: filtered[index]),
-            onDelete: () => _confirmDelete(filtered[index]),
-          ),
+        return _CategoryCard(
+          category: filtered[index],
+          onEdit: () => _showCategoryForm(category: filtered[index]),
+          onDelete: () => _confirmDelete(filtered[index]),
         );
       },
     );

@@ -10,7 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/di/injection.dart';
 import '../../core/services/backup_service.dart';
 

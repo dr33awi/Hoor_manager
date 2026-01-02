@@ -7,11 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hoor_manager/core/theme/design_tokens.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/design_tokens.dart';
-import '../../core/animations/pro_animations.dart';
-import '../../core/widgets/pro_navigation_drawer.dart';
+import '../dashboard_pro/widgets/pro_navigation_drawer.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 
@@ -203,46 +202,43 @@ class _PurchasesScreenProState extends ConsumerState<PurchasesScreenPro>
   Widget _buildMiniStat(String title, String value, String suffix,
       IconData icon, Color color, int index) {
     return Expanded(
-      child: StaggeredListAnimation(
-        index: index,
-        child: Container(
-          padding: EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            boxShadow: AppShadows.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: 20.sp),
-              SizedBox(height: AppSpacing.sm),
-              Text(
-                title,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+      child: Container(
+        padding: EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: AppShadows.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 20.sp),
+            SizedBox(height: AppSpacing.sm),
+            Text(
+              title,
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondary,
               ),
-              Row(
-                children: [
+            ),
+            Row(
+              children: [
+                Text(
+                  value,
+                  style: AppTypography.titleMedium.copyWith(
+                    fontFamily: 'JetBrains Mono',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (suffix.isNotEmpty)
                   Text(
-                    value,
-                    style: AppTypography.titleMedium.copyWith(
-                      fontFamily: 'JetBrains Mono',
-                      fontWeight: FontWeight.bold,
+                    ' $suffix',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
                     ),
                   ),
-                  if (suffix.isNotEmpty)
-                    Text(
-                      ' $suffix',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -326,13 +322,10 @@ class _PurchasesScreenProState extends ConsumerState<PurchasesScreenPro>
       itemCount: orders.length,
       itemBuilder: (context, index) {
         final invoice = orders[index];
-        return StaggeredListAnimation(
-          index: index,
-          child: _PurchaseOrderCard(
-            invoice: invoice,
-            supplierNameFuture: _getSupplierName(invoice.supplierId),
-            onTap: () => context.push('/invoices/${invoice.id}'),
-          ),
+        return _PurchaseOrderCard(
+          invoice: invoice,
+          supplierNameFuture: _getSupplierName(invoice.supplierId),
+          onTap: () => context.push('/invoices/${invoice.id}'),
         );
       },
     );

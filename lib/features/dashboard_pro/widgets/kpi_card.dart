@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../../core/theme/pro/design_tokens.dart';
+import '../../../core/theme/design_tokens.dart';
 
 /// A premium KPI card with gradient background and trend indicator
 class KPICard extends StatelessWidget {

@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Invoice Details Screen Pro
-// View detailed invoice information
+// View detailed invoice information with Print Support
 // ═══════════════════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
@@ -9,8 +9,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/printing/printing_services.dart';
+import '../../core/di/injection.dart';
+import '../../core/services/printing/print_settings_service.dart';
 import '../../data/database/app_database.dart';
 
 class InvoiceDetailsScreenPro extends ConsumerStatefulWidget {
@@ -33,6 +36,7 @@ class _InvoiceDetailsScreenProState
   Customer? _customer;
   Supplier? _supplier;
   bool _isLoading = true;
+  bool _isPrinting = false;
 
   @override
   void initState() {
@@ -84,6 +88,117 @@ class _InvoiceDetailsScreenProState
       : 0;
   String get customerName => _customer?.name ?? _supplier?.name ?? 'غير محدد';
   String get customerPhone => _customer?.phone ?? _supplier?.phone ?? '';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Print Functions
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _handlePrint(PrintType type) async {
+    if (_invoice == null || _isPrinting) return;
+
+    setState(() => _isPrinting = true);
+
+    try {
+      final printSettingsService = getIt<PrintSettingsService>();
+      final printOptions = await printSettingsService.getPrintOptions();
+
+      switch (type) {
+        case PrintType.print:
+          await InvoicePdfGenerator.printInvoiceDirectly(
+            invoice: _invoice!,
+            items: _invoiceItems,
+            customer: _customer,
+            supplier: _supplier,
+            options: printOptions,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('جاري الطباعة...'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
+          break;
+
+        case PrintType.share:
+          await InvoicePdfGenerator.shareInvoiceAsPdf(
+            invoice: _invoice!,
+            items: _invoiceItems,
+            customer: _customer,
+            supplier: _supplier,
+            options: printOptions,
+          );
+          break;
+
+        case PrintType.save:
+          final filePath = await InvoicePdfGenerator.saveInvoiceAsPdf(
+            invoice: _invoice!,
+            items: _invoiceItems,
+            customer: _customer,
+            supplier: _supplier,
+            options: printOptions,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('تم حفظ الفاتورة: $filePath'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
+          break;
+
+        case PrintType.preview:
+          // معاينة PDF
+          final pdfBytes = await InvoicePdfGenerator.generateInvoicePdfBytes(
+            invoice: _invoice!,
+            items: _invoiceItems,
+            customer: _customer,
+            supplier: _supplier,
+            options: printOptions,
+          );
+          if (mounted) {
+            _showPdfPreview(pdfBytes);
+          }
+          break;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في الطباعة: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPrinting = false);
+    }
+  }
+
+  void _showPdfPreview(dynamic pdfBytes) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('معاينة الفاتورة'),
+        content: Text('تم إنشاء PDF بنجاح. اختر طباعة أو مشاركة.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('إغلاق'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _handlePrint(PrintType.print);
+            },
+            child: Text('طباعة'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,17 +263,20 @@ class _InvoiceDetailsScreenProState
           ],
         ),
         actions: [
-          IconButton(
-            onPressed: () {
-              // TODO: Print invoice
+          // ═══════════════════════════════════════════════════════════════
+          // زر الطباعة الموحد
+          // ═══════════════════════════════════════════════════════════════
+          PrintMenuButton(
+            onPrint: _handlePrint,
+            isLoading: _isPrinting,
+            enabledOptions: const {
+              PrintType.print,
+              PrintType.share,
+              PrintType.save,
+              PrintType.preview,
             },
-            icon: Icon(Icons.print_outlined, color: AppColors.textSecondary),
-          ),
-          IconButton(
-            onPressed: () {
-              // TODO: Share invoice
-            },
-            icon: Icon(Icons.share_outlined, color: AppColors.textSecondary),
+            tooltip: 'طباعة الفاتورة',
+            color: AppColors.secondary,
           ),
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
@@ -202,11 +320,131 @@ class _InvoiceDetailsScreenProState
               SizedBox(height: AppSpacing.lg),
             ],
 
+            // ═══════════════════════════════════════════════════════════════
+            // Quick Print Actions
+            // ═══════════════════════════════════════════════════════════════
+            _buildQuickPrintActions(),
+
             SizedBox(height: AppSpacing.xl),
           ],
         ),
       ),
       bottomNavigationBar: remaining > 0 ? _buildBottomBar(context) : null,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Quick Print Actions Widget
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildQuickPrintActions() {
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.print_outlined,
+                size: AppIconSize.sm,
+                color: AppColors.textTertiary,
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Text(
+                'إجراءات سريعة',
+                style: AppTypography.titleSmall.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionButton(
+                  icon: Icons.print_rounded,
+                  label: 'طباعة',
+                  color: AppColors.secondary,
+                  onTap: () => _handlePrint(PrintType.print),
+                ),
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _buildQuickActionButton(
+                  icon: Icons.share_rounded,
+                  label: 'مشاركة',
+                  color: AppColors.success,
+                  onTap: () => _handlePrint(PrintType.share),
+                ),
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _buildQuickActionButton(
+                  icon: Icons.save_alt_rounded,
+                  label: 'حفظ',
+                  color: AppColors.warning,
+                  onTap: () => _handlePrint(PrintType.save),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _isPrinting ? null : onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            vertical: AppSpacing.md,
+            horizontal: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              _isPrinting
+                  ? SizedBox(
+                      width: 20.w,
+                      height: 20.w,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(color),
+                      ),
+                    )
+                  : Icon(icon, color: color, size: AppIconSize.md),
+              SizedBox(height: AppSpacing.xs),
+              Text(
+                label,
+                style: AppTypography.labelSmall.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

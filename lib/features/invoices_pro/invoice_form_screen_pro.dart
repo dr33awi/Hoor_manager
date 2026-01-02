@@ -9,8 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
+import '../../features/invoices_pro/widgets/invoice_success_dialog.dart';
 import '../../data/database/app_database.dart';
 
 class InvoiceFormScreenPro extends ConsumerStatefulWidget {
@@ -1294,6 +1295,8 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
     setState(() => _isSaving = true);
     try {
       final invoiceRepo = ref.read(invoiceRepositoryProvider);
+      final customerRepo = ref.read(customerRepositoryProvider);
+      final supplierRepo = ref.read(supplierRepositoryProvider);
       final openShift = ref.read(openShiftStreamProvider).asData?.value;
 
       final invoiceItems = _items
@@ -1319,7 +1322,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
         paidAmount = _paidAmount;
       }
 
-      await invoiceRepo.createInvoice(
+      final invoiceId = await invoiceRepo.createInvoice(
         type: widget.type,
         customerId: widget.isSales ? _selectedCustomerId : null,
         supplierId: !widget.isSales ? _selectedSupplierId : null,
@@ -1334,13 +1337,51 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
         invoiceDate: _invoiceDate,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('تم حفظ الفاتورة بنجاح'),
-              backgroundColor: AppColors.success),
+      // ═══════════════════════════════════════════════════════════════════════
+      // تحميل بيانات الفاتورة وعرض حوار النجاح الموحد
+      // ═══════════════════════════════════════════════════════════════════════
+      final invoice = await invoiceRepo.getInvoiceById(invoiceId);
+      final items = await invoiceRepo.getInvoiceItems(invoiceId);
+
+      Customer? customer;
+      Supplier? supplier;
+
+      if (widget.isSales && _selectedCustomerId != null) {
+        customer = await customerRepo.getCustomerById(_selectedCustomerId!);
+      }
+      if (!widget.isSales && _selectedSupplierId != null) {
+        supplier = await supplierRepo.getSupplierById(_selectedSupplierId!);
+      }
+
+      if (mounted && invoice != null) {
+        // عرض حوار النجاح الموحد
+        final result = await InvoiceSuccessDialog.show(
+          context: context,
+          data: InvoiceDialogData(
+            invoice: invoice,
+            items: items,
+            customer: customer,
+            supplier: supplier,
+          ),
+          showNewInvoiceButton: true,
+          showViewDetailsButton: true,
+          onNewInvoice: () {
+            // إعادة تعيين النموذج لفاتورة جديدة
+            _resetForm();
+          },
         );
-        context.pop();
+
+        // معالجة نتيجة الحوار
+        if (result == InvoiceDialogResult.newInvoice) {
+          // البقاء في نفس الصفحة مع إعادة تعيين النموذج
+          _resetForm();
+        } else if (result == InvoiceDialogResult.close ||
+            result == InvoiceDialogResult.viewDetails) {
+          // الخروج من الصفحة (viewDetails يقوم بالتوجيه تلقائياً)
+          if (mounted && result == InvoiceDialogResult.close) {
+            context.pop();
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1351,6 +1392,23 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  /// إعادة تعيين النموذج لفاتورة جديدة
+  void _resetForm() {
+    setState(() {
+      _items.clear();
+      _selectedCustomerId = null;
+      _selectedCustomerName = null;
+      _selectedSupplierId = null;
+      _selectedSupplierName = null;
+      _invoiceDate = DateTime.now();
+      _dueDate = null;
+      _paymentMethod = 'cash';
+      _discountController.clear();
+      _notesController.clear();
+      _paidAmountController.clear();
+    });
   }
 
   void _showDiscardDialog() {

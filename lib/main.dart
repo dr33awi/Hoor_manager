@@ -10,7 +10,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-import 'core/theme/pro/app_theme.dart';
+import 'core/theme/app_theme.dart';
 import 'core/router/app_router_pro.dart';
 import 'core/di/injection.dart';
 

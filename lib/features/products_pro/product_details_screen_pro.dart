@@ -13,7 +13,7 @@ import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import '../../core/theme/pro/design_tokens.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 
@@ -635,7 +635,7 @@ class _ProductDetailsView extends StatelessWidget {
           child: _StatCard(
             icon: Icons.attach_money_rounded,
             label: 'سعر البيع',
-            value: '${product.salePrice.toStringAsFixed(0)}',
+            value: product.salePrice.toStringAsFixed(0),
             color: AppColors.secondary,
           ),
         ),

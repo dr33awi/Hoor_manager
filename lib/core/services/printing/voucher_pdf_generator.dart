@@ -7,10 +7,10 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../di/injection.dart';
-import '../../theme/pdf_theme.dart';
+import 'pdf_theme.dart';
 import '../currency_service.dart';
 import '../export/export_templates.dart';
-import '../print_settings_service.dart';
+import 'print_settings_service.dart';
 
 /// أحجام الطباعة المدعومة للسندات
 enum VoucherPrintSize {

@@ -6,7 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../../core/theme/pro/design_tokens.dart';
+import '../../../core/theme/design_tokens.dart';
 import '../../../core/services/export/export_button.dart';
 
 class ProductsHeader extends StatelessWidget {

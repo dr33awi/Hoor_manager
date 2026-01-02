@@ -9,9 +9,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
-import '../../core/animations/pro_animations.dart';
-import '../../core/widgets/pro_navigation_drawer.dart';
+import '../../core/theme/design_tokens.dart';
+import '../dashboard_pro/widgets/pro_navigation_drawer.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 
@@ -207,10 +206,7 @@ class _InventoryScreenProState extends ConsumerState<InventoryScreenPro>
           padding: EdgeInsets.all(AppSpacing.md),
           itemCount: filtered.length,
           itemBuilder: (context, index) {
-            return StaggeredListAnimation(
-              index: index,
-              child: _MovementCard(movement: filtered[index]),
-            );
+            return _MovementCard(movement: filtered[index]);
           },
         );
       },
@@ -239,10 +235,7 @@ class _InventoryScreenProState extends ConsumerState<InventoryScreenPro>
           padding: EdgeInsets.all(AppSpacing.md),
           itemCount: lowStock.length,
           itemBuilder: (context, index) {
-            return StaggeredListAnimation(
-              index: index,
-              child: _LowStockCard(product: lowStock[index]),
-            );
+            return _LowStockCard(product: lowStock[index]);
           },
         );
       },
@@ -273,10 +266,7 @@ class _InventoryScreenProState extends ConsumerState<InventoryScreenPro>
           padding: EdgeInsets.all(AppSpacing.md),
           itemCount: filtered.length,
           itemBuilder: (context, index) {
-            return StaggeredListAnimation(
-              index: index,
-              child: _StockCard(product: filtered[index]),
-            );
+            return _StockCard(product: filtered[index]);
           },
         );
       },

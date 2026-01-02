@@ -6,7 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import '../../../data/database/app_database.dart';
-import '../../theme/pdf_theme.dart';
+import '../printing/pdf_theme.dart';
 import 'export_templates.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════

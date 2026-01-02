@@ -13,7 +13,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:excel/excel.dart';
 
-import '../../data/database/app_database.dart';
+import '../../../data/database/app_database.dart';
 
 class ExportService {
   static final ExportService _instance = ExportService._internal();
@@ -313,13 +313,14 @@ class ExportService {
 
       // Style header
       for (var i = 0; i < 9; i++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
-          ..cellStyle = CellStyle(
-            bold: true,
-            backgroundColorHex: ExcelColor.blue800,
-            fontColorHex: ExcelColor.white,
-            horizontalAlign: HorizontalAlign.Center,
-          );
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+            .cellStyle = CellStyle(
+          bold: true,
+          backgroundColorHex: ExcelColor.blue800,
+          fontColorHex: ExcelColor.white,
+          horizontalAlign: HorizontalAlign.Center,
+        );
       }
 
       // Data rows
@@ -386,13 +387,14 @@ class ExportService {
 
       // Style header
       for (var i = 0; i < 8; i++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
-          ..cellStyle = CellStyle(
-            bold: true,
-            backgroundColorHex: ExcelColor.blue800,
-            fontColorHex: ExcelColor.white,
-            horizontalAlign: HorizontalAlign.Center,
-          );
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+            .cellStyle = CellStyle(
+          bold: true,
+          backgroundColorHex: ExcelColor.blue800,
+          fontColorHex: ExcelColor.white,
+          horizontalAlign: HorizontalAlign.Center,
+        );
       }
 
       // Data rows

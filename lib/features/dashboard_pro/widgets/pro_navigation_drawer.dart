@@ -6,7 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import '../theme/design_tokens.dart';
+import 'package:hoor_manager/core/theme/design_tokens.dart';
 
 class ProNavigationDrawer extends StatelessWidget {
   final String? currentRoute;

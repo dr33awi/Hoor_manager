@@ -9,9 +9,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/di/injection.dart';
-import '../../core/providers/app_providers.dart';
 import '../../core/services/backup_service.dart';
 
 class SettingsScreenPro extends ConsumerStatefulWidget {

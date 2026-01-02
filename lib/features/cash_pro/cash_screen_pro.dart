@@ -9,8 +9,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
-import '../../core/animations/pro_animations.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 
@@ -186,10 +185,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: movements.length,
                 itemBuilder: (context, index) {
-                  return StaggeredListAnimation(
-                    index: index,
-                    child: _MovementCard(movement: movements[index]),
-                  );
+                  return _MovementCard(movement: movements[index]);
                 },
               );
             },
@@ -325,7 +321,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
         ),
         SizedBox(height: AppSpacing.xs),
         Text(
-          '${value.toStringAsFixed(0)}',
+          value.toStringAsFixed(0),
           style: AppTypography.titleSmall.copyWith(
             color: Colors.white,
             fontFamily: 'JetBrains Mono',

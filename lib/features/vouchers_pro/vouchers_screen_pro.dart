@@ -9,7 +9,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 
@@ -364,7 +364,7 @@ class _StatCard extends StatelessWidget {
             style: AppTypography.labelSmall.copyWith(color: color),
           ),
           Text(
-            '${amount.toStringAsFixed(0)}',
+            amount.toStringAsFixed(0),
             style: AppTypography.titleSmall.copyWith(
               color: color,
               fontWeight: FontWeight.w700,

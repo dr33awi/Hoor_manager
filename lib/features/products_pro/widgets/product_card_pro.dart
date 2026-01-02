@@ -6,7 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../../core/theme/pro/design_tokens.dart';
+import '../../../core/theme/design_tokens.dart';
 
 class ProductCardPro extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -107,7 +107,7 @@ class ProductCardPro extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              '${(product['price'] as double).toStringAsFixed(0)}',
+                              (product['price'] as double).toStringAsFixed(0),
                               style: AppTypography.labelMedium.copyWith(
                                 color: AppColors.secondary,
                                 fontWeight: FontWeight.w700,

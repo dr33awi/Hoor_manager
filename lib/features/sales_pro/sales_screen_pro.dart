@@ -8,8 +8,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hoor_manager/features/invoices_pro/widgets/invoice_success_dialog.dart';
 
-import '../../core/theme/pro/design_tokens.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
 
@@ -28,7 +29,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
   String? _selectedCategoryId;
   final List<CartItem> _cartItems = [];
   double _discount = 0;
-  String _paymentMethod = 'cash';
+  final String _paymentMethod = 'cash';
   String? _selectedCustomerId;
   String? _selectedCustomerName;
 
@@ -522,8 +523,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.full),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+        child: Container(
           padding: EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
@@ -1216,6 +1216,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
   Future<void> _saveInvoice(String paymentMethod, double paidAmount) async {
     try {
       final invoiceRepo = ref.read(invoiceRepositoryProvider);
+      final customerRepo = ref.read(customerRepositoryProvider);
       final openShift = ref.read(openShiftStreamProvider).asData?.value;
 
       final invoiceItems = _cartItems
@@ -1229,7 +1230,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
               })
           .toList();
 
-      await invoiceRepo.createInvoice(
+      final invoiceId = await invoiceRepo.createInvoice(
         type: 'sale',
         customerId: _selectedCustomerId,
         items: invoiceItems,
@@ -1240,8 +1241,33 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
         invoiceDate: DateTime.now(),
       );
 
-      if (mounted) {
-        _showSuccessDialog();
+      // تحميل بيانات الفاتورة للحوار
+      final invoice = await invoiceRepo.getInvoiceById(invoiceId);
+      final items = await invoiceRepo.getInvoiceItems(invoiceId);
+      Customer? customer;
+      if (_selectedCustomerId != null) {
+        customer = await customerRepo.getCustomerById(_selectedCustomerId!);
+      }
+
+      if (mounted && invoice != null) {
+        // عرض حوار النجاح الموحد
+        final result = await InvoiceSuccessDialog.show(
+          context: context,
+          data: InvoiceDialogData(
+            invoice: invoice,
+            items: items,
+            customer: customer,
+          ),
+          showNewInvoiceButton: true,
+          showViewDetailsButton: true,
+          onNewInvoice: _resetCart,
+        );
+
+        // إذا اختار المستخدم فاتورة جديدة أو إغلاق
+        if (result == InvoiceDialogResult.newInvoice ||
+            result == InvoiceDialogResult.close) {
+          _resetCart();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1255,78 +1281,13 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
     }
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.success,
-                size: 64.sp,
-              ),
-            ),
-            SizedBox(height: AppSpacing.lg),
-            Text(
-              'تمت العملية بنجاح',
-              style: AppTypography.titleLarge.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: AppSpacing.sm),
-            Text(
-              'الإجمالي: ${_total.toStringAsFixed(2)} ر.س',
-              style: AppTypography.headlineSmall.copyWith(
-                color: AppColors.success,
-                fontFamily: 'JetBrains Mono',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _cartItems.clear();
-                _discount = 0;
-                _selectedCustomerId = null;
-                _selectedCustomerName = null;
-              });
-            },
-            child: const Text('فاتورة جديدة'),
-          ),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Print receipt
-              setState(() {
-                _cartItems.clear();
-                _discount = 0;
-                _selectedCustomerId = null;
-                _selectedCustomerName = null;
-              });
-            },
-            icon: const Icon(Icons.print_rounded),
-            label: const Text('طباعة'),
-          ),
-        ],
-      ),
-    );
+  void _resetCart() {
+    setState(() {
+      _cartItems.clear();
+      _discount = 0;
+      _selectedCustomerId = null;
+      _selectedCustomerName = null;
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1416,8 +1377,7 @@ class _ProductCard extends StatelessWidget {
       child: InkWell(
         onTap: isOutOfStock ? null : onTap,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+        child: Container(
           padding: EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             color: inCart
@@ -1616,7 +1576,7 @@ class _CartItemCard extends StatelessWidget {
           SizedBox(
             width: 70.w,
             child: Text(
-              '${item.total.toStringAsFixed(0)}',
+              item.total.toStringAsFixed(0),
               style: AppTypography.titleSmall.copyWith(
                 fontFamily: 'JetBrains Mono',
                 fontWeight: FontWeight.w700,
@@ -2115,8 +2075,7 @@ class _PaymentMethodButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+        child: Container(
           padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
           decoration: BoxDecoration(
             color: isSelected
