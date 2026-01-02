@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/widgets/widgets.dart';
 import '../../data/database/app_database.dart';
 
 class ShiftsScreenPro extends ConsumerWidget {
@@ -59,48 +60,10 @@ class ShiftsScreenPro extends ConsumerWidget {
   }
 
   Widget _buildHeader(BuildContext context, int totalShifts) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => context.go('/'),
-            icon: Icon(
-              Icons.arrow_back_ios_rounded,
-              size: AppIconSize.sm,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'الورديات',
-                  style: AppTypography.headlineSmall.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  '$totalShifts وردية',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return ProHeader(
+      title: 'الورديات',
+      subtitle: '$totalShifts وردية',
+      onBack: () => context.go('/'),
     );
   }
 

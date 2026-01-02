@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/design_tokens.dart';
+import '../../core/widgets/widgets.dart';
 import '../dashboard_pro/widgets/pro_navigation_drawer.dart';
 import '../../core/providers/app_providers.dart';
 import '../../data/database/app_database.dart';
