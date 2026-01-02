@@ -204,7 +204,7 @@ class _StockTransferScreenProState extends ConsumerState<StockTransferScreenPro>
                     Container(
                       padding: EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.1),
+                        color: AppColors.secondary.soft,
                         borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Icon(Icons.swap_horiz_rounded,
@@ -752,7 +752,7 @@ class _TransferCard extends ConsumerWidget {
                     Container(
                       padding: EdgeInsets.all(AppSpacing.xs),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.1),
+                        color: AppColors.secondary.soft,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

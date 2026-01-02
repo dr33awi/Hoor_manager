@@ -28,24 +28,12 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_ios_rounded,
-              color: AppColors.textSecondary),
-        ),
-        title: Text(
-          'الصندوق',
-          style:
-              AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
-        ),
+      appBar: ProAppBar.simple(
+        title: 'الصندوق',
         actions: [
-          IconButton(
+          ProAppBarAction(
+            icon: Icons.access_time_rounded,
             onPressed: () => context.push('/shifts'),
-            icon:
-                Icon(Icons.access_time_rounded, color: AppColors.textSecondary),
             tooltip: 'الورديات',
           ),
         ],
@@ -73,7 +61,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
             Container(
               padding: EdgeInsets.all(AppSpacing.xl),
               decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
+                color: AppColors.warning.soft,
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -206,14 +194,14 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
       padding: EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+          colors: [AppColors.primary, AppColors.primary.overlayHeavy],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.border,
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -227,7 +215,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
               Text(
                 'رصيد الصندوق',
                 style: AppTypography.titleMedium.copyWith(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.overlayHeavy,
                 ),
               ),
               Container(
@@ -236,7 +224,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
                   vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.light,
                   borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
                 child: Text(
@@ -270,7 +258,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
               Container(
                 width: 1,
                 height: 40.h,
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.light,
               ),
               Expanded(
                 child: _buildBalanceItem(
@@ -283,7 +271,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
               Container(
                 width: 1,
                 height: 40.h,
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.light,
               ),
               Expanded(
                 child: _buildBalanceItem(
@@ -310,14 +298,14 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
       children: [
         Icon(
           icon,
-          color: Colors.white.withOpacity(0.7),
+          color: Colors.white.o70,
           size: 20.sp,
         ),
         SizedBox(height: AppSpacing.xs),
         Text(
           label,
           style: AppTypography.labelSmall.copyWith(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.o70,
           ),
         ),
         SizedBox(height: AppSpacing.xs),
@@ -397,7 +385,7 @@ class _CashScreenProState extends ConsumerState<CashScreenPro> {
                     padding: EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
                       color: (isDeposit ? AppColors.success : AppColors.error)
-                          .withOpacity(0.1),
+                          .soft,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Icon(
@@ -551,7 +539,7 @@ class _ActionButton extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.soft,
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               child: Icon(icon, color: color),

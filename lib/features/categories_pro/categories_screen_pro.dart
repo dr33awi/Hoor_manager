@@ -45,20 +45,7 @@ class _CategoriesScreenProState extends ConsumerState<CategoriesScreenPro> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_ios_rounded,
-              color: AppColors.textSecondary),
-        ),
-        title: Text(
-          'الفئات',
-          style:
-              AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
-        ),
-      ),
+      appBar: ProAppBar.simple(title: 'الفئات'),
       body: Column(
         children: [
           _buildHeader(categoriesAsync),

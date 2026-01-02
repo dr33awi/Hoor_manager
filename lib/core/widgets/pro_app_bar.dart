@@ -72,8 +72,9 @@ class ProAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             )
           : Column(
-              crossAxisAlignment:
-                  centerTitle ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              crossAxisAlignment: centerTitle
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
@@ -309,7 +310,8 @@ class ProAppBarAction extends StatelessWidget {
   }
 
   /// زر التصفية
-  factory ProAppBarAction.filter({VoidCallback? onPressed, bool isActive = false}) {
+  factory ProAppBarAction.filter(
+      {VoidCallback? onPressed, bool isActive = false}) {
     return ProAppBarAction(
       icon: Icons.filter_list_rounded,
       tooltip: 'تصفية',

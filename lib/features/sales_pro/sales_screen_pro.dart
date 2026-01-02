@@ -207,7 +207,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.subtle,
                 blurRadius: 20,
                 offset: const Offset(-5, 0),
               ),
@@ -315,7 +315,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
         ),
         decoration: BoxDecoration(
           color: _selectedCustomerName != null
-              ? AppColors.success.withOpacity(0.1)
+              ? AppColors.success.soft
               : AppColors.background,
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
@@ -649,7 +649,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
       padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+          colors: [AppColors.primary, AppColors.primary.overlayHeavy],
         ),
       ),
       child: Row(
@@ -691,7 +691,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
               onPressed: _clearCart,
               icon: Icon(
                 Icons.delete_outline_rounded,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.overlayHeavy,
                 size: AppIconSize.sm,
               ),
               tooltip: 'مسح السلة',
@@ -1178,7 +1178,7 @@ class _SalesScreenProState extends ConsumerState<SalesScreenPro> {
                             return ListTile(
                               leading: CircleAvatar(
                                 backgroundColor:
-                                    AppColors.secondary.withOpacity(0.1),
+                                    AppColors.secondary.soft,
                                 child: Text(
                                   customer.name[0],
                                   style: TextStyle(color: AppColors.secondary),
@@ -1338,14 +1338,14 @@ class _ProductCard extends StatelessWidget {
           padding: EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             color: inCart
-                ? AppColors.success.withOpacity(0.05)
+                ? AppColors.success.subtle
                 : AppColors.surface,
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
               color: inCart
                   ? AppColors.success
                   : isOutOfStock
-                      ? AppColors.error.withOpacity(0.3)
+                      ? AppColors.error.border
                       : AppColors.border,
               width: inCart ? 2 : 1,
             ),
@@ -1361,7 +1361,7 @@ class _ProductCard extends StatelessWidget {
                       child: Container(
                         padding: EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.soft,
                           borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Icon(
@@ -1675,7 +1675,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   gradient: LinearGradient(
                     colors: [
                       AppColors.success,
-                      AppColors.success.withOpacity(0.8)
+                      AppColors.success.overlayHeavy
                     ],
                   ),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -1781,7 +1781,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   Container(
                     padding: EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
+                      color: AppColors.success.soft,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Row(
@@ -1848,8 +1848,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   padding: EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: _remainingAmount > 0
-                        ? AppColors.warning.withOpacity(0.1)
-                        : AppColors.success.withOpacity(0.1),
+                        ? AppColors.warning.soft
+                        : AppColors.success.soft,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Row(
@@ -1919,10 +1919,10 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                 Container(
                   padding: EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: AppColors.warning.withOpacity(0.1),
+                    color: AppColors.warning.soft,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     border:
-                        Border.all(color: AppColors.warning.withOpacity(0.3)),
+                        Border.all(color: AppColors.warning.border),
                   ),
                   child: Row(
                     children: [
@@ -2036,7 +2036,7 @@ class _PaymentMethodButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.primary.withOpacity(0.1)
+                ? AppColors.primary.soft
                 : AppColors.background,
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(

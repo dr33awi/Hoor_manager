@@ -685,7 +685,7 @@ class _TypeButton extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : AppColors.surfaceVariant,
+          color: isSelected ? color.soft : AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
             color: isSelected ? color : AppColors.border,

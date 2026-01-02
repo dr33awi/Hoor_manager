@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/di/injection.dart';
 import '../../core/services/backup_service.dart';
+import '../../core/widgets/widgets.dart';
 
 class BackupScreenPro extends ConsumerStatefulWidget {
   const BackupScreenPro({super.key});
@@ -33,20 +34,7 @@ class _BackupScreenProState extends ConsumerState<BackupScreenPro> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_ios_rounded,
-              color: AppColors.textSecondary),
-        ),
-        title: Text(
-          'النسخ الاحتياطي',
-          style:
-              AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
-        ),
-      ),
+      appBar: ProAppBar.simple(title: 'النسخ الاحتياطي'),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(AppSpacing.md),
         child: Column(

@@ -174,7 +174,7 @@ class _WarehousesScreenProState extends ConsumerState<WarehousesScreenPro> {
                     Container(
                       padding: EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.1),
+                        color: AppColors.secondary.soft,
                         borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Icon(Icons.warehouse_rounded,

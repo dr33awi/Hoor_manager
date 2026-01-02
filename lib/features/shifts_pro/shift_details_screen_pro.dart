@@ -159,7 +159,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
         icon: Container(
           padding: EdgeInsets.all(AppSpacing.xs),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.light,
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
@@ -174,7 +174,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
               end: Alignment.bottomCenter,
               colors: [
                 AppColors.primary,
-                AppColors.primary.withOpacity(0.8),
+                AppColors.primary.overlayHeavy,
               ],
             ),
           ),
@@ -189,7 +189,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
                     vertical: AppSpacing.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
+                    color: statusColor.light,
                     borderRadius: BorderRadius.circular(AppRadius.full),
                   ),
                   child: Row(
@@ -228,7 +228,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
                 Text(
                   DateFormat('EEEE, dd MMMM yyyy', 'ar').format(shift.openedAt),
                   style: AppTypography.bodySmall.copyWith(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.overlayHeavy,
                   ),
                 ),
                 SizedBox(height: AppSpacing.sm),
@@ -271,7 +271,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
         vertical: 4.h,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.muted,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
@@ -340,7 +340,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
           Container(
             padding: EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.soft,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(icon, color: color, size: 20.sp),
@@ -515,7 +515,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
             padding: EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: (isPositive ? AppColors.success : AppColors.error)
-                  .withOpacity(0.1),
+                  .soft,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(
@@ -558,7 +558,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
     return Container(
       padding: EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.soft,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Column(
@@ -677,7 +677,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
             padding: EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
               color: (isIncome ? AppColors.success : AppColors.error)
-                  .withOpacity(0.1),
+                  .soft,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(

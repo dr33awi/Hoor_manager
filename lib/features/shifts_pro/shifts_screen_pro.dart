@@ -73,9 +73,9 @@ class ShiftsScreenPro extends ConsumerWidget {
       margin: EdgeInsets.all(AppSpacing.md),
       padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(0.1),
+        color: AppColors.success.soft,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.success.withOpacity(0.3)),
+        border: Border.all(color: AppColors.success.border),
       ),
       child: Row(
         children: [
@@ -223,9 +223,8 @@ class ShiftsScreenPro extends ConsumerWidget {
     if (confirm == true && context.mounted) {
       try {
         final shiftRepo = ref.read(shiftRepositoryProvider);
-        final closingBalance = shift.openingBalance +
-            shift.totalSales -
-            shift.totalExpenses;
+        final closingBalance =
+            shift.openingBalance + shift.totalSales - shift.totalExpenses;
         await shiftRepo.closeShift(
           shiftId: shift.id,
           closingBalance: closingBalance,

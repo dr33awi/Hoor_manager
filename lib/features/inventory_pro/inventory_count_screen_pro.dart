@@ -92,7 +92,7 @@ class _InventoryCountScreenProState
           icon: Container(
             padding: EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.1),
+              color: AppColors.secondary.soft,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(Icons.qr_code_scanner_rounded,
@@ -347,14 +347,14 @@ class _ProductCountCard extends StatelessWidget {
 
     if (countedQuantity != null) {
       if (difference! > 0) {
-        bgColor = AppColors.success.withOpacity(0.05);
-        borderColor = AppColors.success.withOpacity(0.3);
+        bgColor = AppColors.success.subtle;
+        borderColor = AppColors.success.border;
       } else if (difference < 0) {
-        bgColor = AppColors.error.withOpacity(0.05);
-        borderColor = AppColors.error.withOpacity(0.3);
+        bgColor = AppColors.error.subtle;
+        borderColor = AppColors.error.border;
       } else {
-        bgColor = AppColors.primary.withOpacity(0.05);
-        borderColor = AppColors.primary.withOpacity(0.3);
+        bgColor = AppColors.primary.subtle;
+        borderColor = AppColors.primary.border;
       }
     }
 
@@ -462,7 +462,7 @@ class _ProductCountCard extends StatelessWidget {
                         ),
                         hintText: '${product.quantity}',
                         hintStyle: AppTypography.titleMedium.copyWith(
-                          color: AppColors.textSecondary.withOpacity(0.5),
+                          color: AppColors.textSecondary.o54,
                         ),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(
@@ -492,7 +492,7 @@ class _ProductCountCard extends StatelessWidget {
                               : difference < 0
                                   ? AppColors.error
                                   : AppColors.primary)
-                          .withOpacity(0.1),
+                          .soft,
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: Text(
@@ -581,7 +581,7 @@ class _BarcodeScannerSheetState extends State<_BarcodeScannerSheet> {
                 Container(
                   padding: EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
+                    color: AppColors.secondary.soft,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Icon(Icons.qr_code_scanner_rounded,

@@ -594,3 +594,152 @@ class AppBreakpoints {
   static bool isLarge(BuildContext context) =>
       MediaQuery.sizeOf(context).width >= expanded;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COLOR EXTENSIONS - Common opacity patterns
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Extension on Color for common opacity variations
+/// Replaces repetitive .withOpacity() calls with semantic names
+extension ColorOpacity on Color {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Surface/Background variants (light overlays)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Very subtle background (5% opacity) - hover states
+  Color get subtle => withValues(alpha: 0.05);
+
+  /// Soft background (10% opacity) - card backgrounds, badges
+  Color get soft => withValues(alpha: 0.10);
+
+  /// Muted background (15% opacity) - selected states
+  Color get muted => withValues(alpha: 0.15);
+
+  /// Light background (20% opacity) - emphasized backgrounds
+  Color get light => withValues(alpha: 0.20);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Border variants
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Subtle border (20% opacity)
+  Color get borderSubtle => withValues(alpha: 0.20);
+
+  /// Normal border (30% opacity)
+  Color get border => withValues(alpha: 0.30);
+
+  /// Strong border (50% opacity)
+  Color get borderStrong => withValues(alpha: 0.50);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Overlay variants
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Light overlay (40% opacity)
+  Color get overlayLight => withValues(alpha: 0.40);
+
+  /// Medium overlay (60% opacity) - backdrop
+  Color get overlay => withValues(alpha: 0.60);
+
+  /// Heavy overlay (80% opacity) - strong backdrop
+  Color get overlayHeavy => withValues(alpha: 0.80);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Text variants
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Disabled text (40% opacity)
+  Color get textDisabled => withValues(alpha: 0.40);
+
+  /// Secondary text (60% opacity)
+  Color get textSecondary => withValues(alpha: 0.60);
+
+  /// Primary text (87% opacity) - Material standard
+  Color get textPrimary => withValues(alpha: 0.87);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Specific opacity levels
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// 8% opacity - very subtle
+  Color get o8 => withValues(alpha: 0.08);
+
+  /// 12% opacity
+  Color get o12 => withValues(alpha: 0.12);
+
+  /// 24% opacity
+  Color get o24 => withValues(alpha: 0.24);
+
+  /// 38% opacity - disabled
+  Color get o38 => withValues(alpha: 0.38);
+
+  /// 54% opacity - medium emphasis
+  Color get o54 => withValues(alpha: 0.54);
+
+  /// 70% opacity
+  Color get o70 => withValues(alpha: 0.70);
+
+  /// 87% opacity - high emphasis
+  Color get o87 => withValues(alpha: 0.87);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APP COLOR UTILITIES - Pre-computed semantic colors
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Utility class for common color combinations
+class AppColorUtils {
+  AppColorUtils._();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Primary variants
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Primary color with soft background
+  static Color get primarySoft => AppColors.primary.soft;
+  static Color get primaryMuted => AppColors.primary.muted;
+  static Color get primaryBorder => AppColors.primary.border;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Secondary variants
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static Color get secondarySoft => AppColors.secondary.soft;
+  static Color get secondaryMuted => AppColors.secondary.muted;
+  static Color get secondaryBorder => AppColors.secondary.border;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Semantic variants
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static Color get successSoft => AppColors.success.soft;
+  static Color get errorSoft => AppColors.error.soft;
+  static Color get warningSoft => AppColors.warning.soft;
+  static Color get infoSoft => AppColors.info.soft;
+
+  static Color get successBorder => AppColors.success.border;
+  static Color get errorBorder => AppColors.error.border;
+  static Color get warningBorder => AppColors.warning.border;
+  static Color get infoBorder => AppColors.info.border;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Business domain variants
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static Color get salesSoft => AppColors.sales.soft;
+  static Color get purchasesSoft => AppColors.purchases.soft;
+  static Color get inventorySoft => AppColors.inventory.soft;
+  static Color get customersSoft => AppColors.customers.soft;
+  static Color get suppliersSoft => AppColors.suppliers.soft;
+  static Color get incomeSoft => AppColors.income.soft;
+  static Color get expenseSoft => AppColors.expense.soft;
+  static Color get cashSoft => AppColors.cash.soft;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Common overlays
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static Color get blackOverlay => Colors.black.overlay;
+  static Color get whiteOverlay => Colors.white.overlayHeavy;
+  static Color get scrim => Colors.black.o54;
+}

@@ -438,19 +438,8 @@ class VoucherFormScreenPro extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
-        ),
-        title: Text(
-          type == 'receipt' ? 'سند قبض' : 'سند صرف',
-          style: AppTypography.titleLarge.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
+      appBar: ProAppBar.close(
+        title: type == 'receipt' ? 'سند قبض' : 'سند صرف',
       ),
       body: Center(
         child: Text(

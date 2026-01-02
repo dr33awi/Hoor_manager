@@ -24,25 +24,12 @@ class ReportsScreenPro extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.go('/'),
-          icon: Icon(Icons.arrow_back_ios_rounded,
-              color: AppColors.textSecondary),
-        ),
-        title: Text(
-          'التقارير',
-          style: AppTypography.headlineSmall.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
+      appBar: ProAppBar.noBack(
+        title: 'التقارير',
         actions: [
-          IconButton(
+          ProAppBarAction(
+            icon: Icons.date_range_rounded,
             onPressed: () {},
-            icon:
-                Icon(Icons.date_range_rounded, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -178,7 +165,7 @@ class ReportsScreenPro extends ConsumerWidget {
         gradient: LinearGradient(
           colors: [
             AppColors.primary,
-            AppColors.primary.withOpacity(0.8),
+            AppColors.primary.overlayHeavy,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -191,7 +178,7 @@ class ReportsScreenPro extends ConsumerWidget {
           Text(
             'ملخص الشهر الحالي',
             style: AppTypography.titleMedium.copyWith(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.o87,
             ),
           ),
           SizedBox(height: AppSpacing.md),
@@ -209,7 +196,7 @@ class ReportsScreenPro extends ConsumerWidget {
               Container(
                 width: 1,
                 height: 60.h,
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.light,
               ),
               Expanded(
                 child: _buildQuickStatItem(
@@ -223,7 +210,7 @@ class ReportsScreenPro extends ConsumerWidget {
               Container(
                 width: 1,
                 height: 60.h,
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.light,
               ),
               Expanded(
                 child: _buildQuickStatItem(
@@ -255,7 +242,7 @@ class ReportsScreenPro extends ConsumerWidget {
         Text(
           label,
           style: AppTypography.labelSmall.copyWith(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.o70,
           ),
         ),
         SizedBox(height: AppSpacing.xs),
@@ -272,7 +259,7 @@ class ReportsScreenPro extends ConsumerWidget {
           padding:
               EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 2.h),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.light,
             borderRadius: BorderRadius.circular(AppRadius.full),
           ),
           child: Row(
@@ -343,7 +330,7 @@ class _ReportCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.soft,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(icon, color: color, size: AppIconSize.md),
@@ -422,29 +409,13 @@ class _ReportDetailScreenProState extends ConsumerState<ReportDetailScreenPro> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_ios_rounded,
-              color: AppColors.textSecondary),
-        ),
-        title: Text(
-          _title,
-          style: AppTypography.titleLarge.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
+      appBar: ProAppBar.simple(
+        title: _title,
         actions: [
-          IconButton(
+          ProAppBarAction(
+            icon: Icons.date_range_rounded,
             onPressed: _selectDateRange,
-            icon: Icon(
-              Icons.date_range_rounded,
-              color: _dateRange != null
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-            ),
+            color: _dateRange != null ? AppColors.primary : null,
           ),
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert, color: AppColors.textSecondary),
@@ -668,7 +639,7 @@ class _ReportDetailScreenProState extends ConsumerState<ReportDetailScreenPro> {
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
+        color: AppColors.primary.soft,
         borderRadius: BorderRadius.circular(AppRadius.full),
       ),
       child: Row(

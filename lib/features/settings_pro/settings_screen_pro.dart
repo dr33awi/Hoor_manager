@@ -12,6 +12,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/di/injection.dart';
 import '../../core/services/backup_service.dart';
+import '../../core/widgets/widgets.dart';
 
 class SettingsScreenPro extends ConsumerStatefulWidget {
   const SettingsScreenPro({super.key});
@@ -54,21 +55,7 @@ class _SettingsScreenProState extends ConsumerState<SettingsScreenPro> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.go('/'),
-          icon: Icon(Icons.arrow_back_ios_rounded,
-              color: AppColors.textSecondary),
-        ),
-        title: Text(
-          'الإعدادات',
-          style: AppTypography.headlineSmall.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ),
+      appBar: ProAppBar.noBack(title: 'الإعدادات'),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

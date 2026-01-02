@@ -106,28 +106,17 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => _showDiscardDialog(),
-          icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
-        ),
-        title: Text(
-          widget.isSales
-              ? (widget.isEditing ? 'تعديل فاتورة بيع' : 'فاتورة بيع جديدة')
-              : (widget.isEditing ? 'تعديل فاتورة شراء' : 'فاتورة شراء جديدة'),
-          style: AppTypography.titleLarge.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
+      appBar: ProAppBar.close(
+        title: widget.isSales
+            ? (widget.isEditing ? 'تعديل فاتورة بيع' : 'فاتورة بيع جديدة')
+            : (widget.isEditing ? 'تعديل فاتورة شراء' : 'فاتورة شراء جديدة'),
+        onClose: () => _showDiscardDialog(),
         actions: [
-          IconButton(
+          ProAppBarAction(
+            icon: Icons.visibility_outlined,
             onPressed: () {
               // TODO: Preview invoice
             },
-            icon:
-                Icon(Icons.visibility_outlined, color: AppColors.textSecondary),
             tooltip: 'معاينة',
           ),
         ],
@@ -223,7 +212,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                 children: [
                   CircleAvatar(
                     radius: 24.r,
-                    backgroundColor: AppColors.secondary.withOpacity(0.1),
+                    backgroundColor: AppColors.secondary.soft,
                     child: (widget.isSales
                                 ? _selectedCustomerName
                                 : _selectedSupplierName) !=
@@ -481,7 +470,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
         color: isSelected ? AppColors.secondary : AppColors.textSecondary,
       ),
       backgroundColor: AppColors.background,
-      selectedColor: AppColors.secondary.withOpacity(0.1),
+      selectedColor: AppColors.secondary.soft,
       side: BorderSide(
         color: isSelected ? AppColors.secondary : AppColors.border,
       ),
@@ -527,7 +516,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                       vertical: 2.h,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withOpacity(0.1),
+                      color: AppColors.secondary.soft,
                       borderRadius: BorderRadius.circular(AppRadius.full),
                     ),
                     child: Text(
@@ -700,7 +689,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                           size: AppIconSize.sm,
                         ),
                         style: IconButton.styleFrom(
-                          backgroundColor: AppColors.error.withOpacity(0.1),
+                          backgroundColor: AppColors.error.soft,
                         ),
                       ),
                     ],
@@ -825,7 +814,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.success.withOpacity(0.3)),
+        border: Border.all(color: AppColors.success.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -902,8 +891,8 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
             padding: EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: _remainingAmount > 0
-                  ? AppColors.warning.withOpacity(0.1)
-                  : AppColors.success.withOpacity(0.1),
+                  ? AppColors.warning.soft
+                  : AppColors.success.soft,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(
@@ -1174,7 +1163,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                       final item = items[index];
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.secondary.withOpacity(0.1),
+                          backgroundColor: AppColors.secondary.soft,
                           child: Text(item['name'][0],
                               style: TextStyle(color: AppColors.secondary)),
                         ),
@@ -1227,7 +1216,7 @@ class _InvoiceFormScreenProState extends ConsumerState<InvoiceFormScreenPro> {
                             return ListTile(
                               leading: CircleAvatar(
                                 backgroundColor:
-                                    AppColors.secondary.withOpacity(0.1),
+                                    AppColors.secondary.soft,
                                 child: Icon(Icons.inventory_2_outlined,
                                     color: AppColors.secondary, size: 20),
                               ),
