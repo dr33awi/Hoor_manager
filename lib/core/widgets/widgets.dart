@@ -15,3 +15,6 @@ export 'pro_switch_tile.dart';
 export 'pro_card.dart';
 export 'pro_status_badge.dart';
 export 'pro_icon_box.dart';
+export 'pro_button.dart';
+export 'pro_bottom_sheet.dart';
+export 'pro_dialog.dart';
