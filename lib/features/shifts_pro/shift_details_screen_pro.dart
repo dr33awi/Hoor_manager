@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/widgets/widgets.dart';
 import '../../data/database/app_database.dart';
 
 class ShiftDetailsScreenPro extends ConsumerStatefulWidget {
@@ -55,7 +56,7 @@ class _ShiftDetailsScreenProState extends ConsumerState<ShiftDetailsScreenPro> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: const Center(child: CircularProgressIndicator()),
+        body: ProLoadingState.card(),
       );
     }
 

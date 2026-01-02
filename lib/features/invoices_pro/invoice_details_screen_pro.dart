@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/widgets/widgets.dart';
 import '../../core/services/printing/printing_services.dart';
 import '../../core/di/injection.dart';
 import '../../core/services/printing/print_settings_service.dart';
@@ -213,7 +214,7 @@ class _InvoiceDetailsScreenProState
                 color: AppColors.textSecondary),
           ),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ProLoadingState.card(),
       );
     }
 

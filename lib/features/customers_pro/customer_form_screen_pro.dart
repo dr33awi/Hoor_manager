@@ -109,7 +109,7 @@ class _CustomerFormScreenProState extends ConsumerState<CustomerFormScreenPro> {
                 AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
           ),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ProLoadingState.withMessage(message: 'جاري تحميل البيانات...'),
       );
     }
 

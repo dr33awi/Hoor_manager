@@ -353,7 +353,7 @@ class _ProductFormScreenProState extends ConsumerState<ProductFormScreenPro> {
       backgroundColor: AppColors.background,
       appBar: _buildAppBar(),
       body: _isLoadingProduct
-          ? const Center(child: CircularProgressIndicator())
+          ? ProLoadingState.withMessage(message: 'جاري تحميل بيانات المنتج...')
           : _buildBody(),
     );
   }

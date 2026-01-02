@@ -15,6 +15,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/widgets/widgets.dart';
 import '../../data/database/app_database.dart';
 
 class ProductDetailsScreenPro extends ConsumerWidget {
@@ -33,7 +34,7 @@ class ProductDetailsScreenPro extends ConsumerWidget {
     return productsAsync.when(
       loading: () => Scaffold(
         backgroundColor: AppColors.background,
-        body: const Center(child: CircularProgressIndicator()),
+        body: ProLoadingState.card(),
       ),
       error: (error, _) => Scaffold(
         backgroundColor: AppColors.background,
@@ -45,7 +46,7 @@ class ProductDetailsScreenPro extends ConsumerWidget {
                 color: AppColors.textSecondary),
           ),
         ),
-        body: Center(child: Text('خطأ: $error')),
+        body: ProEmptyState.error(error: error.toString()),
       ),
       data: (products) {
         final product = products.where((p) => p.id == productId).firstOrNull;
